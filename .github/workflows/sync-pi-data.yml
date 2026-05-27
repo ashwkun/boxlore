@@ -6,6 +6,9 @@ on:
     - cron: '30 */6 * * *'
   workflow_dispatch: # Allow manual trigger
 
+concurrency:
+  group: sync-pi-data
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -14,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
+      fail-fast: false
       max-parallel: 1
       matrix:
         country: [us, in, gb, fr]
@@ -26,6 +30,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '24'
+          cache: 'npm'
+
+      - name: Cache Transformers Models
+        uses: actions/cache@v4
+        with:
+          path: ./.cache
+          key: transformers-cache-bge-large-en-v1.5
+          restore-keys: |
+            transformers-cache-
 
       - name: Install dependencies
         run: |
