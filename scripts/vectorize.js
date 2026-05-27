@@ -6,7 +6,8 @@
  * Designed to run in GitHub Actions
  */
 
-const { pipeline } = require('@xenova/transformers'); // Use generic import or dynamic import if needed
+const { env, pipeline } = require('@xenova/transformers'); // Use generic import or dynamic import if needed
+env.cacheDir = './.cache';
 // const { pipeline } = await import('@xenova/transformers'); // ESM in CJS workaround if needed
 
 const TURSO_URL = process.env.TURSO_URL?.replace('libsql://', 'https://');
@@ -175,7 +176,8 @@ async function main() {
     console.log("Starting Vectorization...");
 
     // Dynamic import for transformers (ESM)
-    const { pipeline } = await import('@xenova/transformers');
+    const { env: envESM, pipeline } = await import('@xenova/transformers');
+    envESM.cacheDir = './.cache';
 
     // === PHASE 1: Episode Vectorization (1024-dim, bge-large) ===
     console.log(`\n=== Phase 1: Episode Vectorization (Model: ${MODEL_NAME}) ===`);
