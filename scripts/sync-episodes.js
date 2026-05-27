@@ -156,7 +156,7 @@ async function executeSQL(sql, args = []) {
 }
 
 async function executeBatch(statements) {
-    if (statements.length === 0) return { _durationMs: 0 };
+    if (statements.length === 0) return { _durationMs: 0, _rowsRead: 0, _rowsWritten: 0 };
     const startTime = Date.now();
     try {
         const requests = statements.map(stmt => ({
@@ -177,14 +177,19 @@ async function executeBatch(statements) {
         if (!response.ok) throw new Error(`Turso HTTP error: ${response.status}`);
         
         const res = await response.json();
+        let totalRowsRead = 0, totalRowsWritten = 0;
         if (res.results) {
             for (const result of res.results) {
                 if (result.type === "error") {
                     throw new Error(`Turso SQL batch error: ${result.error.message}`);
                 }
+                if (result.response?.result) {
+                    totalRowsRead += result.response.result.rows_read || 0;
+                    totalRowsWritten += result.response.result.rows_written || 0;
+                }
             }
         }
-        return { _durationMs: duration };
+        return { _durationMs: duration, _rowsRead: totalRowsRead, _rowsWritten: totalRowsWritten };
     } catch (e) {
         const duration = Date.now() - startTime;
         console.error(`[FAIL] DB batch (${statements.length} stmts) failed after ${duration}ms: ${e.message}`);
@@ -345,8 +350,10 @@ async function main() {
     let totalEpisodesWritten = 0;
     let totalSkipped = 0;
     let totalEmpty = 0;
+    let totalRowsRead = 0;
+    let totalRowsWritten = 0;
     let errors = 0;
-    const CONCURRENCY = 20;
+    const CONCURRENCY = 30;
 
     console.log(`\nStarting sync: ${podcasts.length} podcasts | Concurrency: ${CONCURRENCY} | ${new Date().toISOString()}`);
     console.log('─'.repeat(120));
@@ -364,8 +371,10 @@ async function main() {
         let batchErrors = 0;
         let batchApiMs = 0;
         let batchDbMs = 0;
+        let batchRowsRead = 0;
+        let batchRowsWritten = 0;
         let batchApiFails = 0;
-        const failedPods = [];
+        const skipPodIds = []; // Collect skip-path IDs for batched timestamp update
 
         await Promise.all(batch.map(async (pod, idx) => {
             try {
@@ -381,13 +390,9 @@ async function main() {
 
                 const latestEp = episodes[0];
 
-                // OPTIMIZATION: If latest episode unchanged, just touch timestamp
+                // OPTIMIZATION: If latest episode unchanged, collect for batched timestamp update
                 if (pod.latestEpId && String(latestEp.id) === String(pod.latestEpId)) {
-                    const dbRes = await executeBatch([{
-                        sql: `UPDATE podcasts SET last_ep_sync = ? WHERE id = ?`,
-                        args: [Date.now(), String(pod.id)]
-                    }]);
-                    batchDbMs += dbRes._durationMs;
+                    skipPodIds.push(String(pod.id));
                     batchSkipped++;
                     batchUpdated++;
                     return;
@@ -517,21 +522,41 @@ async function main() {
                 // Fire this podcast's DB write immediately (concurrent with other pods)
                 const dbRes = await executeBatch(podStatements);
                 batchDbMs += dbRes._durationMs;
+                batchRowsRead += dbRes._rowsRead;
+                batchRowsWritten += dbRes._rowsWritten;
                 batchEpisodes += episodes.length;
                 batchUpdated++;
 
             } catch (err) {
                 batchErrors++;
-                failedPods.push(pod.id);
                 console.error(`  ✗ pod ${pod.id} (${pod.title?.substring(0, 30)}): ${err.message}`);
             }
         }));
+
+        // Batch all skip-path timestamp updates into ONE DB call
+        if (skipPodIds.length > 0) {
+            try {
+                const placeholders = skipPodIds.map(() => '?').join(',');
+                const dbRes = await executeBatch([{
+                    sql: `UPDATE podcasts SET last_ep_sync = ? WHERE id IN (${placeholders})`,
+                    args: [Date.now(), ...skipPodIds]
+                }]);
+                batchDbMs += dbRes._durationMs;
+                batchRowsRead += dbRes._rowsRead;
+                batchRowsWritten += dbRes._rowsWritten;
+            } catch (err) {
+                batchErrors += skipPodIds.length;
+                console.error(`  ✗ Batch timestamp update failed for ${skipPodIds.length} pods: ${err.message}`);
+            }
+        }
 
         // Update global counters
         totalPodcastsUpdated += batchUpdated;
         totalSkipped += batchSkipped;
         totalEmpty += batchEmpty;
         totalEpisodesWritten += batchEpisodes;
+        totalRowsRead += batchRowsRead;
+        totalRowsWritten += batchRowsWritten;
         errors += batchErrors;
 
         // Print batch summary
@@ -550,6 +575,7 @@ async function main() {
             (batchApiFails > 0 ? `, ⚠${batchApiFails} api-fail` : '') +
             ` | ${batchEpisodes} eps | ` +
             `API: ${batchApiMs}ms DB: ${batchDbMs}ms | ` +
+            `R:${batchRowsRead} W:${batchRowsWritten} | ` +
             `${rate} pods/s | ETA: ${eta} | elapsed: ${elapsed}s`
         );
 
@@ -561,6 +587,7 @@ async function main() {
     const finalRate = (podcasts.length / parseFloat(totalDuration)).toFixed(1);
     console.log('─'.repeat(120));
     console.log(`✅ SYNC COMPLETE | ${totalPodcastsUpdated} updated (${totalSkipped} unchanged, ${totalEmpty} empty) | ${totalEpisodesWritten} episodes written | ${errors} errors | ${totalDuration}s @ ${finalRate} pods/s`);
+    console.log(`📊 DB COST: ${totalRowsRead.toLocaleString()} rows read | ${totalRowsWritten.toLocaleString()} rows written`);
 }
 
 main().catch(console.error);

@@ -175,7 +175,9 @@ async function main() {
     `);
 
     await executeSQL(`
-        CREATE TRIGGER IF NOT EXISTS podcasts_au AFTER UPDATE ON podcasts BEGIN
+        CREATE TRIGGER IF NOT EXISTS podcasts_au AFTER UPDATE ON podcasts 
+        WHEN old.title != new.title OR old.author != new.author OR old.description != new.description
+        BEGIN
             UPDATE podcasts_fts SET 
                 title = new.title, 
                 author = new.author,
