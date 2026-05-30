@@ -61,3 +61,5 @@ posthog-setup-report.md
 # Transformers model cache
 .cache/
 
+# Scratch files
+scratch/
