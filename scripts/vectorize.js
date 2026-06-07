@@ -474,30 +474,6 @@ async function main() {
         await new Promise(r => setTimeout(r, 400));
     }
 
-    // 4. Global Rolling Window Cleanup (Backup prune: Deletes any point older than 60 days)
-    console.log("\n[CLEANUP] Running global 60-day rolling window cleanup...");
-    const sixtyDaysAgo = Math.floor(Date.now() / 1000) - (60 * 24 * 60 * 60);
-    try {
-        const cleanupResponse = await fetch(`${QDRANT_URL}/collections/${COLLECTION_NAME}/points/delete`, {
-            method: "POST",
-            headers: {
-                "api-key": QDRANT_API_KEY,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                filter: {
-                    must: [
-                        { key: "published_date", range: { lt: sixtyDaysAgo } }
-                    ]
-                }
-            })
-        });
-        if (cleanupResponse.ok) {
-            console.log("[CLEANUP] Global 60-day rolling window deletion completed!");
-        }
-    } catch (cleanupErr) {
-        console.error("[CLEANUP] Global cleanup failed:", cleanupErr.message);
-    }
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`\n=== Qdrant Vector Sync Pipeline Complete ===`);

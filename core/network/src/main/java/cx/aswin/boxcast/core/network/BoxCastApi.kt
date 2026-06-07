@@ -11,6 +11,11 @@ import cx.aswin.boxcast.core.network.model.RecommendationsRequest
 import cx.aswin.boxcast.core.network.model.SingleEpisodeResponse
 import cx.aswin.boxcast.core.network.model.FeedbackRequest
 import cx.aswin.boxcast.core.network.model.FeedbackResponse
+import cx.aswin.boxcast.core.network.model.OnboardingNextTurnRequest
+import cx.aswin.boxcast.core.network.model.OnboardingNextTurnResponse
+import cx.aswin.boxcast.core.network.model.OnboardingQuery
+import cx.aswin.boxcast.core.network.model.OnboardingCurriculumRequest
+import cx.aswin.boxcast.core.network.model.OnboardingCurriculumRowDto
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -172,5 +177,25 @@ interface BoxCastApi {
         @Query("transcriptUrl") transcriptUrl: String? = null,
         @Query("checkOnly") checkOnly: Boolean? = null
     ): retrofit2.Call<cx.aswin.boxcast.core.network.model.AutoTranscriptResponse>
+
+    // --- AI ONBOARDING ---
+
+    @POST("onboarding/next-turn")
+    fun getOnboardingNextTurn(
+        @Header("X-App-Key") publicKey: String,
+        @Body request: OnboardingNextTurnRequest
+    ): retrofit2.Call<OnboardingNextTurnResponse>
+
+    @POST("onboarding/synthesize")
+    fun onboardingSynthesize(
+        @Header("X-App-Key") publicKey: String,
+        @Body request: OnboardingNextTurnRequest
+    ): retrofit2.Call<List<OnboardingQuery>>
+
+    @POST("onboarding/curriculum")
+    fun getOnboardingCurriculum(
+        @Header("X-App-Key") publicKey: String,
+        @Body request: OnboardingCurriculumRequest
+    ): retrofit2.Call<List<OnboardingCurriculumRowDto>>
 
 }

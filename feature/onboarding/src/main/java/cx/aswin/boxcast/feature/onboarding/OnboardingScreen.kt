@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -51,6 +52,11 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
@@ -78,6 +84,14 @@ import cx.aswin.boxcast.core.designsystem.components.BoxCastLoader
 import cx.aswin.boxcast.core.designsystem.components.LogRecomposition
 import cx.aswin.boxcast.core.model.Podcast
 import cx.aswin.boxcast.core.designsystem.R
+import cx.aswin.boxcast.core.network.model.OnboardingCurriculumRowDto
+import cx.aswin.boxcast.core.network.model.toPodcast
+import cx.aswin.boxcast.core.network.model.toEpisode
+import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 
 // Genre data matching GenreSelector.kt
 data class GenreItem(val label: String, val value: String, val icon: ImageVector)
@@ -118,6 +132,24 @@ fun OnboardingScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val handleComplete = {
         viewModel.completeOnboarding(onComplete)
+    }
+
+    BackHandler(
+        enabled = uiState.currentStep != OnboardingStep.WELCOME &&
+                uiState.currentStep != OnboardingStep.AI_ONBOARDING
+    ) {
+        when (uiState.currentStep) {
+            OnboardingStep.GENRES -> {
+                viewModel.navigateBackToWelcome()
+            }
+            OnboardingStep.PODCASTS -> {
+                viewModel.navigateBackFromPodcasts()
+            }
+            OnboardingStep.SEARCH -> {
+                viewModel.navigateBackFromSearch()
+            }
+            else -> {}
+        }
     }
 
     // Main content with animated transitions
@@ -186,6 +218,1054 @@ fun OnboardingScreen(
                     onDone = handleComplete
                 )
             }
+            OnboardingStep.AI_ONBOARDING -> {
+                AiOnboardingScreen(
+                    uiState = uiState,
+                    onBack = viewModel::navigateBackInAiOnboarding,
+                    onOptionToggle = viewModel::toggleAiOption,
+                    onCustomInputChange = viewModel::updateAiCustomInput,
+                    onContinue = {
+                        if (uiState.aiCustomInputText.isNotBlank()) {
+                            // Text route: skip multi-turn, go straight to synthesize
+                            viewModel.synthesizeAndBuildCurriculum()
+                        } else if (uiState.aiCurrentTurn < 3) {
+                            viewModel.sendAiTurnInput()
+                        } else {
+                            viewModel.synthesizeAndBuildCurriculum()
+                        }
+                    },
+                    onFinish = {
+                        viewModel.finishAiOnboarding(onComplete)
+                    }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AiOnboardingScreen(
+    uiState: OnboardingUiState,
+    onBack: () -> Unit,
+    onOptionToggle: (String) -> Unit,
+    onCustomInputChange: (String) -> Unit,
+    onContinue: () -> Unit,
+    onFinish: () -> Unit
+) {
+    if (uiState.isAiLoading) {
+        AiOnboardingLoadingScreen()
+    } else if (uiState.aiCurrentTurn == 4) {
+        AiCurriculumPreviewScreen(
+            curriculumRows = uiState.aiCurriculumRows,
+            isCompleting = uiState.isCompleting,
+            onBack = onBack,
+            onFinish = onFinish
+        )
+    } else {
+        AiConversationTurnScreen(
+            uiState = uiState,
+            onBack = onBack,
+            onOptionToggle = onOptionToggle,
+            onCustomInputChange = onCustomInputChange,
+            onContinue = onContinue
+        )
+    }
+}
+
+@Composable
+private fun AiOnboardingLoadingScreen() {
+    val messages = listOf(
+        "Tuning in to your audio frequency...",
+        "Scouting the absolute best shows...",
+        "Curating customized curriculum rows...",
+        "Organizing your personalized playlist...",
+        "Polishing the final recommendations..."
+    )
+    var currentMessageIdx by remember { mutableStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1800)
+            currentMessageIdx = (currentMessageIdx + 1) % messages.size
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            BoxCastLoader.Expressive(size = 120.dp)
+            Spacer(modifier = Modifier.height(32.dp))
+            AnimatedContent(
+                targetState = messages[currentMessageIdx],
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
+                },
+                label = "loading_msg"
+            ) { msg ->
+                Text(
+                    text = msg,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 24.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun getOptionIcons(option: String): Pair<ImageVector, ImageVector> {
+    val lower = option.lowercase()
+    return when {
+        // Story / Narrative / True Crime
+        lower.contains("story") || lower.contains("mystery") || lower.contains("fiction") || 
+        lower.contains("crime") || lower.contains("detective") || lower.contains("thriller") || 
+        lower.contains("narrative") || lower.contains("case") || lower.contains("murder") || 
+        lower.contains("novel") || lower.contains("book") -> {
+            Pair(Icons.Outlined.AutoStories, Icons.Rounded.AutoStories)
+        }
+        
+        // Learn / Info / Science / Deep Dive / History / Tech / Business
+        lower.contains("learn") || lower.contains("deep") || lower.contains("science") || 
+        lower.contains("tech") || lower.contains("mind") || lower.contains("knowledge") || 
+        lower.contains("teach") || lower.contains("educat") || lower.contains("history") || 
+        lower.contains("documentary") || lower.contains("space") || lower.contains("fact") ||
+        lower.contains("business") || lower.contains("career") || lower.contains("finance") ||
+        lower.contains("explain") || lower.contains("intellect") || lower.contains("discover") ||
+        lower.contains("explore") || lower.contains("curious") -> {
+            Pair(Icons.Outlined.Lightbulb, Icons.Rounded.Lightbulb)
+        }
+        
+        // Conversation / Talk / Comedy
+        lower.contains("comedy") || lower.contains("conversation") || lower.contains("chat") || 
+        lower.contains("talk") || lower.contains("host") || lower.contains("interview") || 
+        lower.contains("forum") || lower.contains("banter") || lower.contains("laugh") || 
+        lower.contains("humor") || lower.contains("discuss") || lower.contains("society") ||
+        lower.contains("culture") -> {
+            Pair(Icons.Outlined.Forum, Icons.Rounded.Forum)
+        }
+        
+        // Relax / Calm / Sleep / Spa
+        lower.contains("relax") || lower.contains("wind") || lower.contains("sooth") || 
+        lower.contains("sleep") || lower.contains("spa") || lower.contains("calm") || 
+        lower.contains("quiet") || lower.contains("meditat") || lower.contains("mindful") ||
+        lower.contains("peace") || lower.contains("ambient") || lower.contains("nature") -> {
+            Pair(Icons.Outlined.Spa, Icons.Rounded.Spa)
+        }
+        
+        // News / Politics
+        lower.contains("news") || lower.contains("daily") || lower.contains("current") || 
+        lower.contains("today") || lower.contains("politic") || lower.contains("world") ||
+        lower.contains("report") || lower.contains("journalism") -> {
+            Pair(Icons.Outlined.Newspaper, Icons.Rounded.Newspaper)
+        }
+        
+        // Music
+        lower.contains("music") || lower.contains("song") || lower.contains("audio") || 
+        lower.contains("sound") || lower.contains("melody") || lower.contains("beat") -> {
+            Pair(Icons.Outlined.MusicNote, Icons.Rounded.MusicNote)
+        }
+        
+        // Sports
+        lower.contains("sport") || lower.contains("game") || lower.contains("play") || 
+        lower.contains("football") || lower.contains("f1") || lower.contains("race") ||
+        lower.contains("athlete") || lower.contains("match") || lower.contains("league") -> {
+            Pair(Icons.Outlined.EmojiEvents, Icons.Rounded.EmojiEvents)
+        }
+        
+        // Health / Fitness
+        lower.contains("health") || lower.contains("fit") || lower.contains("body") || 
+        lower.contains("well") || lower.contains("exercise") || lower.contains("medicine") ||
+        lower.contains("mental") || lower.contains("doctor") -> {
+            Pair(Icons.Outlined.MonitorHeart, Icons.Rounded.MonitorHeart)
+        }
+        
+        // Default
+        else -> {
+            Pair(Icons.Outlined.Mic, Icons.Rounded.Mic)
+        }
+    }
+}
+
+@Composable
+private fun GridChoiceCard(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    selectedIcon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.04f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "scale"
+    )
+
+    val topStartCorner by animateDpAsState(
+        targetValue = if (isSelected) 24.dp else 32.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "topStart"
+    )
+    val topEndCorner by animateDpAsState(
+        targetValue = if (isSelected) 24.dp else 8.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "topEnd"
+    )
+    val bottomEndCorner by animateDpAsState(
+        targetValue = if (isSelected) 24.dp else 32.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "bottomEnd"
+    )
+    val bottomStartCorner by animateDpAsState(
+        targetValue = if (isSelected) 24.dp else 8.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "bottomStart"
+    )
+
+    val cardShape = RoundedCornerShape(
+        topStart = topStartCorner,
+        topEnd = topEndCorner,
+        bottomEnd = bottomEndCorner,
+        bottomStart = bottomStartCorner
+    )
+
+    val iconRotation by animateFloatAsState(
+        targetValue = if (isSelected) 12f else 0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow),
+        label = "iconRotation"
+    )
+    val iconScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.15f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow),
+        label = "iconScale"
+    )
+
+    val themeColor = when (title) {
+        "Storyseeker" -> Color(0xFFE07A5F)
+        "Deep Diver" -> Color(0xFF3D5A80)
+        "Conversationalist" -> Color(0xFF81B29A)
+        "Zen Listener" -> Color(0xFF9C89B8)
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    OutlinedCard(
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = if (isSelected)
+                themeColor.copy(alpha = 0.15f)
+            else
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+        ),
+        shape = cardShape,
+        elevation = CardDefaults.outlinedCardElevation(
+            defaultElevation = if (isSelected) 6.dp else 0.dp
+        ),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) themeColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .expressiveClickable { onClick() }
+    ) {
+        GridChoiceCardContent(
+            title = title,
+            description = description,
+            icon = if (isSelected) selectedIcon else icon,
+            isSelected = isSelected,
+            themeColor = themeColor,
+            iconScale = iconScale,
+            iconRotation = iconRotation
+        )
+    }
+}
+
+@Composable
+private fun GridChoiceCardContent(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    themeColor: Color,
+    iconScale: Float,
+    iconRotation: Float
+) {
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Large Watermark Background Icon at top-left
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = themeColor.copy(alpha = if (isSelected) 0.60f else 0.16f),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset(x = (-12).dp, y = (-12).dp)
+                .graphicsLayer {
+                    scaleX = iconScale
+                    scaleY = iconScale
+                    rotationZ = iconRotation
+                }
+                .size(110.dp)
+        )
+
+        // Foreground Text content
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.BottomEnd)
+                .padding(horizontal = 12.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 17.sp),
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.End,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 15.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectableChoiceRow(
+    option: String,
+    index: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val scale by animateFloatAsState(
+        targetValue = if (isSelected) 1.03f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "scale"
+    )
+
+    val topStartCorner by animateDpAsState(
+        targetValue = if (isSelected) 20.dp else 24.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "topStart"
+    )
+    val topEndCorner by animateDpAsState(
+        targetValue = if (isSelected) 20.dp else 8.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "topEnd"
+    )
+    val bottomEndCorner by animateDpAsState(
+        targetValue = if (isSelected) 20.dp else 24.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "bottomEnd"
+    )
+    val bottomStartCorner by animateDpAsState(
+        targetValue = if (isSelected) 20.dp else 8.dp,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium),
+        label = "bottomStart"
+    )
+
+    val cardShape = RoundedCornerShape(
+        topStart = topStartCorner,
+        topEnd = topEndCorner,
+        bottomEnd = bottomEndCorner,
+        bottomStart = bottomStartCorner
+    )
+
+    val iconRotation by animateFloatAsState(
+        targetValue = if (isSelected) 10f else 0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow),
+        label = "iconRotation"
+    )
+    val iconScale by animateFloatAsState(
+        targetValue = if (isSelected) 1.15f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow),
+        label = "iconScale"
+    )
+
+    val themeColor = when (index % 4) {
+        0 -> Color(0xFF3D5A80) // Deep Diver Blue
+        1 -> Color(0xFF81B29A) // Sage Green
+        2 -> Color(0xFF9C89B8) // Lavender/Purple
+        3 -> Color(0xFFE07A5F) // Coral/Rose
+        else -> MaterialTheme.colorScheme.primary
+    }
+
+    val icons = getOptionIcons(option)
+    val icon = if (isSelected) icons.second else icons.first
+
+    OutlinedCard(
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = if (isSelected)
+                themeColor.copy(alpha = 0.15f)
+            else
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.6f)
+        ),
+        shape = cardShape,
+        elevation = CardDefaults.outlinedCardElevation(
+            defaultElevation = if (isSelected) 4.dp else 0.dp
+        ),
+        border = BorderStroke(
+            width = if (isSelected) 2.dp else 1.dp,
+            color = if (isSelected) themeColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .expressiveClickable { onClick() }
+    ) {
+        Box(
+            modifier = Modifier.fillMaxWidth().height(80.dp)
+        ) {
+            // Large Watermark Background Icon at top-left
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = themeColor.copy(alpha = if (isSelected) 0.35f else 0.10f),
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = (-12).dp)
+                    .graphicsLayer {
+                        scaleX = iconScale
+                        scaleY = iconScale
+                        rotationZ = iconRotation
+                    }
+                    .size(85.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Text
+                Text(
+                    text = option,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp),
+                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 28.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AiConversationTurnScreen(
+    uiState: OnboardingUiState,
+    onBack: () -> Unit,
+    onOptionToggle: (String) -> Unit,
+    onCustomInputChange: (String) -> Unit,
+    onContinue: () -> Unit
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Ambient background glow top-right
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp)
+                .background(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.08f),
+                            secondaryColor.copy(alpha = 0.03f),
+                            Color.Transparent
+                        ),
+                        center = androidx.compose.ui.geometry.Offset(x = 1000f, y = -100f),
+                        radius = 1200f
+                    )
+                )
+        )
+        // Ambient background glow bottom-left
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(
+                            tertiaryColor.copy(alpha = 0.05f),
+                            primaryColor.copy(alpha = 0.02f),
+                            Color.Transparent
+                        ),
+                        center = androidx.compose.ui.geometry.Offset(x = -200f, y = 1800f),
+                        radius = 1200f
+                    )
+                )
+        )
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets.safeDrawing,
+            topBar = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.Transparent)
+                ) {
+                    CenterAlignedTopAppBar(
+                        title = {
+                            Text(
+                                text = "Personalizing Your Feed",
+                                fontWeight = FontWeight.ExtraBold,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                            }
+                        },
+                        colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                            containerColor = Color.Transparent
+                        )
+                    )
+                    LinearProgressIndicator(
+                        progress = { uiState.aiCurrentTurn / 3.0f },
+                        modifier = Modifier.fillMaxWidth().height(4.dp),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    )
+                }
+            },
+            bottomBar = {
+                val canContinue = uiState.aiSelectedOptions.isNotEmpty() || uiState.aiCustomInputText.isNotBlank()
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
+                                    MaterialTheme.colorScheme.background
+                                )
+                            )
+                        )
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Button(
+                        onClick = onContinue,
+                        enabled = canContinue,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        Text(
+                            text = if (uiState.aiCustomInputText.isNotBlank()) "Build My Feed" 
+                                   else if (uiState.aiCurrentTurn == 3) "Build My Feed" 
+                                   else "Continue", 
+                            style = MaterialTheme.typography.titleMedium, 
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        ) { innerPadding ->
+            val focusManager = LocalFocusManager.current
+            val scrollState = rememberScrollState()
+            val coroutineScope = rememberCoroutineScope()
+            var isTextFieldFocused by remember { mutableStateOf(false) }
+
+            BackHandler(enabled = true) {
+                if (isTextFieldFocused) {
+                    focusManager.clearFocus()
+                } else {
+                    onBack()
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .verticalScroll(scrollState)
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = { focusManager.clearFocus() })
+                    }
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.Top
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Glassmorphic Assistant Prompt Card
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f))
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(24.dp)
+                        )
+                        .padding(16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Text(
+                                text = "BOXCAST AI",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                letterSpacing = 1.5.sp
+                            )
+                        }
+                        Text(
+                            text = uiState.aiAssistantMessage,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 24.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(28.dp))
+
+                val hasCustomText = uiState.aiCustomInputText.isNotBlank()
+                val cardsAlpha by animateFloatAsState(
+                    targetValue = if (hasCustomText) 0.35f else 1f,
+                    animationSpec = tween(300),
+                    label = "cardsAlpha"
+                )
+
+                if (uiState.aiCurrentTurn == 1) {
+                    Text(
+                        text = "Tap all that resonate with you",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.graphicsLayer { alpha = cardsAlpha }
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = cardsAlpha }
+                    ) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                val opt = uiState.aiOptions.getOrNull(0) ?: ""
+                                GridChoiceCard(title = "Storyseeker", description = "Deep narratives & mysteries", icon = Icons.Outlined.AutoStories, selectedIcon = Icons.Rounded.AutoStories, isSelected = opt.isNotEmpty() && opt in uiState.aiSelectedOptions, onClick = { if (opt.isNotEmpty()) onOptionToggle(opt) })
+                            }
+                            Box(modifier = Modifier.weight(1f)) {
+                                val opt = uiState.aiOptions.getOrNull(1) ?: ""
+                                GridChoiceCard(title = "Deep Diver", description = "Tech, science & deep dives", icon = Icons.Outlined.Lightbulb, selectedIcon = Icons.Rounded.Lightbulb, isSelected = opt.isNotEmpty() && opt in uiState.aiSelectedOptions, onClick = { if (opt.isNotEmpty()) onOptionToggle(opt) })
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                val opt = uiState.aiOptions.getOrNull(2) ?: ""
+                                GridChoiceCard(title = "Conversationalist", description = "Comedy, talk & banter", icon = Icons.Outlined.Forum, selectedIcon = Icons.Rounded.Forum, isSelected = opt.isNotEmpty() && opt in uiState.aiSelectedOptions, onClick = { if (opt.isNotEmpty()) onOptionToggle(opt) })
+                            }
+                            Box(modifier = Modifier.weight(1f)) {
+                                val opt = uiState.aiOptions.getOrNull(3) ?: ""
+                                GridChoiceCard(title = "Zen Listener", description = "Calming stories & wind down", icon = Icons.Outlined.Spa, selectedIcon = Icons.Rounded.Spa, isSelected = opt.isNotEmpty() && opt in uiState.aiSelectedOptions, onClick = { if (opt.isNotEmpty()) onOptionToggle(opt) })
+                            }
+                        }
+                    }
+                } else {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                        modifier = Modifier.graphicsLayer { alpha = cardsAlpha }
+                    ) {
+                        uiState.aiOptions.forEachIndexed { index, option ->
+                            SelectableChoiceRow(
+                                option = option,
+                                index = index,
+                                isSelected = option in uiState.aiSelectedOptions,
+                                onClick = { onOptionToggle(option) }
+                            )
+                        }
+                    }
+                }
+
+                if (uiState.aiCurrentTurn == 1) {
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // OR divider
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        HorizontalDivider(modifier = Modifier.weight(1f), thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                        Text(text = "OR", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), letterSpacing = 1.5.sp)
+                        HorizontalDivider(modifier = Modifier.weight(1f), thickness = 1.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Text input
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(text = "Just describe what you like and don't like", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                        OutlinedTextField(
+                            value = uiState.aiCustomInputText,
+                            onValueChange = onCustomInputChange,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { focusState ->
+                                    isTextFieldFocused = focusState.isFocused
+                                    if (focusState.isFocused) {
+                                        coroutineScope.launch {
+                                            delay(300)
+                                            scrollState.animateScrollTo(scrollState.maxValue)
+                                        }
+                                    }
+                                },
+                            placeholder = {
+                                Text("E.g., I love true crime and sleep stories, hate sports pods...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            singleLine = true,
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary, unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(88.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AiCurriculumPreviewScreen(
+    curriculumRows: List<OnboardingCurriculumRowDto>,
+    isCompleting: Boolean,
+    onBack: () -> Unit,
+    onFinish: () -> Unit
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val tertiaryColor = MaterialTheme.colorScheme.tertiary
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        // Ambient background glow top-right
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(350.dp)
+                .background(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.08f),
+                            secondaryColor.copy(alpha = 0.03f),
+                            Color.Transparent
+                        ),
+                        center = androidx.compose.ui.geometry.Offset(x = 1000f, y = -100f),
+                        radius = 1200f
+                    )
+                )
+        )
+        // Ambient background glow bottom-left
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    androidx.compose.ui.graphics.Brush.radialGradient(
+                        colors = listOf(
+                            tertiaryColor.copy(alpha = 0.05f),
+                            primaryColor.copy(alpha = 0.02f),
+                            Color.Transparent
+                        ),
+                        center = androidx.compose.ui.geometry.Offset(x = -200f, y = 1800f),
+                        radius = 1200f
+                    )
+                )
+        )
+
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets.safeDrawing,
+            topBar = {
+                LargeTopAppBar(
+                    title = {
+                        Text(
+                            text = "Your Personalized Feed",
+                            fontWeight = FontWeight.ExtraBold,
+                            style = MaterialTheme.typography.titleLarge,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, "Back")
+                        }
+                    },
+                    colors = TopAppBarDefaults.largeTopAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = Color.Transparent
+                    )
+                )
+            },
+            bottomBar = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
+                                    MaterialTheme.colorScheme.background
+                                )
+                            )
+                        )
+                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Button(
+                        onClick = onFinish,
+                        enabled = !isCompleting,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        )
+                    ) {
+                        if (isCompleting) {
+                            CircularProgressIndicator(
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        } else {
+                            Text(
+                                text = "Finish & Listen",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+        ) { innerPadding ->
+            if (curriculumRows.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No items generated. Click Finish to complete onboarding.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    items(curriculumRows) { row ->
+                        Column(
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = row.rowTitle,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                            )
+                            
+                            if (row.podcasts.isNotEmpty()) {
+                                Text(
+                                    text = "Podcasts",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp)
+                                )
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 24.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(row.podcasts) { podcastDto ->
+                                        val podcast = podcastDto.toPodcast()
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                                            shape = RoundedCornerShape(20.dp),
+                                            modifier = Modifier.width(130.dp)
+                                        ) {
+                                            Column {
+                                                OptimizedImage(
+                                                    url = podcast.imageUrl,
+                                                    proxyWidth = 200,
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier
+                                                        .padding(6.dp)
+                                                        .fillMaxWidth()
+                                                        .aspectRatio(1f)
+                                                        .clip(RoundedCornerShape(14.dp))
+                                                )
+                                                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)) {
+                                                    Text(
+                                                        text = podcast.title,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    Text(
+                                                        text = podcast.artist,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+
+                            if (row.episodes.isNotEmpty()) {
+                                Text(
+                                    text = "Episodes",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, bottom = 8.dp)
+                                )
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 24.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    items(row.episodes) { episodeDto ->
+                                        val episode = episodeDto.toEpisode()
+                                        val minutes = if (episode.duration > 0) "${episode.duration / 60}m" else "Audio"
+                                        Card(
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                                            shape = RoundedCornerShape(20.dp),
+                                            modifier = Modifier.width(270.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                OptimizedImage(
+                                                    url = episode.imageUrl ?: "",
+                                                    proxyWidth = 120,
+                                                    contentDescription = null,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier
+                                                        .size(60.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                )
+                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = episode.title,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        fontWeight = FontWeight.Bold,
+                                                        maxLines = 2,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Spacer(modifier = Modifier.height(4.dp))
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Rounded.PlayArrow,
+                                                            contentDescription = null,
+                                                            tint = MaterialTheme.colorScheme.primary,
+                                                            modifier = Modifier.size(12.dp)
+                                                        )
+                                                        Text(
+                                                            text = minutes,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.primary,
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -226,43 +1306,34 @@ private fun WelcomeScreen(
     )
 
     val entranceProgress = remember { Animatable(0f) }
+    val driftProgress = remember { Animatable(0f) }
     
     LaunchedEffect(Unit) {
-        entranceProgress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 3000,
-                easing = FastOutSlowInEasing
+        // Run entrance and drift concurrently for a seamless transition
+        launch {
+            entranceProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = 4800, // Gentle 4.8 seconds
+                    easing = LinearEasing
+                )
             )
-        )
+        }
+        launch {
+            driftProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(
+                        durationMillis = 25000, // Matched with 732dp loop distance for a smooth 29dp/s speed
+                        easing = LinearEasing
+                    ),
+                    repeatMode = RepeatMode.Restart
+                )
+            )
+        }
     }
 
-    val progress = entranceProgress.value
 
-    // Staggered Cinematic Timeline
-    val blurRadius = if (progress > 0.5f) {
-        (((progress - 0.5f) / 0.5f) * 16f).dp
-    } else {
-        0.dp
-    }
-
-    val overlayAlpha = if (progress > 0.45f) {
-        (((progress - 0.45f) / 0.55f) * 0.96f).coerceIn(0f, 0.96f)
-    } else {
-        0f
-    }
-
-    val logoAlpha = if (progress > 0.60f) {
-        (((progress - 0.60f) / 0.30f)).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
-
-    val hudAlpha = if (progress > 0.70f) {
-        (((progress - 0.70f) / 0.30f)).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
 
     if (showImportBottomSheet) {
         ModalBottomSheet(
@@ -318,317 +1389,272 @@ private fun WelcomeScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
+        containerColor = MaterialTheme.colorScheme.surface
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // 1. Full-Screen Background Grid with Dynamic Blur
+            // 0. Shared animation progress (linear timeline mapped to FastOutSlowInEasing)
+            val logoProgress = ((entranceProgress.value - 0.20f) / 0.55f).coerceIn(0f, 1f)
+            val logoEase = FastOutSlowInEasing.transform(logoProgress)
+
+            // 1. Podcast Cover Grid — occupies entire background, always visible
             CinematicBackgroundGrid(
-                entranceProgress = progress,
-                blurRadius = blurRadius
+                entranceProgressProvider = { entranceProgress.value },
+                driftProgressProvider = { driftProgress.value }
             )
 
-            // 2. Full-Screen Spotlight Overlay
-            if (overlayAlpha > 0f) {
-                val surfaceColor = MaterialTheme.colorScheme.surface
-                val spotlightBrush = remember(surfaceColor) {
-                    androidx.compose.ui.graphics.Brush.radialGradient(
-                        colors = listOf(
-                            surfaceColor.copy(alpha = 0.25f),
-                            surfaceColor.copy(alpha = 0.98f)
+            // 2. Bottom-heavy gradient scrim — grows dynamically as logo/buttons shift up to cover the final logo position
+            val scrimColor = MaterialTheme.colorScheme.surface
+            val scrimEdge = 0.68f - (logoEase * 0.23f) // 0.68f → 0.45f
+            val scrimMid = 0.76f - (logoEase * 0.24f)  // 0.76f → 0.52f
+            val scrimFull = 0.81f - (logoEase * 0.24f) // 0.81f → 0.57f
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to scrimColor.copy(alpha = 0.0f),
+                                (scrimEdge - 0.15f).coerceAtLeast(0f) to scrimColor.copy(alpha = 0.0f),
+                                scrimEdge to scrimColor.copy(alpha = 0.5f),
+                                scrimMid to scrimColor.copy(alpha = 0.9f),
+                                scrimFull to scrimColor,
+                                1.0f to scrimColor
+                            )
                         )
                     )
-                }
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = overlayAlpha }
-                        .background(spotlightBrush)
-                )
-            }
+            )
 
-            // 3. Floating Glassmorphic HUD Panel (Slides up and fades in)
-            if (logoAlpha > 0f) {
-                Box(
+            // 3. Content — logo always visible, slides up to reveal buttons
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                // Push everything to the bottom half
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Logo block — always visible, starts bigger and centered in white space,
+                // then scales down and nudges up to make room for buttons.
+                val logoScale = 1.3f - (logoEase * 0.3f) // 1.3 → 1.0
+                val logoOffsetY = (1f - logoEase) * 150f // starts 150dp lower, ends at 0
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 20.dp, vertical = 24.dp),
-                    contentAlignment = Alignment.BottomCenter
+                        .graphicsLayer {
+                            scaleX = logoScale
+                            scaleY = logoScale
+                            translationY = logoOffsetY * density
+                        },
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Card(
+                    Text(
+                        text = "Welcome to",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = CondensedGoogleSans,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    cx.aswin.boxcast.core.designsystem.components.BoxCastLogo(
+                        textColor = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Staggered button reveal — starts after the logo has mostly moved up
+                val btn1RawProgress = ((entranceProgress.value - 0.45f) / 0.30f).coerceIn(0f, 1f)
+                val btn2RawProgress = ((entranceProgress.value - 0.53f) / 0.30f).coerceIn(0f, 1f)
+                val btn3RawProgress = ((entranceProgress.value - 0.61f) / 0.30f).coerceIn(0f, 1f)
+
+                val btn1Alpha = FastOutSlowInEasing.transform(btn1RawProgress)
+                val btn2Alpha = FastOutSlowInEasing.transform(btn2RawProgress)
+                val btn3Alpha = FastOutSlowInEasing.transform(btn3RawProgress)
+
+                // Primary CTA
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = onHelpMeFind,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .wrapContentHeight()
+                            .height(76.dp)
                             .graphicsLayer {
-                                alpha = logoAlpha
-                                translationY = (1f - logoAlpha) * 120.dp.toPx()
+                                alpha = btn1Alpha
+                                translationY = (1f - btn1Alpha) * 20.dp.toPx()
                             },
-                        shape = RoundedCornerShape(32.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f)
+                        shape = RoundedCornerShape(percent = 50),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            // Logo block (Fades in slightly earlier)
                             Column(
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        alpha = logoAlpha
-                                    },
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
-                                    text = "Welcome to",
-                                    style = TextStyle(
-                                        fontFamily = CondensedGoogleSans,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 11.sp,
-                                        letterSpacing = (-0.1).sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    textAlign = TextAlign.Center
+                                    text = "Build my personalized feed.",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
-                                cx.aswin.boxcast.core.designsystem.components.BoxCastLogo(
-                                    textColor = MaterialTheme.colorScheme.primary
+                                Text(
+                                    text = "We'll find you perfect shows based on what you love",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
                                 )
                             }
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronRight,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
 
-                            Spacer(modifier = Modifier.height(24.dp))
-
-                            // Options block (Fades in slightly staggered)
-                            if (hudAlpha > 0f) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .graphicsLayer {
-                                            alpha = hudAlpha
-                                        },
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        text = "How would you like to start?",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    
-                                    Spacer(modifier = Modifier.height(24.dp))
-                                    
-                                    // 1. Featured Recommendation Card (Help Me Find)
-                                    Card(
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = androidx.compose.ui.graphics.Color.Transparent
-                                        ),
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(24.dp))
-                                            .background(
-                                                androidx.compose.ui.graphics.Brush.horizontalGradient(
-                                                    colors = listOf(
-                                                        MaterialTheme.colorScheme.primary,
-                                                        MaterialTheme.colorScheme.tertiary
-                                                    )
-                                                )
-                                            )
-                                            .expressiveClickable(onClick = onHelpMeFind)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(16.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(40.dp)
-                                                    .background(androidx.compose.ui.graphics.Color.White.copy(alpha = 0.18f), androidx.compose.foundation.shape.CircleShape),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Rounded.AutoAwesome,
-                                                    contentDescription = null,
-                                                    tint = androidx.compose.ui.graphics.Color.White,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                Text(
-                                                    text = "Help Me Find Podcasts",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = androidx.compose.ui.graphics.Color.White
-                                                )
-                                                Text(
-                                                    text = "Get personalized recommendations",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.8f)
-                                                )
-                                            }
-                                            Icon(
-                                                imageVector = Icons.Rounded.ChevronRight,
-                                                contentDescription = null,
-                                                tint = androidx.compose.ui.graphics.Color.White
-                                            )
-                                        }
-                                    }
-                                    
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    
-                                    // 2. Secondary Options Row (Search & Import)
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        // Search Card
-                                        Card(
-                                            colors = CardDefaults.cardColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                            ),
-                                            shape = RoundedCornerShape(20.dp),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(100.dp)
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .expressiveClickable(onClick = onSearch)
-                                        ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .padding(12.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(36.dp)
-                                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), androidx.compose.foundation.shape.CircleShape),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Rounded.Search,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    text = "Search Shows",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    textAlign = TextAlign.Center
-                                                )
-                                            }
-                                        }
-                                        
-                                        // Import Card
-                                        Card(
-                                            colors = CardDefaults.cardColors(
-                                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                                            ),
-                                            shape = RoundedCornerShape(20.dp),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(100.dp)
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .expressiveClickable(onClick = { showImportBottomSheet = true })
-                                        ) {
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .padding(12.dp),
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(36.dp)
-                                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), androidx.compose.foundation.shape.CircleShape),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Rounded.Upload,
-                                                        contentDescription = null,
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                                Spacer(modifier = Modifier.height(8.dp))
-                                                Text(
-                                                    text = "Import Library",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                    textAlign = TextAlign.Center
-                                                )
-                                            }
-                                        }
-                                    }
-                                    
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    
-                                    // 3. Exit Option (Skip Setup)
-                                    Card(
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest
-                                        ),
-                                        shape = RoundedCornerShape(24.dp),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(52.dp)
-                                            .clip(RoundedCornerShape(24.dp))
-                                            .expressiveClickable(onClick = onSkip)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .padding(horizontal = 20.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Text(
-                                                text = "Skip Setup",
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
-                                }
+                    // Floating AI Badge sitting on the button border
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = (-24).dp, y = (-6).dp)
+                            .graphicsLayer {
+                                alpha = btn1Alpha
+                                translationY = (1f - btn1Alpha) * 20.dp.toPx()
                             }
+                            .background(
+                                color = MaterialTheme.colorScheme.tertiaryContainer,
+                                shape = RoundedCornerShape(percent = 50)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.surface,
+                                shape = RoundedCornerShape(percent = 50)
+                            )
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.AutoAwesome,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = "AI",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Black,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                fontSize = 9.sp
+                            )
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Secondary row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .graphicsLayer {
+                            alpha = btn2Alpha
+                            translationY = (1f - btn2Alpha) * 20.dp.toPx()
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    FilledTonalButton(
+                        onClick = onSearch,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp),
+                        shape = RoundedCornerShape(percent = 50),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "I know my shows",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    FilledTonalButton(
+                        onClick = { showImportBottomSheet = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp),
+                        shape = RoundedCornerShape(percent = 50),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Upload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Import library",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Skip
+                TextButton(
+                    onClick = onSkip,
+                    modifier = Modifier
+                        .graphicsLayer {
+                            alpha = btn3Alpha
+                        }
+                ) {
+                    Text(
+                        text = "Skip Setup",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = androidx.compose.ui.graphics.Color(0xFF888888)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
+                        contentDescription = null,
+                        tint = androidx.compose.ui.graphics.Color(0xFF888888),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(36.dp))
             }
         }
     }
@@ -636,69 +1662,101 @@ private fun WelcomeScreen(
 
 @Composable
 private fun CinematicBackgroundGrid(
-    entranceProgress: Float,
-    blurRadius: androidx.compose.ui.unit.Dp
+    entranceProgressProvider: () -> Float,
+    driftProgressProvider: () -> Float
 ) {
     val context = LocalContext.current
     val allCovers = remember {
         (0..99).map { index ->
             context.resources.getIdentifier("pod_cover_$index", "drawable", context.packageName)
-        }.filter { it != 0 }
+        }.filter { it != 0 }.shuffled()
     }
 
     if (allCovers.isEmpty()) return
 
+    // 4 rows of covers — top half of the screen
     val row1Covers = remember(allCovers) { allCovers.filterIndexed { idx, _ -> idx % 4 == 0 } }
     val row2Covers = remember(allCovers) { allCovers.filterIndexed { idx, _ -> idx % 4 == 1 } }
     val row3Covers = remember(allCovers) { allCovers.filterIndexed { idx, _ -> idx % 4 == 2 } }
     val row4Covers = remember(allCovers) { allCovers.filterIndexed { idx, _ -> idx % 4 == 3 } }
 
-    val offset1 = -2800f + (2700f * entranceProgress)
-    val offset2 = -100f - (2700f * entranceProgress)
-    val offset3 = -2600f + (2300f * entranceProgress)
-    val offset4 = -300f - (2300f * entranceProgress)
-
     Column(
         modifier = Modifier
-            .fillMaxSize()
-            .blur(blurRadius),
-        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+            .fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.Top)
     ) {
-        ScrollingRow(covers = row1Covers, translationX = offset1)
-        ScrollingRow(covers = row2Covers, translationX = offset2)
-        ScrollingRow(covers = row3Covers, translationX = offset3)
-        ScrollingRow(covers = row4Covers, translationX = offset4)
+        Spacer(modifier = Modifier.height(8.dp))
+        ScrollingRow(
+            covers = row1Covers,
+            translationX = {
+                val ent = entranceProgressProvider()
+                val scrollProgress = (ent / 0.75f).coerceIn(0f, 1f)
+                val scrollEase = FastOutSlowInEasing.transform(scrollProgress)
+                val drft = driftProgressProvider()
+                -2200f + (1400f * scrollEase) + (732f * drft)
+            }
+        )
+        ScrollingRow(
+            covers = row2Covers,
+            translationX = {
+                val ent = entranceProgressProvider()
+                val scrollProgress = (ent / 0.75f).coerceIn(0f, 1f)
+                val scrollEase = FastOutSlowInEasing.transform(scrollProgress)
+                val drft = driftProgressProvider()
+                -100f - (1400f * scrollEase) - (732f * drft)
+            }
+        )
+        ScrollingRow(
+            covers = row3Covers,
+            translationX = {
+                val ent = entranceProgressProvider()
+                val scrollProgress = (ent / 0.75f).coerceIn(0f, 1f)
+                val scrollEase = FastOutSlowInEasing.transform(scrollProgress)
+                val drft = driftProgressProvider()
+                -2400f + (1400f * scrollEase) + (732f * drft)
+            }
+        )
+        ScrollingRow(
+            covers = row4Covers,
+            translationX = {
+                val ent = entranceProgressProvider()
+                val scrollProgress = (ent / 0.75f).coerceIn(0f, 1f)
+                val scrollEase = FastOutSlowInEasing.transform(scrollProgress)
+                val drft = driftProgressProvider()
+                -300f - (1400f * scrollEase) - (732f * drft)
+            }
+        )
     }
 }
 
 @Composable
 private fun ScrollingRow(
     covers: List<Int>,
-    translationX: Float
+    translationX: () -> Float
 ) {
+    // Take exactly 6 covers for a precise 732dp (6 * 122dp) seamless restart loop
+    val loopCovers = remember(covers) { covers.take(6) }
+    // Repeat covers list 20 times to simulate an infinite list within the bounds of scroll + drift
+    val infiniteCovers = remember(loopCovers) { List(20) { loopCovers }.flatten() }
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .wrapContentWidth(unbounded = true, align = Alignment.Start)
-            .graphicsLayer { this.translationX = translationX.dp.toPx() },
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .graphicsLayer { this.translationX = translationX().dp.toPx() },
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        covers.forEach { drawableResId ->
-            val cardShape = RoundedCornerShape(12.dp)
+        infiniteCovers.forEach { drawableResId ->
+            val cardShape = RoundedCornerShape(16.dp)
             Card(
                 modifier = Modifier
-                    .size(116.dp)
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                        shape = cardShape
-                    ),
+                    .size(110.dp),
                 shape = cardShape,
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Image(
                     painter = painterResource(id = drawableResId),
-                    contentDescription = "Podcast Cover",
+                    contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
