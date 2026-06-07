@@ -53,16 +53,6 @@ jobs:
           echo "[WORKFLOW] Populating Apple charts for country ${{ matrix.country }}..."
           node scripts/populate-charts.js --country ${{ matrix.country }}
 
-      - name: Cleanup Non-Chart Podcasts and Episodes
-        env:
-          TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          QDRANT_URL: ${{ secrets.QDRANT_URL }}
-          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
-        run: |
-          echo "[WORKFLOW] Cleaning up podcasts and episodes not present in charts..."
-          node scripts/cleanup-non-chart-shows.js
-
       - name: Run Pre-check Sync
         id: precheck
         env:
@@ -191,3 +181,29 @@ jobs:
           
       - name: Cleanup
         run: rm -f *.db *.tgz *.csv *.txt
+
+  cleanup-non-chart:
+    runs-on: ubuntu-latest
+    needs: sync-pi-data
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Cleanup Non-Chart Podcasts and Episodes
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          QDRANT_URL: ${{ secrets.QDRANT_URL }}
+          QDRANT_API_KEY: ${{ secrets.QDRANT_API_KEY }}
+        run: |
+          echo "[WORKFLOW] Cleaning up podcasts and episodes not present in charts..."
+          node scripts/cleanup-non-chart-shows.js
