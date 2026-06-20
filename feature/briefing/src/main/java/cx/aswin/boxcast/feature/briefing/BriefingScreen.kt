@@ -656,9 +656,7 @@ fun BriefingContent(
                                             style = MaterialTheme.typography.bodyMedium,
                                             lineHeight = 22.sp,
                                             color = if (isActive) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.85f)
-                                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = if (isActive) Int.MAX_VALUE else 3,
-                                            overflow = TextOverflow.Ellipsis
+                                                    else MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
