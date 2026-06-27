@@ -34,11 +34,11 @@ jobs:
           PODCAST_INDEX_API_KEY: ${{ secrets.PODCAST_INDEX_API_KEY }}
           PODCAST_INDEX_API_SECRET: ${{ secrets.PODCAST_INDEX_API_SECRET }}
 
-      - name: Clean GCP Key File
-        run: rm -f gcp-key.json
-
-      - name: Commit State Updates
+      - name: Commit & Push State Updates
         run: |
+          rm -f gcp-key.json
+          git checkout -- . || true
+          git clean -fd || true
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/episode-tracker.json
