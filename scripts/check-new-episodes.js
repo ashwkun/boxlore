@@ -119,8 +119,9 @@ async function run() {
                         podcastTitle: String(podcastTitle),
                         episodeTitle: String(latestEpTitle),
                         episodeId: String(latestEpId),
+                        duration: String(latestEp.duration ? Math.round(Number(latestEp.duration) / 60) : '0'),
                         image: String(latestEp.image || latestEp.feedImage || imageUrl || ''),
-                        route: `boxcast://podcast/${podcastId}`
+                        route: `boxcast://episode/${latestEpId}`
                     }
                 };
 

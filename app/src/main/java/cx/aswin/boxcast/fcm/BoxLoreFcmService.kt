@@ -98,11 +98,14 @@ class BoxLoreFcmService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val duration = data["duration"]?.toIntOrNull() ?: 0
+        val bodyText = if (duration > 0) "\"$episodeTitle\" ($duration mins)" else "\"$episodeTitle\""
+
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(cx.aswin.boxcast.R.drawable.ic_notification)
             .setColor(android.graphics.Color.parseColor("#000000"))
-            .setContentTitle("🎙️ $podcastTitle")
-            .setContentText(episodeTitle)
+            .setContentTitle("New Episode • $podcastTitle")
+            .setContentText(bodyText)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
 
