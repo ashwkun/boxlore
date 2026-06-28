@@ -86,7 +86,7 @@ fun AnimatedShapesFallback() {
     }
 }
 
-private fun calculateFallbackPlacedShapes(): List<PlacedShape> {
+internal fun calculateFallbackPlacedShapes(): List<PlacedShape> {
     val allShapes = listOf(
         ExpressiveShapes.Sunny, ExpressiveShapes.VerySunny, 
         ExpressiveShapes.Cookie4, ExpressiveShapes.Cookie6, ExpressiveShapes.Cookie9, ExpressiveShapes.Cookie12,
@@ -113,13 +113,14 @@ private fun calculateFallbackPlacedShapes(): List<PlacedShape> {
     return placedShapes
 }
 
-private fun isOverlappingWithPlaced(x: Float, y: Float, placedShapes: List<PlacedShape>): Boolean {
+internal fun isOverlappingWithPlaced(x: Float, y: Float, placedShapes: List<PlacedShape>): Boolean {
     for (placed in placedShapes) {
         val dist = kotlin.math.sqrt((x - placed.x) * (x - placed.x) + (y - placed.y) * (y - placed.y))
         if (dist < 200f) return true
     }
     return false
 }
+
 
 
 /**
