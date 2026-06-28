@@ -14,6 +14,8 @@ import androidx.media3.session.MediaSession
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import androidx.annotation.VisibleForTesting
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,9 +33,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
     private val userPreferencesRepository by lazy {
         cx.aswin.boxcast.core.data.UserPreferencesRepository(this)
     }
-    private val mainDispatcher = Dispatchers.Main
-    private val ioDispatcher = Dispatchers.IO
-    private val serviceScope = CoroutineScope(mainDispatcher + SupervisorJob())
+    @VisibleForTesting internal var mainDispatcher: CoroutineDispatcher = Dispatchers.Main
+    @VisibleForTesting internal var ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val serviceScope by lazy { CoroutineScope(mainDispatcher + SupervisorJob()) }
 
     // Lazy-init database & repos (avoid creating them if Auto is never used)
     private val database by lazy {
