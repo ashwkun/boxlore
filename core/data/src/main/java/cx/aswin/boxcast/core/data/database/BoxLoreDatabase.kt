@@ -118,6 +118,20 @@ abstract class BoxLoreDatabase : RoomDatabase() {
         private var INSTANCE: BoxLoreDatabase? = null
 
 
+        private fun renameDatabaseSuffixFiles(oldDbFile: java.io.File, newDbFile: java.io.File) {
+            val suffixes = listOf("-journal", "-shm", "-wal")
+            for (suffix in suffixes) {
+                val oldSuffixFile = java.io.File(oldDbFile.path + suffix)
+                val newSuffixFile = java.io.File(newDbFile.path + suffix)
+                if (oldSuffixFile.exists()) {
+                    val renamed = oldSuffixFile.renameTo(newSuffixFile)
+                    if (!renamed) {
+                        android.util.Log.w("BoxLoreDatabase", "Failed to rename database suffix file: $suffix")
+                    }
+                }
+            }
+        }
+
         private fun renameDatabaseFileIfExists(context: android.content.Context) {
             val oldDbFile = context.getDatabasePath("boxcast_database")
             val newDbFile = context.getDatabasePath("boxlore_database")
@@ -125,18 +139,7 @@ abstract class BoxLoreDatabase : RoomDatabase() {
             if (oldDbFile.exists()) {
                 val success = oldDbFile.renameTo(newDbFile)
                 if (success) {
-                    // Rename WAL, SHM, and Journal files if they exist
-                    val suffixes = listOf("-journal", "-shm", "-wal")
-                    for (suffix in suffixes) {
-                        val oldSuffixFile = java.io.File(oldDbFile.path + suffix)
-                        val newSuffixFile = java.io.File(newDbFile.path + suffix)
-                        if (oldSuffixFile.exists()) {
-                            val renamed = oldSuffixFile.renameTo(newSuffixFile)
-                            if (!renamed) {
-                                android.util.Log.w("BoxLoreDatabase", "Failed to rename database suffix file: $suffix")
-                            }
-                        }
-                    }
+                    renameDatabaseSuffixFiles(oldDbFile, newDbFile)
                     android.util.Log.d("BoxLoreDatabase", "Successfully migrated database file to boxlore_database")
                 } else {
                     android.util.Log.e("BoxLoreDatabase", "Failed to migrate database file from boxcast_database to boxlore_database")
