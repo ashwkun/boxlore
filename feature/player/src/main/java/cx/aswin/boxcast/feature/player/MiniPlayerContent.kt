@@ -175,43 +175,17 @@ private fun MiniPlayerActionButtons(
     val scope = rememberCoroutineScope()
 
     Row(verticalAlignment = Alignment.CenterVertically) {
-        // Seek Back -10s button
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .graphicsLayer { 
-                    scaleX = seekBackScale.value
-                    scaleY = seekBackScale.value
-                }
-                .clip(CircleShape)
-                .background(colorScheme.primary.copy(alpha = 0.2f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false),
-                    enabled = !isLoading
-                ) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    scope.launch {
-                        launch {
-                            seekBackScale.animateTo(0.8f, tween(80))
-                            seekBackScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-                        }
-                        launch {
-                            seekForwardScale.animateTo(0.95f, tween(60))
-                            seekForwardScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
-                        }
-                    }
-                    onPrevious()
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Rounded.Replay10,
-                contentDescription = "Seek back 10 seconds",
-                tint = colorScheme.primary.copy(alpha = if (isLoading) 0.5f else 1f),
-                modifier = Modifier.size(22.dp)
-            )
-        }
+        MiniPlayerSeekButton(
+            scaleAnim = seekBackScale,
+            otherScaleAnim = seekForwardScale,
+            icon = Icons.Rounded.Replay10,
+            contentDescription = "Seek back 10 seconds",
+            isLoading = isLoading,
+            colorScheme = colorScheme,
+            hapticFeedback = hapticFeedback,
+            scope = scope,
+            onClick = onPrevious
+        )
         
         Spacer(modifier = Modifier.width(8.dp))
         
@@ -254,43 +228,68 @@ private fun MiniPlayerActionButtons(
         
         Spacer(modifier = Modifier.width(8.dp))
         
-        // Seek Forward +30s button
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .graphicsLayer { 
-                    scaleX = seekForwardScale.value
-                    scaleY = seekForwardScale.value
-                }
-                .clip(CircleShape)
-                .background(colorScheme.primary.copy(alpha = 0.2f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = ripple(bounded = false),
-                    enabled = !isLoading
-                ) {
-                    hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    scope.launch {
-                        launch {
-                            seekForwardScale.animateTo(0.8f, tween(80))
-                            seekForwardScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
-                        }
-                        launch {
-                            seekBackScale.animateTo(0.95f, tween(60))
-                            seekBackScale.animateTo(1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
-                        }
-                    }
-                    onNext()
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Rounded.Forward30,
-                contentDescription = "Seek forward 30 seconds",
-                tint = colorScheme.primary.copy(alpha = if (isLoading) 0.5f else 1f),
-                modifier = Modifier.size(22.dp)
-            )
-        }
+        MiniPlayerSeekButton(
+            scaleAnim = seekForwardScale,
+            otherScaleAnim = seekBackScale,
+            icon = Icons.Rounded.Forward30,
+            contentDescription = "Seek forward 30 seconds",
+            isLoading = isLoading,
+            colorScheme = colorScheme,
+            hapticFeedback = hapticFeedback,
+            scope = scope,
+            onClick = onNext
+        )
     }
 }
+
+@Composable
+private fun MiniPlayerSeekButton(
+    scaleAnim: Animatable<Float, *>,
+    otherScaleAnim: Animatable<Float, *>,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    isLoading: Boolean,
+    colorScheme: ColorScheme,
+    hapticFeedback: androidx.compose.ui.hapticfeedback.HapticFeedback,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .graphicsLayer { 
+                scaleX = scaleAnim.value
+                scaleY = scaleAnim.value
+            }
+            .clip(CircleShape)
+            .background(colorScheme.primary.copy(alpha = 0.2f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = false),
+                enabled = !isLoading
+            ) {
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                scope.launch {
+                    launch {
+                        scaleAnim.animateTo(0.8f, tween(80))
+                        scaleAnim.animateTo(1f, spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium))
+                    }
+                    launch {
+                        otherScaleAnim.animateTo(0.95f, tween(60))
+                        otherScaleAnim.animateTo(1f, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow))
+                    }
+                }
+                onClick()
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            icon,
+            contentDescription = contentDescription,
+            tint = colorScheme.primary.copy(alpha = if (isLoading) 0.5f else 1f),
+            modifier = Modifier.size(22.dp)
+        )
+    }
+}
+
 

@@ -87,8 +87,10 @@ fun PlayerControls(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        ReplayButton(
+        ControlIconButton(
             weight = weightPrev,
+            icon = Icons.Rounded.Replay10,
+            contentDescription = "Replay 10s",
             colorScheme = colorScheme,
             controlTint = controlTint,
             onClick = {
@@ -109,8 +111,10 @@ fun PlayerControls(
             }
         )
 
-        ForwardButton(
+        ControlIconButton(
             weight = weightNext,
+            icon = Icons.Rounded.Forward30,
+            contentDescription = "Forward 30s",
             colorScheme = colorScheme,
             controlTint = controlTint,
             onClick = {
@@ -122,8 +126,10 @@ fun PlayerControls(
 }
 
 @Composable
-private fun androidx.compose.foundation.layout.RowScope.ReplayButton(
+private fun androidx.compose.foundation.layout.RowScope.ControlIconButton(
     weight: Float,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
     colorScheme: ColorScheme,
     controlTint: Color,
     onClick: () -> Unit,
@@ -140,8 +146,8 @@ private fun androidx.compose.foundation.layout.RowScope.ReplayButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = Icons.Rounded.Replay10,
-            contentDescription = "Replay 10s",
+            imageVector = icon,
+            contentDescription = contentDescription,
             modifier = Modifier.size(32.dp),
             tint = controlTint
         )
@@ -216,31 +222,5 @@ private fun androidx.compose.foundation.layout.RowScope.PlayPauseButton(
     }
 }
 
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.ForwardButton(
-    weight: Float,
-    colorScheme: ColorScheme,
-    controlTint: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Box(
-        modifier = modifier
-            .weight(weight)
-            .fillMaxHeight()
-            .clip(CircleShape)
-            .background(colorScheme.primary.copy(alpha = 0.15f))
-            .clickable(interactionSource = interactionSource, indication = ripple(), onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Rounded.Forward30,
-            contentDescription = "Forward 30s",
-            modifier = Modifier.size(32.dp),
-            tint = controlTint
-        )
-    }
-}
 
 
