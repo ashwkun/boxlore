@@ -92,7 +92,6 @@ fun UnifiedPlayerSheet(
     expandTrigger: Long = 0L, // New param: timestamp to force expansion
     onEpisodeInfoClick: (cx.aswin.boxcast.core.model.Episode) -> Unit = {},
     onPodcastInfoClick: (cx.aswin.boxcast.core.model.Podcast) -> Unit = {},
-    isDarkTheme: Boolean,
     modifier: Modifier = Modifier
 ) {
     val state by playbackRepository.playerState.collectAsState()
