@@ -118,6 +118,42 @@ class SmartDownloadManager(
         return subs
     }
 
+    private suspend fun resolveOldestSerialNextEpisode(
+        pod: PodcastEntity,
+        allHistory: List<ListeningHistoryEntity>,
+        completedEpIdsForResolve: Set<String>,
+        inProgressEpIdsForResolve: Set<String>
+    ): Episode? {
+        try {
+            val ongoingId = allHistory.filter { h -> h.podcastId == pod.podcastId && !h.isCompleted && h.progressMs > 0L }.maxByOrNull { it.lastPlayedAt }?.episodeId
+            val lastCompletedId = allHistory.filter { h -> h.podcastId == pod.podcastId && h.isCompleted }.maxByOrNull { it.lastPlayedAt }?.episodeId
+            
+            val page = podcastRepository.getEpisodesPaginated(pod.podcastId, limit = 200, offset = 0, sort = "oldest")
+            val allEpisodes = page.episodes
+            
+            return when {
+                ongoingId != null -> {
+                    val ongoingIndex = allEpisodes.indexOfFirst { it.id == ongoingId }
+                    if (ongoingIndex != -1 && ongoingIndex < allEpisodes.lastIndex) {
+                        allEpisodes[ongoingIndex + 1]
+                    } else null
+                }
+                lastCompletedId != null -> {
+                    val completedIndex = allEpisodes.indexOfFirst { it.id == lastCompletedId }
+                    if (completedIndex != -1 && completedIndex < allEpisodes.lastIndex) {
+                        allEpisodes[completedIndex + 1]
+                    } else null
+                }
+                else -> allEpisodes.firstOrNull()
+            } ?: allEpisodes.firstOrNull { ep ->
+                ep.id !in completedEpIdsForResolve && ep.id !in inProgressEpIdsForResolve
+            }
+        } catch (e: Exception) {
+            Log.e("SmartDownloadManager", "Failed to resolve oldest serial next episode for pod ${pod.podcastId}", e)
+        }
+        return null
+    }
+
     private suspend fun resolveOldestSerialNextEpisodes(
         subs: List<PodcastEntity>,
         allHistory: List<ListeningHistoryEntity>,
@@ -129,59 +165,27 @@ class SmartDownloadManager(
         
         for (pod in subs) {
             if ((pod.preferredSort ?: "newest") == "oldest") {
-                try {
-                    val ongoingId = allHistory.filter { h -> h.podcastId == pod.podcastId && !h.isCompleted && h.progressMs > 0L }.maxByOrNull { it.lastPlayedAt }?.episodeId
-                    val lastCompletedId = allHistory.filter { h -> h.podcastId == pod.podcastId && h.isCompleted }.maxByOrNull { it.lastPlayedAt }?.episodeId
-                    
-                    val page = podcastRepository.getEpisodesPaginated(pod.podcastId, limit = 200, offset = 0, sort = "oldest")
-                    val allEpisodes = page.episodes
-                    
-                    val nextEp = when {
-                        ongoingId != null -> {
-                            val ongoingIndex = allEpisodes.indexOfFirst { it.id == ongoingId }
-                            if (ongoingIndex != -1 && ongoingIndex < allEpisodes.lastIndex) {
-                                allEpisodes[ongoingIndex + 1]
-                            } else null
-                        }
-                        lastCompletedId != null -> {
-                            val completedIndex = allEpisodes.indexOfFirst { it.id == lastCompletedId }
-                            if (completedIndex != -1 && completedIndex < allEpisodes.lastIndex) {
-                                allEpisodes[completedIndex + 1]
-                            } else null
-                        }
-                        else -> allEpisodes.firstOrNull()
-                    } ?: allEpisodes.firstOrNull { ep ->
-                        ep.id !in completedEpIdsForResolve && ep.id !in inProgressEpIdsForResolve
-                    }
-                    
-                    if (nextEp != null) {
-                        resolvedSerial[pod.podcastId] = nextEp
-                    }
-                } catch (e: Exception) {
-                    Log.e("SmartDownloadManager", "Failed to resolve oldest serial next episode for pod ${pod.podcastId}", e)
+                val nextEp = resolveOldestSerialNextEpisode(pod, allHistory, completedEpIdsForResolve, inProgressEpIdsForResolve)
+                if (nextEp != null) {
+                    resolvedSerial[pod.podcastId] = nextEp
                 }
             }
         }
         return resolvedSerial
     }
 
-    private fun generateMixtapeCandidates(
-        subs: List<PodcastEntity>,
+    private fun buildInProgressMixtapeCandidates(
+        subsMap: Map<String, PodcastEntity>,
         allHistory: List<ListeningHistoryEntity>,
-        historyByEpisode: Map<String, ListeningHistoryEntity>,
-        resolvedSerial: Map<String, Episode>,
-        podScoresMap: Map<String, Double>
+        subIds: Set<String>
     ): List<MixtapeCandidate> {
-        val subsMap = subs.associateBy { it.podcastId }
-        val subIds = subs.map { it.podcastId }.toSet()
-        
         val inProgressCandidates = allHistory.filter { history ->
             history.podcastId in subIds && !history.isCompleted && history.progressMs > 0L
         }.groupBy { it.podcastId }
          .mapValues { (_, eps) -> eps.maxByOrNull { it.lastPlayedAt } }
          .values.filterNotNull()
 
-        val inProgressMixtapeCandidates = inProgressCandidates.mapNotNull { history ->
+        return inProgressCandidates.mapNotNull { history ->
             val parentPod = subsMap[history.podcastId] ?: return@mapNotNull null
             val hoursSinceLastPlay = (System.currentTimeMillis() - history.lastPlayedAt).toDouble() / (1000.0 * 3600.0)
             val score = 1000.0 + 500.0 / (1.0 + hoursSinceLastPlay.coerceAtLeast(0.0) / 24.0)
@@ -209,7 +213,14 @@ class SmartDownloadManager(
                 durationMs = history.durationMs
             )
         }
+    }
 
+    private fun buildUnplayedDropsMixtapeCandidates(
+        subs: List<PodcastEntity>,
+        resolvedSerial: Map<String, Episode>,
+        historyByEpisode: Map<String, ListeningHistoryEntity>,
+        podScoresMap: Map<String, Double>
+    ): List<MixtapeCandidate> {
         val unplayedDropsCandidates = subs.mapNotNull { pod ->
             val sort = pod.preferredSort ?: "newest"
             if (sort == "oldest") {
@@ -232,7 +243,7 @@ class SmartDownloadManager(
             }
         }
 
-        val unplayedDropsMixtapeCandidates = unplayedDropsCandidates.map { (pod, ep) ->
+        return unplayedDropsCandidates.map { (pod, ep) ->
             val isRecent = (System.currentTimeMillis() / 1000.0 - ep.publishedDate) / 3600.0 <= 168.0
             val releasedAfterSub = ep.publishedDate > (pod.subscribedAt / 1000L) || isRecent
             val freshnessBoost = if (releasedAfterSub) {
@@ -254,7 +265,12 @@ class SmartDownloadManager(
                 episode = ep
             )
         }
+    }
 
+    private fun deduplicateAndOrderMixtapeCandidates(
+        inProgressMixtapeCandidates: List<MixtapeCandidate>,
+        unplayedDropsMixtapeCandidates: List<MixtapeCandidate>
+    ): List<MixtapeCandidate> {
         val allMixtapeCandidates = (inProgressMixtapeCandidates + unplayedDropsMixtapeCandidates)
             .sortedByDescending { it.score }
 
@@ -298,6 +314,22 @@ class SmartDownloadManager(
         }
         orderedCandidates.addAll(unplayedList)
         return orderedCandidates
+    }
+
+    private fun generateMixtapeCandidates(
+        subs: List<PodcastEntity>,
+        allHistory: List<ListeningHistoryEntity>,
+        historyByEpisode: Map<String, ListeningHistoryEntity>,
+        resolvedSerial: Map<String, Episode>,
+        podScoresMap: Map<String, Double>
+    ): List<MixtapeCandidate> {
+        val subsMap = subs.associateBy { it.podcastId }
+        val subIds = subs.map { it.podcastId }.toSet()
+        
+        val inProgress = buildInProgressMixtapeCandidates(subsMap, allHistory, subIds)
+        val unplayed = buildUnplayedDropsMixtapeCandidates(subs, resolvedSerial, historyByEpisode, podScoresMap)
+        
+        return deduplicateAndOrderMixtapeCandidates(inProgress, unplayed)
     }
 
     private suspend fun fetchPersonalizedRecommendations(
@@ -372,28 +404,42 @@ class SmartDownloadManager(
         return chosenTrends
     }
 
+    private fun estimateDownloadSize(download: DownloadedEpisodeEntity): Long {
+        return if (download.status == DownloadedEpisodeEntity.STATUS_COMPLETED) {
+            download.sizeBytes
+        } else if (download.status == DownloadedEpisodeEntity.STATUS_DOWNLOADING) {
+            val durSec = download.durationMs / 1000L
+            if (durSec > 0) durSec * 12000L else 50L * 1024 * 1024
+        } else {
+            0L
+        }
+    }
+
+    private fun estimateEpisodeSize(episode: Episode): Long {
+        return if (episode.duration > 0) {
+            episode.duration.toLong() * 12000L
+        } else {
+            50L * 1024 * 1024
+        }
+    }
+
+    private fun checkIsAlreadyDownloadedOrDownloading(episode: Episode, existingDownloads: List<DownloadedEpisodeEntity>): Boolean {
+        val isAlreadyDownloaded = existingDownloads.any { it.episodeId == episode.id && it.status == DownloadedEpisodeEntity.STATUS_COMPLETED }
+        val isDownloading = existingDownloads.any { it.episodeId == episode.id && it.status == DownloadedEpisodeEntity.STATUS_DOWNLOADING }
+        return isAlreadyDownloaded || isDownloading
+    }
+
     private suspend fun recycleOldDownloads(candidateEpisodeIds: Set<String>, existingDownloads: List<DownloadedEpisodeEntity>): Long {
         var currentDownloadedBytes = 0L
         for (download in existingDownloads) {
             if (download.isSmartDownloaded) {
-                if (download.status == DownloadedEpisodeEntity.STATUS_COMPLETED) {
-                    currentDownloadedBytes += download.sizeBytes
-                } else if (download.status == DownloadedEpisodeEntity.STATUS_DOWNLOADING) {
-                    val durSec = download.durationMs / 1000L
-                    val estSize = if (durSec > 0) durSec * 12000L else 50L * 1024 * 1024
-                    currentDownloadedBytes += estSize
-                }
-            }
-            
-            if (download.isSmartDownloaded && download.episodeId !in candidateEpisodeIds) {
-                Log.d("SmartDownloadManager", "Recycling/cleaning up old smart-downloaded episode: ${download.episodeId}")
-                writeLogToFile(context, "Recycling/deleting old smart-downloaded episode: '${download.episodeTitle}' (ID: ${download.episodeId})")
-                downloadRepository.removeDownload(download.episodeId)
-                if (download.status == DownloadedEpisodeEntity.STATUS_COMPLETED) {
-                    currentDownloadedBytes -= download.sizeBytes
-                } else if (download.status == DownloadedEpisodeEntity.STATUS_DOWNLOADING) {
-                    val durSec = download.durationMs / 1000L
-                    val estSize = if (durSec > 0) durSec * 12000L else 50L * 1024 * 1024
+                val estSize = estimateDownloadSize(download)
+                currentDownloadedBytes += estSize
+                
+                if (download.episodeId !in candidateEpisodeIds) {
+                    Log.d("SmartDownloadManager", "Recycling/cleaning up old smart-downloaded episode: ${download.episodeId}")
+                    writeLogToFile(context, "Recycling/deleting old smart-downloaded episode: '${download.episodeTitle}' (ID: ${download.episodeId})")
+                    downloadRepository.removeDownload(download.episodeId)
                     currentDownloadedBytes -= estSize
                 }
             }
@@ -414,10 +460,7 @@ class SmartDownloadManager(
         var currentDownloadedBytes = startingDownloadedBytes
 
         for (episode in combinedEpisodes) {
-            val isAlreadyDownloaded = existingDownloads.any { it.episodeId == episode.id && it.status == DownloadedEpisodeEntity.STATUS_COMPLETED }
-            val isDownloading = existingDownloads.any { it.episodeId == episode.id && it.status == DownloadedEpisodeEntity.STATUS_DOWNLOADING }
-            
-            if (isAlreadyDownloaded || isDownloading) {
+            if (checkIsAlreadyDownloadedOrDownloading(episode, existingDownloads)) {
                 Log.d("SmartDownloadManager", "Episode ${episode.title} already downloaded or downloading. Skipping.")
                 continue
             }
@@ -428,21 +471,14 @@ class SmartDownloadManager(
                 break
             }
 
-            val estimatedSize = if (episode.duration > 0) {
-                episode.duration.toLong() * 12000L
-            } else {
-                50L * 1024 * 1024
-            }
+            val estimatedSize = estimateEpisodeSize(episode)
 
-            if (storageBudgetMb > 0) {
-                val budgetBytes = storageBudgetMb * 1024 * 1024L
-                if (currentDownloadedBytes + estimatedSize > budgetBytes) {
-                    val estMb = estimatedSize / (1024 * 1024)
-                    val currMb = currentDownloadedBytes / (1024 * 1024)
-                    Log.d("SmartDownloadManager", "Hit storage budget limit ($storageBudgetMb MB). Adding '${episode.title}' (Est: $estMb MB) would exceed budget (Current: $currMb MB). Halting downloads.")
-                    writeLogToFile(context, "Adding '${episode.title}' (Est: $estMb MB) would exceed storage budget ($storageBudgetMb MB). Halting downloads.")
-                    break
-                }
+            if (storageBudgetMb > 0 && currentDownloadedBytes + estimatedSize > storageBudgetMb * 1024 * 1024L) {
+                val estMb = estimatedSize / (1024 * 1024)
+                val currMb = currentDownloadedBytes / (1024 * 1024)
+                Log.d("SmartDownloadManager", "Hit storage budget limit ($storageBudgetMb MB). Adding '${episode.title}' (Est: $estMb MB) would exceed budget (Current: $currMb MB). Halting downloads.")
+                writeLogToFile(context, "Adding '${episode.title}' (Est: $estMb MB) would exceed storage budget ($storageBudgetMb MB). Halting downloads.")
+                break
             }
 
             val parentPod = subs.find { it.podcastId == episode.podcastId }?.toPodcast() ?: Podcast(
