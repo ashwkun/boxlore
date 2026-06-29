@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.androidx.graphics.shapes)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.metrics.performance)
     implementation(libs.smooth.corner.rect)
     api(libs.coil.compose) // OptimizedImage composable uses Coil
     implementation(libs.posthog.android)
