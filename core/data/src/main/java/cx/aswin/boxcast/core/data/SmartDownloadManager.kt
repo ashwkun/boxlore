@@ -215,6 +215,25 @@ class SmartDownloadManager(
         }
     }
 
+    private fun resolveUnplayedDropCandidate(
+        pod: PodcastEntity,
+        resolvedSerial: Map<String, Episode>,
+        historyByEpisode: Map<String, ListeningHistoryEntity>
+    ): Pair<PodcastEntity, Episode>? {
+        val sort = pod.preferredSort ?: "newest"
+        val ep = if (sort == "oldest") {
+            resolvedSerial[pod.podcastId]
+        } else {
+            null
+        } ?: pod.latestEpisode ?: return null
+
+        val history = historyByEpisode[ep.id]
+        val isUnplayed = history == null || (history.progressMs == 0L && !history.isCompleted)
+        return if (isUnplayed) {
+            pod to ep.copy(podcastTitle = pod.title, podcastId = pod.podcastId)
+        } else null
+    }
+
     private fun buildUnplayedDropsMixtapeCandidates(
         subs: List<PodcastEntity>,
         resolvedSerial: Map<String, Episode>,
@@ -222,25 +241,7 @@ class SmartDownloadManager(
         podScoresMap: Map<String, Double>
     ): List<MixtapeCandidate> {
         val unplayedDropsCandidates = subs.mapNotNull { pod ->
-            val sort = pod.preferredSort ?: "newest"
-            if (sort == "oldest") {
-                val resolved = resolvedSerial[pod.podcastId]
-                if (resolved != null) {
-                    pod to resolved.copy(podcastTitle = pod.title, podcastId = pod.podcastId)
-                } else {
-                    val latestEp = pod.latestEpisode ?: return@mapNotNull null
-                    val history = historyByEpisode[latestEp.id]
-                    val isUnplayed = history == null || (history.progressMs == 0L && !history.isCompleted)
-                    if (isUnplayed) pod to latestEp.copy(podcastTitle = pod.title, podcastId = pod.podcastId) else null
-                }
-            } else {
-                val latestEp = pod.latestEpisode ?: return@mapNotNull null
-                val history = historyByEpisode[latestEp.id]
-                val isUnplayed = history == null || (history.progressMs == 0L && !history.isCompleted)
-                if (isUnplayed) {
-                    pod to latestEp.copy(podcastTitle = pod.title, podcastId = pod.podcastId)
-                } else null
-            }
+            resolveUnplayedDropCandidate(pod, resolvedSerial, historyByEpisode)
         }
 
         return unplayedDropsCandidates.map { (pod, ep) ->
@@ -267,6 +268,22 @@ class SmartDownloadManager(
         }
     }
 
+    private fun shouldIncludeCandidate(cand: MixtapeCandidate, slots: MutableSet<Boolean>): Boolean {
+        if (cand.isProgress !in slots) {
+            return true
+        }
+        if (slots.size < 2) {
+            val isNewTagged = !cand.isProgress && cand.episode.publishedDate > (cand.podcast.subscribedAt / 1000L)
+            if (isNewTagged && slots.contains(true)) {
+                return true
+            }
+            if (cand.isProgress && slots.contains(false)) {
+                return true
+            }
+        }
+        return false
+    }
+
     private fun deduplicateAndOrderMixtapeCandidates(
         inProgressMixtapeCandidates: List<MixtapeCandidate>,
         unplayedDropsMixtapeCandidates: List<MixtapeCandidate>
@@ -282,21 +299,10 @@ class SmartDownloadManager(
             if (cand.episodeId in seenEpisodeIds) continue
             val podId = cand.podcast.id
             val slots = podcastSlots.getOrPut(podId) { mutableSetOf() }
-            if (cand.isProgress !in slots) {
+            if (shouldIncludeCandidate(cand, slots)) {
                 slots.add(cand.isProgress)
                 seenEpisodeIds.add(cand.episodeId)
                 deduplicatedCandidates.add(cand)
-            } else if (slots.size < 2) {
-                val isNewTagged = !cand.isProgress && cand.episode.publishedDate > (cand.podcast.subscribedAt / 1000L)
-                if (isNewTagged && slots.contains(true)) {
-                    slots.add(cand.isProgress)
-                    seenEpisodeIds.add(cand.episodeId)
-                    deduplicatedCandidates.add(cand)
-                } else if (cand.isProgress && slots.contains(false)) {
-                    slots.add(cand.isProgress)
-                    seenEpisodeIds.add(cand.episodeId)
-                    deduplicatedCandidates.add(cand)
-                }
             }
         }
 
