@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -54,7 +55,7 @@ fun CuratedEpisodeCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
+                    .aspectRatio(1f)
             ) {
                 OptimizedImage(
                     url = (episode.imageUrl ?: "").ifEmpty { podcast.imageUrl },
@@ -106,20 +107,22 @@ fun CuratedEpisodeCard(
             }
 
             // Text content below image
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .height(58.dp)
+            ) {
                 Text(
                     text = episode.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 13.sp),
-                    minLines = 2,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = podcast.title,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    minLines = 1,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

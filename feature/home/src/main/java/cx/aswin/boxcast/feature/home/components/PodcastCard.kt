@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,6 +25,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import cx.aswin.boxcast.core.model.Podcast
 import cx.aswin.boxcast.core.designsystem.components.OptimizedImage
 import androidx.compose.foundation.layout.Row
@@ -52,7 +54,7 @@ fun PodcastCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (isTall) 280.dp else 220.dp)
+                    .aspectRatio(1f)
             ) {
                 OptimizedImage(
                     url = podcast.imageUrl,
@@ -109,14 +111,18 @@ fun PodcastCard(
                 }
             }
             
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .height(58.dp)
+            ) {
                 Text(
                     text = podcast.title.replace("+", " "),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = podcast.artist.replace("+", " "),
                     style = MaterialTheme.typography.bodySmall,

@@ -64,7 +64,7 @@ fun ForYouSection(
         if (showTasteHeader) {
             ForYouHeader(
                 isFallback = isFallback,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 12.dp)
             )
         }
 
@@ -373,7 +373,7 @@ private fun ForYouBentoCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1.25f)
+                    .aspectRatio(1f)
             ) {
                 OptimizedImage(
                     url = episode.imageUrl?.takeIf { it.isNotBlank() } ?: episode.podcastImageUrl?.takeIf { it.isNotBlank() },
@@ -406,25 +406,21 @@ private fun ForYouBentoCard(
             }
 
             // Text content below image
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(10.dp)
+                    .height(58.dp)
+            ) {
                 Text(
                     text = episode.title,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontSize = 14.sp,
-                        lineHeight = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 13.sp, lineHeight = 17.sp),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = episode.podcastTitle ?: "",
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontSize = 12.sp,
-                        lineHeight = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
+                    style = MaterialTheme.typography.bodySmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -444,21 +440,14 @@ private fun ForYouHeader(
             .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            painter = painterResource(id = cx.aswin.boxcast.core.designsystem.R.drawable.interests_24),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = if (isFallback) "Popular in your Region" else "Based on Your Taste",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleSmall.copy(
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
                 letterSpacing = (-0.1).sp
             ),
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -490,18 +479,18 @@ private fun ForYouBentoSkeleton(
         modifier = modifier.fillMaxWidth()
     ) {
         Column {
-            // Image area skeleton matching aspect ratio 1.25f
+            // Image area skeleton matching aspect ratio 1f
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1.25f)
+                    .aspectRatio(1f)
                     .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
                     .m3Shimmer(baseColor, highlightColor, shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
             )
             
             // Text area skeleton matching padding and layout
             Column(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier.padding(10.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 // Title line 1

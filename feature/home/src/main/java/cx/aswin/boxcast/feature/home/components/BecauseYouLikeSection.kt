@@ -111,27 +111,20 @@ fun BecauseYouLikeSection(
 
         // --- Subsection 1: Suggested Shows (OutlinedCard Grid Matching CuratedEpisodeCard) ---
         if (suggestedPodcasts.list.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(28.dp))
             Column {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Subscriptions,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Similar Shows",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
                             letterSpacing = (-0.1).sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 
@@ -141,9 +134,11 @@ fun BecauseYouLikeSection(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(suggestedPodcasts.list, key = { it.id }) { suggestedPodcast ->
-                        SuggestedPodcastCard(
+                        PodcastCard(
                             podcast = suggestedPodcast,
-                            onClick = { onPodcastClick(suggestedPodcast) }
+                            isTall = false,
+                            onClick = { onPodcastClick(suggestedPodcast) },
+                            modifier = Modifier.width(140.dp)
                         )
                     }
                 }
@@ -152,27 +147,20 @@ fun BecauseYouLikeSection(
 
         // --- Subsection 2: Recommended Episodes ---
         if (recommendations.list.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(28.dp))
             Column {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    modifier = Modifier.padding(bottom = 12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.PlaylistPlay,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Recommended Episodes",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
                             letterSpacing = (-0.1).sp
                         ),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -197,59 +185,6 @@ fun BecauseYouLikeSection(
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SuggestedPodcastCard(
-    podcast: Podcast,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    OutlinedCard(
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier
-            .width(140.dp)
-            .expressiveClickable(onClick = onClick)
-    ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-            ) {
-                OptimizedImage(
-                    url = podcast.imageUrl,
-                    proxyWidth = 400,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp))
-                )
-            }
-            
-            Column(modifier = Modifier.padding(10.dp)) {
-                Text(
-                    text = podcast.title.replace("+", " "),
-                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 13.sp),
-                    minLines = 2,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = podcast.artist.replace("+", " "),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    minLines = 1,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }
