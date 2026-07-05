@@ -4,30 +4,29 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -48,6 +47,9 @@ fun CuriosityCardStack(
     onSwipeLeft: (DailyCuriosityDto) -> Unit,
     onSwipeRight: (DailyCuriosityDto) -> Unit,
     onPlayClick: (DailyCuriosityDto) -> Unit,
+    onEpisodeClick: (DailyCuriosityDto) -> Unit,
+    onPodcastClick: (DailyCuriosityDto) -> Unit,
+    accentColor: Color,
     modifier: Modifier = Modifier
 ) {
     if (questions.isEmpty()) {
@@ -69,7 +71,7 @@ fun CuriosityCardStack(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(360.dp),
+            .height(530.dp),
         contentAlignment = Alignment.Center
     ) {
         // Render up to 4 cards in stack representation (reversed order so top is drawn last)
@@ -86,14 +88,6 @@ fun CuriosityCardStack(
                     onSwipeRight(daily)
                 }
             }
-
-            var isFlipped by remember(daily.episode.id) { mutableStateOf(false) }
-
-            val cardRotationY by animateFloatAsState(
-                targetValue = if (isFlipped) 180f else 0f,
-                animationSpec = tween(durationMillis = 400),
-                label = "CardFlip"
-            )
 
             // Dynamic spring animations for stack position changes
             val scaleTarget = when (stackIndex) {
@@ -165,7 +159,6 @@ fun CuriosityCardStack(
                         } else {
                             rotationAngle
                         }
-                        this.rotationY = if (isTopCard) cardRotationY else 0f
                         alpha = alphaVal
                         cameraDistance = 12f * density
                     }
@@ -200,10 +193,10 @@ fun CuriosityCardStack(
                 CuriosityCardContent(
                     daily = daily,
                     isCurrentlyPlaying = isCurrentlyPlaying(daily.episode.id.toString()),
-                    isFlipped = isFlipped && isTopCard,
-                    rotationY = if (isTopCard) cardRotationY else 0f,
-                    onFlipToggle = { if (isTopCard) isFlipped = !isFlipped },
-                    onPlayClick = { if (isTopCard) onPlayClick(daily) }
+                    accentColor = accentColor,
+                    onPlayClick = { if (isTopCard) onPlayClick(daily) },
+                    onEpisodeClick = { if (isTopCard) onEpisodeClick(daily) },
+                    onPodcastClick = { if (isTopCard) onPodcastClick(daily) }
                 )
             }
         }
@@ -214,10 +207,10 @@ fun CuriosityCardStack(
 private fun CuriosityCardContent(
     daily: DailyCuriosityDto,
     isCurrentlyPlaying: Boolean,
-    isFlipped: Boolean,
-    rotationY: Float,
-    onFlipToggle: () -> Unit,
+    accentColor: Color,
     onPlayClick: () -> Unit,
+    onEpisodeClick: () -> Unit,
+    onPodcastClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val coverArt = daily.episode.image ?: daily.episode.feedImage ?: ""
@@ -230,294 +223,234 @@ private fun CuriosityCardContent(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier
             .fillMaxSize()
-            .expressiveClickable(onClick = onFlipToggle)
+            .expressiveClickable(onClick = onEpisodeClick)
     ) {
-        if (rotationY > 90f) {
-            // Back Side (Flipped View)
+        Box(modifier = Modifier.fillMaxSize()) {
+            // 1. Full-bleed blurred background
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        this.rotationY = 180f
-                    }
+                    .blur(60.dp)
             ) {
-                // Background cover art with solid container tint for legibility
                 OptimizedImage(
                     url = coverArt,
-                    proxyWidth = 300,
+                    proxyWidth = 200,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.92f))
-                )
+            }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
+            // 2. Dark scrim over blurred BG (High opacity for text readability)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.75f))
+            )
+
+            // 3. Content Column
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp, vertical = 20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // 3a. Badges Row (Dismiss, Info, and Queue)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        // Header Row with Episode details
+                    // Dismiss (Left)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Black.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            OptimizedImage(
-                                url = coverArt,
-                                proxyWidth = 120,
+                            Icon(
+                                imageVector = Icons.Filled.ArrowBack,
                                 contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(52.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                tint = Color(0xFFFF6B6B),
+                                modifier = Modifier.size(14.dp)
                             )
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = daily.episode.feedTitle ?: "Podcast",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                val durationSec = daily.episode.duration
-                                val durationMin = if (durationSec != null && durationSec > 0) {
-                                    "${durationSec / 60} min"
-                                } else {
-                                    "Daily micro-story"
-                                }
-                                Text(
-                                    text = durationMin,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Dismiss",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
                         }
-
-                        Spacer(modifier = Modifier.height(20.dp))
-
-                        // Explanation text
-                        Text(
-                            text = daily.explanation ?: "No explanation available.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            lineHeight = 24.sp,
-                            maxLines = 6,
-                            overflow = TextOverflow.Ellipsis
-                        )
                     }
 
-                    // Premium listen button
-                    FilledTonalButton(
-                        onClick = onPlayClick,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = if (isCurrentlyPlaying) {
-                            ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        } else {
-                            ButtonDefaults.filledTonalButtonColors()
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
+                    // Info (Center)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Black.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
                     ) {
-                        Icon(
-                            imageVector = if (isCurrentlyPlaying) Icons.Filled.VolumeUp else Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (isCurrentlyPlaying) "Playing micro-story" else "Listen to micro-story",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.TouchApp,
+                                contentDescription = null,
+                                tint = Color(0xFF4DABF7),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Info",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
+                    }
+
+                    // Queue (Right)
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Black.copy(alpha = 0.45f),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = Color(0xFF69DB7C),
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Queue",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White.copy(alpha = 0.9f)
+                            )
+                        }
                     }
                 }
-            }
-        } else {
-            // Front side card structure: Unified Full Image Background with Blurred Bottom Panel
-            Box(modifier = Modifier.fillMaxSize()) {
-                // 1. Full Image Background
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 3b. Crisp square artwork (120dp)
                 OptimizedImage(
                     url = coverArt,
-                    proxyWidth = 600,
+                    proxyWidth = 240,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(16.dp))
                 )
 
-                // 3 Top Interactive Badges (Dismiss, Details, Queue) with frosted bg styling
-                // Dismiss (Top Start / Left - swipe left direction)
-                Surface(
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // 3c. Podcast title row indicating it is clickable (using keyboard arrow right >)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .padding(16.dp)
-                        .align(Alignment.TopStart),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-                    shadowElevation = 3.dp
+                        .clip(RoundedCornerShape(8.dp))
+                        .expressiveClickable(onClick = onPodcastClick)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Dismiss",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                    Text(
+                        text = daily.episode.feedTitle ?: "Podcast",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                        contentDescription = "Go to podcast",
+                        tint = Color.White.copy(alpha = 0.6f),
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
 
-                // Details (Top Center)
-                Surface(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .align(Alignment.TopCenter),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-                    shadowElevation = 3.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.TouchApp,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Details",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Queue (Top End / Right - swipe right direction)
-                Surface(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .align(Alignment.TopEnd),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
-                    shadowElevation = 3.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Queue",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
+                // 3d. Question Text (Hook)
+                Text(
+                    text = daily.question,
+                    fontSize = 28.sp,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White,
+                    lineHeight = 36.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-                // 2. Dynamic Bottom Panel Wrapper (wraps blur and shading to size dynamically with the text)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 3e. Explanation Text
+                Text(
+                    text = daily.explanation ?: "",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.75f),
+                    lineHeight = 20.sp,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                // Flexible Spacer 3: Distributes space between Content and Play controls
+                Spacer(modifier = Modifier.weight(1f))
+
+                // 3f. Custom pill-style play button - Premium Circular Glassmorphic Play/Pause
+                val isPlaying = isCurrentlyPlaying
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .height(IntrinsicSize.Min) // Dynamic height tied to the text Column!
-                ) {
-                    // Blurred Artwork Backdrop (Fills the parent Box height dynamically)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                            .drawWithContent {
-                                drawContent()
-                                // Alpha mask the content of this Box to fade smoothly at the top
-                                drawRect(
-                                    brush = Brush.verticalGradient(
+                        .size(72.dp)
+                        .border(1.5.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                        .padding(6.dp)
+                        .clip(CircleShape)
+                        .then(
+                            if (isPlaying) {
+                                Modifier.background(
+                                    Brush.radialGradient(
                                         colors = listOf(
-                                            Color.Transparent,
-                                            Color.Black
+                                            accentColor,
+                                            accentColor.copy(alpha = 0.8f)
                                         )
-                                    ),
-                                    blendMode = BlendMode.DstIn
-                                )
-                            }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .blur(80.dp)
-                        ) {
-                            OptimizedImage(
-                                url = coverArt,
-                                proxyWidth = 300,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-
-                    // Solid surface container tint overlay + Text Content Column (dynamic height wrapper)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color(0xFF1A1A1E).copy(alpha = 0.5f),
-                                        Color(0xFF1A1A1E).copy(alpha = 0.95f),
-                                        Color(0xFF1A1A1E),
-                                        Color(0xFF1A1A1E)
                                     )
                                 )
-                            )
-                            // top = 48.dp is the gradient transition zone so the first text line sits on solid shading
-                            .padding(start = 20.dp, end = 20.dp, bottom = 18.dp, top = 48.dp)
-                    ) {
-                        Text(
-                            text = daily.question,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color.White,
-                            lineHeight = 36.sp
+                            } else {
+                                Modifier.background(
+                                    Brush.radialGradient(
+                                        colors = listOf(
+                                            Color.White,
+                                            Color.White.copy(alpha = 0.9f)
+                                        )
+                                    )
+                                )
+                            }
                         )
-                    }
+                        .expressiveClickable(onClick = onPlayClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = if (isPlaying) Color.White else Color.Black,
+                        modifier = Modifier
+                            .size(32.dp)
+                            .then(
+                                if (!isPlaying) Modifier.offset(x = 2.dp) else Modifier
+                            )
+                    )
                 }
             }
         }

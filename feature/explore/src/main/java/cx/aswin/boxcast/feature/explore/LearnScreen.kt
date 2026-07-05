@@ -1,45 +1,35 @@
 package cx.aswin.boxcast.feature.explore
 
-import androidx.compose.foundation.BorderStroke
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.vectorResource
-import androidx.compose.foundation.Image
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.foundation.background
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.remember
-import android.graphics.drawable.BitmapDrawable
-import coil.compose.AsyncImagePainter
-import coil.compose.rememberAsyncImagePainter
-import coil.request.ImageRequest
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.Color
-import androidx.palette.graphics.Palette
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -49,36 +39,44 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cx.aswin.boxcast.core.designsystem.components.OptimizedImage
+import coil.compose.AsyncImagePainter
+import coil.compose.rememberAsyncImagePainter
+import coil.request.ImageRequest
 import cx.aswin.boxcast.core.designsystem.components.BoxLoreLoader
+import cx.aswin.boxcast.core.designsystem.components.OptimizedImage
 import cx.aswin.boxcast.core.designsystem.theme.expressiveClickable
 import cx.aswin.boxcast.core.model.Episode
 import cx.aswin.boxcast.core.network.model.CuratedCuriosityPodcastDto
 import cx.aswin.boxcast.core.network.model.DailyCuriosityDto
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,6 +91,7 @@ fun LearnScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val playerState by playbackRepository.playerState.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -106,40 +105,11 @@ fun LearnScreen(
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.refresh() },
             state = pullToRefreshState,
-            modifier = Modifier.fillMaxSize(),
-            indicator = {
-                val density = LocalDensity.current
-                val pullProgress = pullToRefreshState.distanceFraction
-
-                if (pullProgress > 0f || isRefreshing) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 16.dp)
-                            .graphicsLayer {
-                                val scale = if (isRefreshing) 1f else pullProgress.coerceIn(0f, 1f)
-                                scaleX = scale
-                                scaleY = scale
-                                alpha = scale
-                                translationY = if (isRefreshing) {
-                                    with(density) { 24.dp.toPx() }
-                                } else {
-                                    pullProgress * with(density) { 32.dp.toPx() }
-                                }
-                            }
-                            .size(48.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        tonalElevation = 6.dp,
-                        shadowElevation = 6.dp
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            BoxLoreLoader.Expressive(size = 30.dp)
-                        }
-                    }
-                }
-            }
+            modifier = Modifier.fillMaxSize()
         ) {
+            // Use the passed in bottomContentPadding from MainActivity instead of the local empty Scaffold padding
+            val bottomContentPaddingCalculated = bottomContentPadding
+
             when (val state = uiState) {
                 is LearnUiState.Loading -> {
                     Box(
@@ -149,7 +119,7 @@ fun LearnScreen(
                         BoxLoreLoader.Expressive(size = 64.dp)
                     }
                 }
-                
+
                 is LearnUiState.Success -> {
                     val context = LocalContext.current
                     var extractedColor by remember { mutableStateOf<Color?>(null) }
@@ -177,94 +147,82 @@ fun LearnScreen(
                         }
                     }
 
-                    val listState = rememberLazyListState()
-                    val firstVisibleItemIndex = listState.firstVisibleItemIndex
-                    val firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset
-                    
-                    val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                    val collapsedHeaderHeight = 56.dp + statusBarHeight
-                    val morphThreshold = with(LocalDensity.current) { 180.dp.toPx() }
-
-                    val scrollFraction = remember(listState, firstVisibleItemIndex, firstVisibleItemScrollOffset) {
-                        if (firstVisibleItemIndex > 0) 1f
-                        else (firstVisibleItemScrollOffset.toFloat() / morphThreshold).coerceIn(0f, 1f)
-                    }
-
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(
-                                top = collapsedHeaderHeight,
-                                bottom = bottomContentPadding + 24.dp
-                            )
-                        ) {
-                            // 1. Header Section
-                            item {
-                                Image(
-                                    painter = painterResource(id = cx.aswin.boxcast.core.designsystem.R.drawable.logo_lore),
-                                    contentDescription = "Lore",
-                                    colorFilter = ColorFilter.tint(accentColor),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(36.dp)
-                                        .padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 8.dp),
-                                    contentScale = ContentScale.Fit,
-                                    alignment = Alignment.CenterStart
-                                )
-                            }
-
-                            // 2. Curiosity Card Stack Section
-                            item {
-                                CuriosityCardStack(
-                                    questions = state.questionsStack,
-                                    isCurrentlyPlaying = { id -> playerState.currentEpisode?.id == id && playerState.isPlaying },
-                                    onSwipeLeft = { daily ->
-                                        viewModel.dismissCuriosity(daily.episode.id.toString())
-                                    },
-                                    onSwipeRight = { daily ->
-                                        val mappedEpisode = mapToEpisode(daily.episode)
-                                        onQueueEpisode(mappedEpisode)
-                                        viewModel.dismissCuriosity(daily.episode.id.toString())
-                                    },
-                                    onPlayClick = { daily ->
-                                        val mappedEpisode = mapToEpisode(daily.episode)
-                                        onEpisodeClick(mappedEpisode)
-                                    },
-                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                                )
-                            }
-                        }
-
-                        // Floating Header Overlay
-                        val surfaceColor = MaterialTheme.colorScheme.surfaceContainer
-                        val headerColor by animateColorAsState(
-                            targetValue = surfaceColor.copy(alpha = scrollFraction),
-                            animationSpec = spring(stiffness = Spring.StiffnessLow),
-                            label = "headerColor"
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding()
+                            .padding(bottom = bottomContentPaddingCalculated),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // 1. Centered brand logo at the top of the page (Expanded to 40.dp)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Image(
+                            painter = painterResource(id = cx.aswin.boxcast.core.designsystem.R.drawable.logo_lore),
+                            contentDescription = "Lore",
+                            colorFilter = ColorFilter.tint(accentColor),
+                            modifier = Modifier.height(40.dp)
                         )
-                        val titleAlpha = if (scrollFraction > 0.6f) (scrollFraction - 0.6f) / 0.4f else 0f
 
-                        Box(
+                        // 2. Top flexible spacer
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        // 3. Curiosity Card Stack
+                        CuriosityCardStack(
+                            questions = state.questionsStack,
+                            isCurrentlyPlaying = { id -> playerState.currentEpisode?.id == id && playerState.isPlaying },
+                            onSwipeLeft = { daily ->
+                                viewModel.dismissCuriosity(daily.episode.id.toString())
+                            },
+                            onSwipeRight = { daily ->
+                                val mappedEpisode = mapToEpisode(daily.episode)
+                                onQueueEpisode(mappedEpisode)
+                                viewModel.dismissCuriosity(daily.episode.id.toString())
+                            },
+                            onPlayClick = { daily ->
+                                val isCurrent = playerState.currentEpisode?.id == daily.episode.id.toString()
+                                if (isCurrent) {
+                                    playbackRepository.togglePlayPause()
+                                } else {
+                                    val mappedEpisode = mapToEpisode(daily.episode)
+                                    val podcast = cx.aswin.boxcast.core.model.Podcast(
+                                        id = daily.episode.feedId?.toString() ?: "learn_fallback",
+                                        title = daily.episode.feedTitle ?: "Podcast",
+                                        artist = daily.episode.feedTitle ?: "Unknown",
+                                        imageUrl = daily.episode.feedImage ?: daily.episode.image ?: ""
+                                    )
+                                    coroutineScope.launch {
+                                        playbackRepository.playQueue(
+                                            episodes = listOf(mappedEpisode),
+                                            podcast = podcast,
+                                            startIndex = 0,
+                                            entryPoint = cx.aswin.boxcast.core.model.PlaybackEntryPoint.GENERIC
+                                        )
+                                    }
+                                }
+                            },
+                            onEpisodeClick = { daily ->
+                                val mappedEpisode = mapToEpisode(daily.episode)
+                                onEpisodeClick(mappedEpisode)
+                            },
+                            onPodcastClick = { daily ->
+                                onPodcastClick(
+                                    daily.episode.feedId,
+                                    null,
+                                    "",
+                                    daily.episode.feedTitle ?: "Podcast"
+                                )
+                            },
+                            accentColor = accentColor,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(collapsedHeaderHeight)
-                                .background(headerColor)
-                                .statusBarsPadding(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Image(
-                                painter = painterResource(id = cx.aswin.boxcast.core.designsystem.R.drawable.logo_lore),
-                                contentDescription = "Lore",
-                                colorFilter = ColorFilter.tint(accentColor),
-                                modifier = Modifier
-                                    .height(28.dp)
-                                    .graphicsLayer { alpha = titleAlpha }
-                            )
-                        }
+                                .padding(horizontal = 20.dp)
+                        )
+
+                        // 4. Bottom flexible spacer (exactly matches top spacer weight to center cards vertically)
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
-                
+
                 is LearnUiState.Error -> {
                     Column(
                         modifier = Modifier
@@ -296,9 +254,6 @@ fun LearnScreen(
     }
 }
 
-
-
-
 // Convert DTO EpisodeItem to Domain model Episode
 private fun mapToEpisode(item: cx.aswin.boxcast.core.network.model.EpisodeItem): Episode {
     return Episode(
@@ -325,4 +280,49 @@ private fun extractDominantColor(bitmap: android.graphics.Bitmap): Color {
     val dominant = palette.dominantSwatch?.rgb
     val colorInt = vibrant ?: muted ?: dominant ?: 0xFF6200EE.toInt()
     return Color(colorInt)
+}
+
+@Composable
+private fun CuratedShowItem(
+    show: CuratedCuriosityPodcastDto,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .width(110.dp)
+            .expressiveClickable(onClick = onClick)
+    ) {
+        OptimizedImage(
+            url = show.artwork ?: show.image ?: "",
+            proxyWidth = 220,
+            contentDescription = null,
+            modifier = Modifier
+                .size(110.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        )
+        
+        Spacer(modifier = Modifier.height(6.dp))
+        
+        Text(
+            text = show.title,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.Bold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        
+        val author = show.author
+        if (!author.isNullOrEmpty()) {
+            Text(
+                text = author,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
 }
