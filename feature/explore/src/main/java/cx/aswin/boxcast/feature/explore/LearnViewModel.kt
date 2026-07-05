@@ -56,7 +56,7 @@ class LearnViewModel(
 
     private fun weightedShuffle(list: List<DailyCuriosityDto>): List<DailyCuriosityDto> {
         if (list.size <= 1) return list
-        val random = java.util.Random()
+        val random = java.security.SecureRandom()
         return list.map { item ->
             val u = random.nextDouble()
             val w = (item.curiosityScore ?: 0).toDouble() + 1.0

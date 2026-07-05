@@ -256,89 +256,7 @@ private fun CuriosityCardContent(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // 3a. Badges Row (Dismiss, Info, and Queue)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // Dismiss (Left)
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.Black.copy(alpha = 0.45f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.ArrowBack,
-                                contentDescription = null,
-                                tint = Color(0xFFFF6B6B),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Dismiss",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
-                    }
-
-                    // Info (Center)
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.Black.copy(alpha = 0.45f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.TouchApp,
-                                contentDescription = null,
-                                tint = Color(0xFF4DABF7),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Info",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
-                    }
-
-                    // Queue (Right)
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color.Black.copy(alpha = 0.45f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = Color(0xFF69DB7C),
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Queue",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                        }
-                    }
-                }
+                CardBadgesRow()
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -410,49 +328,151 @@ private fun CuriosityCardContent(
                 Spacer(modifier = Modifier.weight(1f))
 
                 // 3f. Custom pill-style play button - Premium Circular Glassmorphic Play/Pause
-                val isPlaying = isCurrentlyPlaying
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .border(1.5.dp, Color.White.copy(alpha = 0.25f), CircleShape)
-                        .padding(6.dp)
-                        .clip(CircleShape)
-                        .then(
-                            if (isPlaying) {
-                                Modifier.background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            accentColor,
-                                            accentColor.copy(alpha = 0.8f)
-                                        )
-                                    )
-                                )
-                            } else {
-                                Modifier.background(
-                                    Brush.radialGradient(
-                                        colors = listOf(
-                                            Color.White,
-                                            Color.White.copy(alpha = 0.9f)
-                                        )
-                                    )
-                                )
-                            }
-                        )
-                        .expressiveClickable(onClick = onPlayClick),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = if (isPlaying) Color.White else Color.Black,
-                        modifier = Modifier
-                            .size(32.dp)
-                            .then(
-                                if (!isPlaying) Modifier.offset(x = 2.dp) else Modifier
-                            )
-                    )
-                }
+                CircularPlayButton(
+                    isPlaying = isCurrentlyPlaying,
+                    accentColor = accentColor,
+                    onClick = onPlayClick
+                )
             }
         }
+    }
+}
+
+@Composable
+private fun CardBadgesRow(
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Dismiss (Left)
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color.Black.copy(alpha = 0.45f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowBack,
+                    contentDescription = null,
+                    tint = Color(0xFFFF6B6B),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Dismiss",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            }
+        }
+
+        // Info (Center)
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color.Black.copy(alpha = 0.45f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.TouchApp,
+                    contentDescription = null,
+                    tint = Color(0xFF4DABF7),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Info",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            }
+        }
+
+        // Queue (Right)
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color.Black.copy(alpha = 0.45f),
+            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.15f))
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = Color(0xFF69DB7C),
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Queue",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CircularPlayButton(
+    isPlaying: Boolean,
+    accentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(72.dp)
+            .border(1.5.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+            .padding(6.dp)
+            .clip(CircleShape)
+            .then(
+                if (isPlaying) {
+                    Modifier.background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                accentColor,
+                                accentColor.copy(alpha = 0.8f)
+                            )
+                        )
+                    )
+                } else {
+                    Modifier.background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                Color.White,
+                                Color.White.copy(alpha = 0.9f)
+                            )
+                        )
+                    )
+                }
+            )
+            .expressiveClickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+            contentDescription = if (isPlaying) "Pause" else "Play",
+            tint = if (isPlaying) Color.White else Color.Black,
+            modifier = Modifier
+                .size(32.dp)
+                .then(
+                    if (!isPlaying) Modifier.offset(x = 2.dp) else Modifier
+                )
+        )
     }
 }

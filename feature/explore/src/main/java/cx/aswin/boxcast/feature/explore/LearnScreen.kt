@@ -96,7 +96,7 @@ fun LearnScreen(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
+    ) { _ ->
         
         val isRefreshing = (uiState as? LearnUiState.Success)?.isRefreshing == true
         val pullToRefreshState = rememberPullToRefreshState()
