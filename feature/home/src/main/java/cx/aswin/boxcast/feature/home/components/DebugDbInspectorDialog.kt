@@ -33,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 
 @OptIn(ExperimentalMaterial3Api::class)
+@Suppress("kotlin:S107")
 @Composable
 fun DebugDbInspectorDialog(
     history: List<ListeningHistoryEntity>,
