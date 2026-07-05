@@ -455,10 +455,10 @@ private fun CuriosityCardContent(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
                                         Color.Transparent,
-                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
-                                        MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                        Color.Black.copy(alpha = 0.5f),
+                                        Color.Black.copy(alpha = 0.95f),
+                                        Color.Black,
+                                        Color.Black
                                     )
                                 )
                             )
@@ -469,7 +469,7 @@ private fun CuriosityCardContent(
                             text = daily.question,
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface,
+                            color = Color.White,
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                             lineHeight = 36.sp
