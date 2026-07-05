@@ -155,8 +155,8 @@ fun LearnScreen(
                     var extractedColor by remember { mutableStateOf<Color?>(null) }
                     val accentColor = extractedColor ?: MaterialTheme.colorScheme.primary
 
-                    // Dynamic color extraction from daily curiosity cover art
-                    val dailyImage = state.data.questionOfTheDay?.episode?.let { it.image ?: it.feedImage }
+                    // Dynamic color extraction from active card cover art in the stack
+                    val dailyImage = state.data.questionsStack.firstOrNull()?.episode?.let { it.image ?: it.feedImage }
                     if (dailyImage != null) {
                         val painter = rememberAsyncImagePainter(
                             model = remember(dailyImage) {
