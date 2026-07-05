@@ -313,98 +313,95 @@ private fun CuriosityCardContent(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // 2. Blurred Bottom Panel (Fading out smoothly towards the top)
+                // 2. Dynamic Bottom Panel Wrapper (wraps blur and shading to size dynamically with the text)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(300.dp)
                         .align(Alignment.BottomCenter)
-                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                        .drawWithContent {
-                            drawContent()
-                            // Alpha mask the content of this Box to fade smoothly
-                            drawRect(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color.Black
-                                    )
-                                ),
-                                blendMode = BlendMode.DstIn
-                            )
-                        }
+                        .height(IntrinsicSize.Min) // Dynamic height tied to the text Column!
                 ) {
-                    // Blurred Artwork Layer
+                    // Blurred Artwork Backdrop (Fills the parent Box height dynamically)
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .blur(80.dp)
+                            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                            .drawWithContent {
+                                drawContent()
+                                // Alpha mask the content of this Box to fade smoothly at the top
+                                drawRect(
+                                    brush = Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color.Black
+                                        )
+                                    ),
+                                    blendMode = BlendMode.DstIn
+                                )
+                            }
                     ) {
-                        OptimizedImage(
-                            url = coverArt,
-                            proxyWidth = 300,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-
-                // 3. Full-card Gradient Shading to make the text fully legible and clear
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.3f),
-                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
-                                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    MaterialTheme.colorScheme.surfaceContainerHigh
-                                ),
-                                startY = 0f,
-                                endY = 900f // Reaches full solid color higher up
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .blur(80.dp)
+                        ) {
+                            OptimizedImage(
+                                url = coverArt,
+                                proxyWidth = 300,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
-                        )
-                )
+                        }
+                    }
 
-                // 4. Question & Interaction text overlayed on the scrim
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 20.dp, vertical = 18.dp)
-                ) {
-                    Text(
-                        text = daily.question,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        lineHeight = 36.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Solid surface container tint overlay + Text Content Column (dynamic height wrapper)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
+                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.95f),
+                                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        MaterialTheme.colorScheme.surfaceContainerHigh
+                                    )
+                                )
+                            )
+                            // top = 48.dp is the gradient transition zone so the first text line sits on solid shading
+                            .padding(start = 20.dp, end = 20.dp, bottom = 18.dp, top = 48.dp)
                     ) {
                         Text(
-                            text = "Tap to Reveal Details",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
+                            text = daily.question,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 36.sp
                         )
-                        Text(
-                            text = "Swipe to Skip / Queue",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Medium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Tap to Reveal Details",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "Swipe to Skip / Queue",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
