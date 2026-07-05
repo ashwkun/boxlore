@@ -157,25 +157,6 @@ fun LearnScreen(
                     }
 
                     Box(modifier = Modifier.fillMaxSize()) {
-                        // Premium background glow inspired by the briefing screen
-                        val backgroundColor = MaterialTheme.colorScheme.background
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(280.dp)
-                                .graphicsLayer {
-                                    alpha = (1f - scrollFraction) * 0.15f
-                                }
-                                .background(
-                                    brush = Brush.verticalGradient(
-                                        colors = listOf(
-                                            accentColor,
-                                            backgroundColor
-                                        )
-                                    )
-                                )
-                        )
-
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
@@ -189,7 +170,7 @@ fun LearnScreen(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 12.dp)
+                                        .padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 8.dp)
                                 ) {
                                     Image(
                                         painter = painterResource(id = cx.aswin.boxcast.core.designsystem.R.drawable.logo_lore),
