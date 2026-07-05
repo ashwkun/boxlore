@@ -76,6 +76,7 @@ fun LearnScreen(
     playbackRepository: cx.aswin.boxcast.core.data.PlaybackRepository,
     bottomContentPadding: Dp,
     onEpisodeClick: (Episode) -> Unit,
+    onQueueEpisode: (Episode) -> Unit,
     onPodcastClick: (feedId: Long?, itunesId: Long?, feedUrl: String, title: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -197,20 +198,25 @@ fun LearnScreen(
                                 }
                             }
 
-                            // 2. Curiosity of the Day Section
-                            state.data.questionOfTheDay?.let { daily ->
-                                item {
-                                    val mappedEpisode = mapToEpisode(daily.episode)
-                                    val isCurrentlyPlaying = playerState.currentEpisode?.id == mappedEpisode.id && playerState.isPlaying
-                                    
-                                    CuriosityOfTheDayCard(
-                                        daily = daily,
-                                        isCurrentlyPlaying = isCurrentlyPlaying,
-                                        accentColor = accentColor,
-                                        onClick = { onEpisodeClick(mappedEpisode) },
-                                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                                    )
-                                }
+                            // 2. Curiosity Card Stack Section
+                            item {
+                                CuriosityCardStack(
+                                    questions = state.questionsStack,
+                                    isCurrentlyPlaying = { id -> playerState.currentEpisode?.id == id && playerState.isPlaying },
+                                    onSwipeLeft = { daily ->
+                                        viewModel.dismissCuriosity(daily.episode.id.toString())
+                                    },
+                                    onSwipeRight = { daily ->
+                                        val mappedEpisode = mapToEpisode(daily.episode)
+                                        onQueueEpisode(mappedEpisode)
+                                        viewModel.dismissCuriosity(daily.episode.id.toString())
+                                    },
+                                    onPlayClick = { daily ->
+                                        val mappedEpisode = mapToEpisode(daily.episode)
+                                        onEpisodeClick(mappedEpisode)
+                                    },
+                                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                                )
                             }
 
                             // 3. Curated Categories Sections
@@ -286,142 +292,7 @@ fun LearnScreen(
     }
 }
 
-@Composable
-private fun CuriosityOfTheDayCard(
-    daily: DailyCuriosityDto,
-    isCurrentlyPlaying: Boolean,
-    accentColor: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val durationSec = daily.episode.duration
-    val durationMin = if (durationSec != null && durationSec > 0) {
-        "${durationSec / 60} min"
-    } else {
-        "Unknown duration"
-    }
 
-    val buttonColors = if (isCurrentlyPlaying) {
-        ButtonDefaults.filledTonalButtonColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        )
-    } else {
-        ButtonDefaults.filledTonalButtonColors()
-    }
-
-    val buttonIcon = if (isCurrentlyPlaying) Icons.Filled.VolumeUp else Icons.Filled.PlayArrow
-    val buttonText = if (isCurrentlyPlaying) "Playing" else "Listen"
-
-    OutlinedCard(
-        shape = MaterialTheme.shapes.extraLarge,
-        colors = CardDefaults.outlinedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ),
-        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-        modifier = modifier
-            .fillMaxWidth()
-            .expressiveClickable(onClick = onClick)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            // Header Badge
-            Text(
-                text = "CURIOSITY OF THE DAY",
-                style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.sp),
-                fontWeight = FontWeight.Bold,
-                color = accentColor
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Question Text
-            Text(
-                text = daily.question,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                lineHeight = 28.sp
-            )
-            
-            daily.explanation?.let { explanation ->
-                Spacer(modifier = Modifier.height(8.dp))
-                // Explanation Hook Text
-                Text(
-                    text = explanation,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 20.sp
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            // Podcast Episode Context Row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Show Artwork
-                val showArt = daily.episode.image ?: daily.episode.feedImage ?: ""
-                OptimizedImage(
-                    url = showArt,
-                    proxyWidth = 100,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                )
-                
-                Spacer(modifier = Modifier.width(12.dp))
-                
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = daily.episode.feedTitle ?: "Podcast Episode",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    
-                    Text(
-                        text = durationMin,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                    )
-                }
-                
-                Spacer(modifier = Modifier.width(8.dp))
-                
-                // Quick Play Tonal Button
-                FilledTonalButton(
-                    onClick = onClick,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = buttonColors,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
-                ) {
-                    Icon(
-                        imageVector = buttonIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = buttonText,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 private fun CuratedShowItem(

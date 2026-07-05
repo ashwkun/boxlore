@@ -44,7 +44,8 @@ interface BoxLoreApi {
 
     @GET("curated/curiosity")
     fun getCuratedCuriosity(
-        @Header("X-App-Key") publicKey: String
+        @Header("X-App-Key") publicKey: String,
+        @Query("cb") cacheBuster: String? = null
     ): retrofit2.Call<CuratedCuriosityResponseDto>
     
     @GET("trending")
