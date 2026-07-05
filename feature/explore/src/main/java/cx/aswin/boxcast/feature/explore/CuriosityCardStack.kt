@@ -364,48 +364,6 @@ private fun CuriosityCardContent(
                     )
                 }
 
-                // 3. Floating Overlays (Badges at the top)
-                // Score Badge (Top End)
-                Surface(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .align(Alignment.TopEnd),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.primary)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "★ ${daily.curiosityScore ?: 5}",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                }
-
-                // Feed Title Badge (Top Start)
-                Surface(
-                    modifier = Modifier
-                        .padding(16.dp)
-                        .align(Alignment.TopStart),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
-                ) {
-                    Text(
-                        text = daily.episode.feedTitle ?: "Micro-story",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
 
                 // 4. Question & Interaction text overlayed on the scrim
                 Column(
