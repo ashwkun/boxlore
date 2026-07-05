@@ -167,28 +167,17 @@ fun LearnScreen(
                         ) {
                             // 1. Header Section
                             item {
-                                Column(
+                                Image(
+                                    painter = painterResource(id = cx.aswin.boxcast.core.designsystem.R.drawable.logo_lore),
+                                    contentDescription = "Lore",
+                                    colorFilter = ColorFilter.tint(accentColor),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 8.dp)
-                                ) {
-                                    Image(
-                                        painter = painterResource(id = cx.aswin.boxcast.core.designsystem.R.drawable.logo_lore),
-                                        contentDescription = "Lore",
-                                        colorFilter = ColorFilter.tint(accentColor),
-                                        modifier = Modifier
-                                            .height(36.dp)
-                                            .fillMaxWidth(),
-                                        contentScale = ContentScale.Fit,
-                                        alignment = Alignment.CenterStart
-                                    )
-                                    Text(
-                                        text = "Feed your curiosity with daily micro-stories",
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                                        modifier = Modifier.padding(top = 8.dp)
-                                    )
-                                }
+                                        .height(36.dp)
+                                        .padding(start = 24.dp, end = 24.dp, top = 0.dp, bottom = 8.dp),
+                                    contentScale = ContentScale.Fit,
+                                    alignment = Alignment.CenterStart
+                                )
                             }
 
                             // 2. Curiosity Card Stack Section
@@ -210,45 +199,6 @@ fun LearnScreen(
                                     },
                                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                                 )
-                            }
-
-                            // 3. Curated Categories Sections
-                            items(state.data.categories) { category ->
-                                if (category.shows.isNotEmpty()) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 12.dp)
-                                    ) {
-                                        Text(
-                                            text = category.title,
-                                            style = MaterialTheme.typography.titleLarge,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onBackground,
-                                            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 8.dp)
-                                        )
-                                        
-                                        LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 20.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            items(category.shows) { show ->
-                                                CuratedShowItem(
-                                                    show = show,
-                                                    onClick = {
-                                                        onPodcastClick(
-                                                            show.id,
-                                                            show.itunesId,
-                                                            show.feedUrl ?: "",
-                                                            show.title
-                                                        )
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
                             }
                         }
 
@@ -314,59 +264,6 @@ fun LearnScreen(
 
 
 
-@Composable
-private fun CuratedShowItem(
-    show: CuratedCuriosityPodcastDto,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .width(110.dp)
-            .expressiveClickable(onClick = onClick)
-    ) {
-        // Thumbnail Artwork
-        OutlinedCard(
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant),
-            colors = CardDefaults.outlinedCardColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant
-            ),
-            modifier = Modifier.size(110.dp)
-        ) {
-            OptimizedImage(
-                url = show.image ?: show.artwork ?: "",
-                proxyWidth = 220,
-                contentDescription = show.title,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        
-        Spacer(modifier = Modifier.height(6.dp))
-        
-        // Show Title
-        Text(
-            text = show.title,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            lineHeight = 18.sp
-        )
-        
-        // Author
-        Text(
-            text = show.author ?: "Unknown",
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 1.dp)
-        )
-    }
-}
 
 // Convert DTO EpisodeItem to Domain model Episode
 private fun mapToEpisode(item: cx.aswin.boxcast.core.network.model.EpisodeItem): Episode {
