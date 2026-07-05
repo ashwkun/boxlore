@@ -16,9 +16,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -310,12 +313,26 @@ private fun CuriosityCardContent(
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // 2. Blurred Bottom Panel (Glassy/premium effect using replica of artwork)
+                // 2. Blurred Bottom Panel (Fading out smoothly towards the top)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(170.dp)
+                        .height(200.dp)
                         .align(Alignment.BottomCenter)
+                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                        .drawWithContent {
+                            drawContent()
+                            // Alpha mask the content of this Box to fade smoothly
+                            drawRect(
+                                brush = Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.Black
+                                    )
+                                ),
+                                blendMode = BlendMode.DstIn
+                            )
+                        }
                 ) {
                     // Blurred Artwork Layer
                     Box(
@@ -332,15 +349,14 @@ private fun CuriosityCardContent(
                         )
                     }
                     
-                    // Dark/surface overlay on top of blurred artwork to ensure clean text contrast
+                    // Solid surface container tint overlay for M3 color tone consistency
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(
                                 brush = Brush.verticalGradient(
                                     colors = listOf(
-                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.5f),
-                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f),
+                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f),
                                         MaterialTheme.colorScheme.surfaceContainerHigh
                                     )
                                 )
@@ -400,12 +416,12 @@ private fun CuriosityCardContent(
                 ) {
                     Text(
                         text = daily.question,
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
-                        lineHeight = 22.sp
+                        lineHeight = 30.sp
                     )
 
                     Spacer(modifier = Modifier.height(14.dp))
