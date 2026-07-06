@@ -280,6 +280,42 @@ fun HomeRoute(
     }
 }
 
+@Composable
+private fun rememberDeferredRenderingState(
+    delayMs: Long = 200L,
+    lifecycleOwner: androidx.lifecycle.LifecycleOwner = LocalLifecycleOwner.current
+): Boolean {
+    var isReady by remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    DisposableEffect(lifecycleOwner) {
+        var activeJob: kotlinx.coroutines.Job? = null
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    isReady = false
+                    activeJob?.cancel()
+                    activeJob = MainScope().launch {
+                        kotlinx.coroutines.delay(delayMs)
+                        isReady = true
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    activeJob?.cancel()
+                    isReady = false
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            activeJob?.cancel()
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    return isReady
+}
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(
@@ -346,34 +382,7 @@ fun HomeScreen(
     var showChangePodcastSheet by remember { androidx.compose.runtime.mutableStateOf(false) }
 
     // Deferred rendering state for heavy below-the-fold content
-    var showHeavyContent by remember { androidx.compose.runtime.mutableStateOf(false) }
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    DisposableEffect(lifecycleOwner) {
-        var activeJob: kotlinx.coroutines.Job? = null
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> {
-                    showHeavyContent = false
-                    activeJob?.cancel()
-                    activeJob = MainScope().launch {
-                        kotlinx.coroutines.delay(200)
-                        showHeavyContent = true
-                    }
-                }
-                Lifecycle.Event.ON_PAUSE -> {
-                    activeJob?.cancel()
-                    showHeavyContent = false
-                }
-                else -> {}
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            activeJob?.cancel()
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
+    val showHeavyContent = rememberDeferredRenderingState(delayMs = 200L)
     
     // Calculate scroll fraction: 0 = at top (expanded), 1 = scrolled (collapsed)
     val scrollFraction by remember {
