@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Created `toEpisode()` common model mapping helper in `EpisodeMapper.kt` in the `:core:data` module.
 - Extracted shared `TrackScreenSession` composable in `LifecycleUtils.kt` to observe screen start/stop lifecycle events across screens without code duplication.
 ### Changed
+- Reduced background artwork blur on the Daily Briefing screen to 8.dp to ensure branding logo remains visible.
 - Removed default candidate caps and episode limit counts across background sync and vectorization scripts (`sync-episodes.js`, `vectorize.js`, `vectorize-podcasts.js`).
 - De-coupled `medium` column check from sync candidate selection in `sync-episodes.js`.
 - Optimized Home screen transitions by deferring heavy below-the-fold content sections during slide navigation.
