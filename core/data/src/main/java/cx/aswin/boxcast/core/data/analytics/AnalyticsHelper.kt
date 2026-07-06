@@ -1483,28 +1483,30 @@ object AnalyticsHelper {
         PostHog.capture(event = "learn_screen_viewed")
     }
 
-    fun trackLearnCardDismissed(episodeId: String, episodeTitle: String?, podcastId: String?, podcastTitle: String?) {
+    private fun trackLearnCardEvent(
+        eventName: String,
+        episodeId: String,
+        episodeTitle: String?,
+        podcastId: String?,
+        podcastTitle: String?
+    ) {
         val props = mutableMapOf<String, Any>("episode_id" to episodeId)
         episodeTitle?.let { props["episode_title"] = it }
         podcastId?.let { props["podcast_id"] = it }
         podcastTitle?.let { props["podcast_title"] = it }
-        PostHog.capture(event = "learn_card_dismissed", properties = props)
+        PostHog.capture(event = eventName, properties = props)
+    }
+
+    fun trackLearnCardDismissed(episodeId: String, episodeTitle: String?, podcastId: String?, podcastTitle: String?) {
+        trackLearnCardEvent("learn_card_dismissed", episodeId, episodeTitle, podcastId, podcastTitle)
     }
 
     fun trackLearnCardQueued(episodeId: String, episodeTitle: String?, podcastId: String?, podcastTitle: String?) {
-        val props = mutableMapOf<String, Any>("episode_id" to episodeId)
-        episodeTitle?.let { props["episode_title"] = it }
-        podcastId?.let { props["podcast_id"] = it }
-        podcastTitle?.let { props["podcast_title"] = it }
-        PostHog.capture(event = "learn_card_queued", properties = props)
+        trackLearnCardEvent("learn_card_queued", episodeId, episodeTitle, podcastId, podcastTitle)
     }
 
     fun trackLearnCardInfoClicked(episodeId: String, episodeTitle: String?, podcastId: String?, podcastTitle: String?) {
-        val props = mutableMapOf<String, Any>("episode_id" to episodeId)
-        episodeTitle?.let { props["episode_title"] = it }
-        podcastId?.let { props["podcast_id"] = it }
-        podcastTitle?.let { props["podcast_title"] = it }
-        PostHog.capture(event = "learn_card_info_clicked", properties = props)
+        trackLearnCardEvent("learn_card_info_clicked", episodeId, episodeTitle, podcastId, podcastTitle)
     }
 
     fun trackLearnCardPodcastClicked(podcastId: String?, podcastTitle: String?) {
@@ -1515,11 +1517,7 @@ object AnalyticsHelper {
     }
 
     fun trackLearnCardPlayClicked(episodeId: String, episodeTitle: String?, podcastId: String?, podcastTitle: String?) {
-        val props = mutableMapOf<String, Any>("episode_id" to episodeId)
-        episodeTitle?.let { props["episode_title"] = it }
-        podcastId?.let { props["podcast_id"] = it }
-        podcastTitle?.let { props["podcast_title"] = it }
-        PostHog.capture(event = "learn_card_play_clicked", properties = props)
+        trackLearnCardEvent("learn_card_play_clicked", episodeId, episodeTitle, podcastId, podcastTitle)
     }
 
     fun trackLearnScreenSession(
