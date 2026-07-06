@@ -35,6 +35,56 @@ class LearnViewModel(
     private val _uiState = MutableStateFlow<LearnUiState>(LearnUiState.Loading)
     val uiState: StateFlow<LearnUiState> = _uiState.asStateFlow()
 
+    // Telemetry tracking fields
+    private var sessionStartTime = System.currentTimeMillis()
+    private var hasTrackedExit = false
+    private var cardsDismissedCount = 0
+    private var cardsQueuedCount = 0
+    private var playsCount = 0
+    private var podcastsClickedCount = 0
+    private var infosClickedCount = 0
+
+    fun onScreenResume() {
+        if (hasTrackedExit) {
+            sessionStartTime = System.currentTimeMillis()
+            hasTrackedExit = false
+        }
+    }
+
+    fun trackScreenExit() {
+        if (hasTrackedExit) return
+        hasTrackedExit = true
+        val timeSpent = (System.currentTimeMillis() - sessionStartTime) / 1000f
+        cx.aswin.boxcast.core.data.analytics.AnalyticsHelper.trackLearnScreenSession(
+            timeSpentSeconds = timeSpent,
+            cardsDismissedCount = cardsDismissedCount,
+            cardsQueuedCount = cardsQueuedCount,
+            playsCount = playsCount,
+            podcastsClickedCount = podcastsClickedCount,
+            infosClickedCount = infosClickedCount
+        )
+    }
+
+    fun trackCardDismissed() {
+        cardsDismissedCount++
+    }
+
+    fun trackCardQueued() {
+        cardsQueuedCount++
+    }
+
+    fun trackPlayClicked() {
+        playsCount++
+    }
+
+    fun trackPodcastClicked() {
+        podcastsClickedCount++
+    }
+
+    fun trackInfoClicked() {
+        infosClickedCount++
+    }
+
     private var currentPage = 1
     private var isLoadingMore = false
     private var isEndOfContent = false
