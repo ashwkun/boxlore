@@ -47,3 +47,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Material 3 UI refinements and onboarding back navigation improvements.
 ### Fixed
 - Artwork loading fixes.
+
+## [v2.6.2] - 2026-06-03
+### Added
+- Dynamic skip behavior settings in App Preferences ("Just Skip" vs "Mark Completed & Skip").
+- Play All Floating Action Button (FAB) on Subscriptions tab.
+- Granular completed episodes filtering across Home feeds, New episodes, and Show details screen.
+- Headphone/Bluetooth double-click support mapped to Forward 30s/Back 10s.
+- Swipe-away app task cleanup protection during active listening.
+### Fixed
+- Fixed recommendations caching logic and artwork rendering proxy fallback.
+
+## [v2.6.1] - 2026-05-30
+### Added
+- Personalized recommendations engine ("For You" tab) based on played episodes, active subscriptions, and genres.
+- Expanded recommendations metadata matching matching.
+- Center-aligned capsule tab selector navigation.
+- France region support with localized trending badges.
+- Persistent show list sorting preferences across app launches.
+### Fixed
+- Resumed position recovery for partially-played audio tracks.
+
+## [v2.5.0] - 2026-05-25
+### Added
+- Integrated dynamic mixtape queues and library section filters.
+- Implemented serialization continuation listening logic.
+- Built release-cadence estimator and frequency detail sheet.
+- Added fullscreen 16:9 video player, synced live transcripts, clickable chapters, and promotional trailers.
+- Implemented edge spelling correction workers and FTS5 SQLite pruning.
+
+## [v2.1.0] - 2026-05-13
+### Added
+- Massive BoxCast 2.0 interface redesign.
+- Subscriptions database backup and restore utility.
+- Expanded transparency privacy settings.
+
+## [v1.4.1] - 2026-05-04
+### Added
+- AI Insights dashboard and interactive telemetry analytics console.

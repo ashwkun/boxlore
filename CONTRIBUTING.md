@@ -21,6 +21,10 @@ If you have an idea for a new feature or improvement, please submit an issue usi
 - If your PR introduces a new feature, include relevant documentation updates.
 - Please detail your changes clearly in the PR description so we can review your work properly.
 
+## API & Proxy Repository
+
+The API and proxy backend repository is tracked separately and is private due to security reasons. If you require changes to the API or want to request a new endpoint, please raise an issue on this repository using the **Feature Request** or **Bug Report** template, and it will be taken up.
+
 ## Development Setup
 
 See the main [README.md](README.md) for instructions on setting up the BoxLore development environment. 
