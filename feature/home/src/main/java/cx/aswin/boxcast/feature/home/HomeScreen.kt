@@ -357,7 +357,7 @@ fun HomeScreen(
                     showHeavyContent = false
                     activeJob?.cancel()
                     activeJob = MainScope().launch {
-                        kotlinx.coroutines.delay(350)
+                        kotlinx.coroutines.delay(200)
                         showHeavyContent = true
                     }
                 }
