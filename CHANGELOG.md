@@ -63,6 +63,7 @@ Finding your next favorite show is now instantaneous, even on slower cellular ne
 - **Social Link Extraction**: Episode descriptions parse and format raw links into beautiful, brand-colored social chips.
 - **Spotlight Region Fixes**: Fixed regional trending filters by mapping `"gb"` and `"uk"` codes case-insensitively, ensuring skipped Mixtape items never break the `#1 IN UK` trending label on the first visible card.
 - **Smooth 60fps Scrolling**: Stabilized Compose list layouts and optimized image loaders, completely eliminating scrolling jitters or image flickers on the homepage.
+- **Interactive Learn Screen Telemetry**: Fully integrated PostHog analytics across the daily curiosity cards and nav tab bar. Captures detailed interaction flows (play, queue, dismiss, podcast clicks) along with automated lifecycle-driven session metrics (time spent, card interaction counts) using a new shared `TrackScreenSession` compose helper.
 - **Smooth Navigation Slide Transitions**: Resolved animation stutters and "popping" when navigating back to the Home screen (or other main tabs) by implementing a deferred rendering strategy that mounts heavy below-the-fold content 200ms after the entrance transition begins.
 
 ---
