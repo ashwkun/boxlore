@@ -112,7 +112,7 @@ async function main() {
         turso.flushStats();
     }
 
-    const prog = log.progress(budgeted.length, 'show-vectorize', 5);
+    const runProg = log.budgetProgress(budgeted.length, 'shows', 50);
     for (const { pod, uuid } of budgeted) {
         try {
             const vector = await embedder.embed(text.podcastEmbedText(pod));
@@ -133,6 +133,7 @@ async function main() {
             });
             flagQueue.push(pod.id);
             embedded++;
+            runProg.tick();
         } catch (e) {
             errors++;
             log.warn(`Show embedding failed for "${pod.title.substring(0, 40)}" (${pod.id}): ${e.message}`);
@@ -148,8 +149,9 @@ async function main() {
                 flagQueue = [];
             }
         }
-        prog.tick();
     }
+
+    runProg.flush();
 
     try {
         await flush();

@@ -89,6 +89,51 @@ function progress(total, label, intervalPct = 10) {
     };
 }
 
+/**
+ * Budget-based run progress for embedding stages. Call tick() per successful
+ * embed; prints [RUN] bar at every `interval` items or 5% of budget.
+ */
+function budgetProgress(budget, label, interval = 50) {
+    const start = Date.now();
+    let done = 0;
+    let lastPrinted = 0;
+    const milestone = Math.max(1, Math.min(interval, Math.floor(budget * 5 / 100)));
+
+    function print(force = false) {
+        if (!force && done < budget && done - lastPrinted < milestone) return;
+        lastPrinted = done;
+        const pct = budget > 0 ? Math.floor((done / budget) * 100) : 100;
+        const elapsed = (Date.now() - start) / 1000;
+        const rate = done / Math.max(elapsed, 0.001);
+        const etaSec = done < budget ? Math.round((budget - done) / Math.max(rate, 0.001)) : 0;
+        const filled = Math.round(pct / 10);
+        const bar = '▰'.repeat(filled) + '▱'.repeat(10 - filled);
+        const etaStr = etaSec >= 60 ? duration(etaSec * 1000) : `${etaSec}s`;
+        info(`[RUN]     ${bar} ${fmt(done)}/${fmt(budget)} ${label} · ${rate.toFixed(1)}/s · ETA ${etaStr}`);
+    }
+
+    return {
+        tick() {
+            done++;
+            print();
+        },
+        flush() { print(true); },
+        get count() { return done; },
+    };
+}
+
+/** Overall backlog context line for long-running vectorize stages. */
+function backlogStatus({ scanned, pending, budgetLeft, skipped, extra }) {
+    const parts = [
+        `${fmt(scanned)} shows scanned`,
+        `${fmt(pending)} pending`,
+        `${fmt(budgetLeft)} budget left`,
+        `${fmt(skipped)} skipped (already in Qdrant)`,
+    ];
+    if (extra) parts.push(extra);
+    info(`[BACKLOG] ${parts.join(' · ')}`);
+}
+
 /** Append markdown to the GHA step summary (no-op locally). */
 function stepSummary(markdown) {
     if (process.env.GITHUB_STEP_SUMMARY) {
@@ -126,4 +171,8 @@ function duration(ms) {
     return `${m}m ${Math.round(s - m * 60)}s`;
 }
 
-module.exports = { info, warn, error, group, endGroup, banner, costFooter, progress, stepSummary, summaryTable, duration, fmt };
+module.exports = {
+    info, warn, error, group, endGroup, banner, costFooter,
+    progress, budgetProgress, backlogStatus,
+    stepSummary, summaryTable, duration, fmt,
+};

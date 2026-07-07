@@ -103,10 +103,23 @@ async function main() {
         turso.flushStats();
     }
 
-    const prog = log.progress(pending.length, 'vectorize', 5);
+    const runProg = log.budgetProgress(cfg.MAX_EMBEDDINGS_PER_RUN, 'embeddings', 50);
+
+    function reportBacklogIfDue(force = false) {
+        if (force || processedCount % 25 === 0) {
+            log.backlogStatus({
+                scanned: processedCount,
+                pending: pending.length - processedCount,
+                budgetLeft: Math.max(0, budget),
+                skipped: showsSkippedExisting,
+            });
+        }
+    }
 
     for (const pod of pending) {
         if (budget <= 0) {
+            runProg.flush();
+            reportBacklogIfDue(true);
             log.info(`[BUDGET] Embedding budget exhausted (${embedded}/${cfg.MAX_EMBEDDINGS_PER_RUN}). Remaining backlog: ${pending.length - processedCount} shows`);
             break;
         }
@@ -118,14 +131,14 @@ async function main() {
         } catch (e) {
             errors++;
             log.warn(`Show ${pod.id} (${pod.title.substring(0, 40)}): episode fetch failed: ${e.message}`);
-            prog.tick();
+            reportBacklogIfDue();
             continue;
         }
 
         if (episodes.length === 0) {
             flagQueue.push(pod.id);
             showsCompleted++;
-            prog.tick();
+            reportBacklogIfDue();
             continue;
         }
 
@@ -152,7 +165,7 @@ async function main() {
         if (toEmbed.length === 0) {
             flagQueue.push(pod.id);
             showsCompleted++;
-            prog.tick();
+            reportBacklogIfDue();
             continue;
         }
 
@@ -183,6 +196,7 @@ async function main() {
                         duration: ep.duration || 0,
                     },
                 });
+                runProg.tick();
             } catch (e) {
                 errors++;
                 showFailed = true;
@@ -208,8 +222,10 @@ async function main() {
                 flagQueue = [];
             }
         }
-        prog.tick(`embedded ${embedded}/${cfg.MAX_EMBEDDINGS_PER_RUN}`);
+        reportBacklogIfDue();
     }
+
+    runProg.flush();
 
     try {
         await flush();
