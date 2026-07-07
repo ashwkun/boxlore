@@ -1,100 +1,109 @@
-<div align="center">
+<div align="center" id="top">
 
-<!-- Featured project banner -->
 <img src="images/featured_image.jpg" width="800" alt="boxlore Feature Banner"/>
 
-### *The Ultimate Podcast App For Android*
-*Built completely with Jetpack Compose featuring a beautiful Material 3 Design.*
+### A podcast app that actually gets personal
+
+*Open source under GPL v3. No ads. Ever.*
 
 <br/>
 
-<!-- Real, functional download release APK badge -->
+<a href="https://play.google.com/store/apps/details?id=cx.aswin.boxlore">
+  <img src="https://img.shields.io/badge/Google_Play-Get_it_on_Play-414141?style=for-the-badge&logo=googleplay&logoColor=white&labelColor=0f172a" alt="Get it on Google Play"/>
+</a>
+&nbsp;
 <a href="https://github.com/ashwkun/box.lore.android/releases/latest/download/app-release.apk">
   <img src="https://img.shields.io/badge/⬇_DOWNLOAD_APK-Latest_Release-2ebbca?style=for-the-badge&logo=android&logoColor=white&labelColor=0f172a" alt="Download APK"/>
 </a>
 
 <br/><br/>
 
-<!-- Unified clean tech-stack badges with Simple Icons -->
-<img src="https://img.shields.io/badge/Platform-Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android"/>
-<img src="https://img.shields.io/badge/Kotlin-1.9.0-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin"/>
-<img src="https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white" alt="Jetpack Compose"/>
-<img src="https://img.shields.io/badge/Database-Turso%20%26%20SQLite-00C853?style=flat-square&logo=sqlite&logoColor=white" alt="Turso & SQLite"/>
-<img src="https://img.shields.io/badge/Vector%20Search-Qdrant-FF4500?style=flat-square&logo=qdrant&logoColor=white" alt="Qdrant"/>
-<img src="https://img.shields.io/badge/Telemetry-PostHog-F5C518?style=flat-square&logo=posthog&logoColor=white" alt="PostHog"/>
-<img src="https://img.shields.io/badge/License-GPLv3-ff0080?style=flat-square&logo=github&logoColor=white" alt="License"/>
-
-<br/>
-
-<!-- Real-time development status badges -->
-<img src="https://img.shields.io/github/downloads/ashwkun/box.lore.android/total?style=flat-square&logo=github&logoColor=white&color=2ebbca" alt="Downloads"/>
-<img src="https://img.shields.io/github/last-commit/ashwkun/box.lore.android?style=flat-square&logo=git&logoColor=white&color=7F52FF" alt="Last Commit"/>
-<img src="https://img.shields.io/github/commit-activity/m/ashwkun/box.lore.android?style=flat-square&logo=github&logoColor=white&color=2ebbca" alt="Monthly Activity"/>
-<img src="https://img.shields.io/github/languages/code-size/ashwkun/box.lore.android?style=flat-square&color=7F52FF" alt="Code Size"/>
-
-<br/>
-
-<!-- Pipeline status badges -->
-<a href="https://github.com/ashwkun/box.lore.android/actions/workflows/sync-pi-data.yml">
-  <img src="https://github.com/ashwkun/box.lore.android/actions/workflows/sync-pi-data.yml/badge.svg" alt="Sync Podcast Index Data"/>
+<a href="LICENSE">
+  <img src="https://img.shields.io/badge/License-GPLv3-ff0080?style=flat-square&logo=gnu&logoColor=white" alt="GPL v3"/>
 </a>
-&nbsp;
-<a href="https://github.com/ashwkun/box.lore.android/actions/workflows/new-episode-check.yml">
-  <img src="https://github.com/ashwkun/box.lore.android/actions/workflows/new-episode-check.yml/badge.svg" alt="Check New Episodes"/>
-</a>
+<img src="https://img.shields.io/github/downloads/ashwkun/box.lore.android/total?style=flat-square&logo=github&logoColor=white&color=2ebbca" alt="Total downloads"/>
 
 </div>
 
 ---
 
-## 📱 About & Architecture
+## About
 
-boxlore is a modern, open-source podcast client built from the ground up to showcase Jetpack Compose's full styling and interactive potential.
+Every podcast app I've used feels the same. They call an open API, do word-for-word search, let you subscribe, and show Apple charts. None of them really recommend things or get personal.
 
-*   **Dynamic Accent Extraction**: Intercepts album cover artwork, resolves visually dominant colors via the Android Palette API, boosts saturation (min 40%), and bounds lightness (25%–55%) for clean, rich ambient gradients.
-*   **Performance Optimizations**: Utilizes deferred rendering of heavy below-the-fold list components during tab slides to preserve a locked 60fps refresh rate on navigation.
-*   **Vector Search & Recommendations**: Combines a local SQLite FTS5 index for fast offline queries with a Qdrant Cloud vector embedding space to serve semantic recommendations.
+Spotify and Pocket Casts do personalize, but you're paying with ads or a subscription — and Spotify's podcast UI is rough.
+
+**boxlore** is my attempt at a smarter podcast app. It learns as you listen: natural-language search, personalized picks, and discovery that goes beyond typing a show title. No ads, no paywall for the stuff that matters.
+
+The smart layer runs on a search index that is rebuilt daily and covers popular chart podcasts — not every podcast on earth yet. It evolves every day and gets bigger. Recommendations and semantic search work best within that catalog; everything else still works as a normal podcast client.
 
 ---
 
-## ✨ Features and Interface
+## What makes it different
 
-<!-- Grid showing real screenshots of the app UI as feature cards -->
+### Semantic search
+
+Search episodes by meaning, not exact keywords. Ask *"stories about startup failure"* or *"deep dive on black holes"* in the Episodes tab and get relevant matches — not just titles that happen to contain those words.
+
+### For You
+
+Personalized episode picks on Home and Explore, based on what you've listened to, your genre interests, and your subscriptions. When the app knows your taste, sections are labeled **Based on Your Taste**; otherwise you'll see **Popular in your Region**. There's also a **Because You Like** row tied to a favorite show.
+
+### Curiosity cards
+
+On the Learn tab, swipe through question cards that point you at episodes you might not have found on your own. Swipe right to queue, left to dismiss, tap to play. Dismissals are remembered so you don't see the same card twice.
+
+### No ads, forever
+
+No banner ads, no sponsored inserts, no premium tier to unlock search or recommendations.
+
+---
+
+## Screenshots
+
 <div align="center">
 <table>
   <tr>
     <td align="center" width="25%">
-      <b>Onboarding</b><br/><br/>
+      <b>Onboarding</b><br/>
+      <sub>Pick genres and region</sub><br/><br/>
       <img src="images/onboarding.png" width="180" alt="Onboarding Screen"/>
     </td>
     <td align="center" width="25%">
-      <b>Homescreen</b><br/><br/>
+      <b>Home</b><br/>
+      <sub>Mixtape, For You, briefing</sub><br/><br/>
       <img src="images/homescreen.png" width="180" alt="Homescreen Screen"/>
     </td>
     <td align="center" width="25%">
-      <b>Daily Briefing</b><br/><br/>
+      <b>Daily Briefing</b><br/>
+      <sub>AI news audio — optional</sub><br/><br/>
       <img src="images/daily_brief.png" width="180" alt="Daily Briefing Screen"/>
     </td>
     <td align="center" width="25%">
-      <b>Curiosity Cards</b><br/><br/>
+      <b>Curiosity Cards</b><br/>
+      <sub>Swipe to discover</sub><br/><br/>
       <img src="images/curiosity_cards.png" width="180" alt="Curiosity Cards Screen"/>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <b>Semantic Search</b><br/><br/>
+      <b>Semantic Search</b><br/>
+      <sub>Natural-language episode search</sub><br/><br/>
       <img src="images/semantic_search.png" width="180" alt="Semantic Search Screen"/>
     </td>
     <td align="center">
-      <b>Recommendation</b><br/><br/>
+      <b>For You</b><br/>
+      <sub>Personalized recommendations</sub><br/><br/>
       <img src="images/recommendation_engine.png" width="180" alt="Recommendation Engine Screen"/>
     </td>
     <td align="center">
-      <b>Library</b><br/><br/>
+      <b>Library</b><br/>
+      <sub>Subs, downloads, history</sub><br/><br/>
       <img src="images/library.png" width="180" alt="Library Screen"/>
     </td>
     <td align="center">
-      <b>Player</b><br/><br/>
+      <b>Player</b><br/>
+      <sub>Chapters, transcript, video</sub><br/><br/>
       <img src="images/player.png" width="180" alt="Player Screen"/>
     </td>
   </tr>
@@ -103,149 +112,163 @@ boxlore is a modern, open-source podcast client built from the ground up to show
 
 ---
 
-## ✨ Feature Grid
-
-| Section | Highlights & Capabilities |
-| :--- | :--- |
-| 🏠 **Home Feed** | **Mixtape Curation**: Dynamic, personalized listening queues.<br>**Deferred Composition**: Ultra-smooth 60fps transitions.<br>**Curated Time Blocks**: Adaptive choices matching the time of day. |
-| 🎵 **Player** | **Dynamic Ambient Glow**: Real-time HSL color extraction from cover art.<br>**Variable Speed**: 0.5x to 3x with pitch correction.<br>**Buffered Wavy Loader**: Circular wavy loader for loading states. |
-| 🔍 **Search & Explore** | **Personalized "For You"**: Interest-based recommendations.<br>**Edge Spelling Checker**: Real-time correction on Cloudflare Edge.<br>**Hybrid Querying**: Fast SQLite + Podcast Index API. |
-| 🎬 **Podcasting 2.0** | **Live Transcripts**: Synced reading with jump-to-time audio seeking.<br>**Seekbar Chapters**: Clickable chapter notches.<br>**16:9 Video Podcasts**: Orientation-locked video layouts. |
-| ⬇️ **Library & Offline** | **Collapsible Downloads**: Organized list, multi-select operations.<br>**Smart Downloads**: Automated background download purging. |
-
----
-
-## 🛠️ Codebase Structure
+## More features
 
 <details>
-<summary><b>📦 Core Infrastructure Modules</b></summary>
+<summary><b>Mixtapes</b></summary>
 <br/>
 
-*   **`:core:data`**: Contains repository layer implementations (`PodcastRepository`, `PlaybackRepository`, `DownloadRepository`) and unified mappers.
-*   **`:core:designsystem`**: The central foundation for themes, typography, custom expressive shapes, and shared UI composables.
-*   **`:core:model`**: Pure Kotlin data classes representing the domain layers (`Episode`, `Podcast`, `Transcript`).
-*   **`:core:network`**: Interacts with the remote Podcast Index API and manages requests to edge proxies.
+Your home queue — up to 15 episodes pulled from subscriptions: what you're mid-way through plus unplayed new drops, scored so you can press play and keep listening without picking the next show yourself.
 </details>
 
 <details>
-<summary><b>🎨 Feature Modules</b></summary>
+<summary><b>Daily briefing</b></summary>
 <br/>
 
-*   **`:feature:explore`**: Powers the curiosity cards stack and recommendation feeds.
-*   **`:feature:home`**: Builds the mixtape queue page, time-block updates, and dynamic charts.
-*   **`:feature:player`**: Implements the variable-speed audio player, synced text scrolling sheets, and seekbar notch overlays.
-*   **`:feature:info`**: Houses detail pages for episodes and podcast shows.
+Region-specific AI news audio with a full script, sources, and chapter stories. Handy if you want a quick listen; skip it if AI briefs aren't your thing. It's there when you want it, not forced on you.
+</details>
+
+<details>
+<summary><b>Smart Downloads vs auto-download</b></summary>
+<br/>
+
+These are two separate things:
+
+- **Smart Downloads** (app-wide, off by default) — periodically builds a curated offline pool from your subscriptions, recommendations, and trending shows, within episode and storage limits you set.
+- **Auto-download** (per podcast, off by default) — when a new episode drops on a show you follow, it downloads automatically. Requires notifications to be on for that show.
+</details>
+
+<details>
+<summary><b>New episode notifications</b></summary>
+<br/>
+
+Per-podcast bell toggle. Get a push when a new episode lands; tap to open the show. Off by default. Can pair with auto-download so the episode is already on your phone.
+</details>
+
+<details>
+<summary><b>Design</b></summary>
+<br/>
+
+Built with Material 3 and Material You. Shimmer skeletons while content loads, stable lists that don't jump around on refresh, smooth navigation transitions, and fast image loading. The goal is an app that feels fast and stays out of your way.
+</details>
+
+<details>
+<summary><b>Player</b></summary>
+<br/>
+
+Mini player and expandable full player, queue management, variable speed (0.5×–1.5×), sleep timer, skip controls, synced transcripts, chapter navigation, video podcast support, and Android Auto.
+</details>
+
+<details>
+<summary><b>Podcasting 2.0</b></summary>
+<br/>
+
+Native chapters and transcripts from the feed when publishers provide them. AI-generated transcript and chapters as a beta fallback when they don't (with a daily generation limit). Video podcasts play in a proper 16:9 layout.
+</details>
+
+<details>
+<summary><b>Offline & library</b></summary>
+<br/>
+
+Subscriptions, downloaded episodes, listening history, and liked episodes in one place. Launch offline and you land on your downloads. JSON backup and restore for your library data.
 </details>
 
 ---
 
-## 🛠️ Tech Stack
+## Codebase structure
 
-### **Core Technologies**
+<details>
+<summary><b>Core modules</b></summary>
+<br/>
+
+* **`:core:data`** — Repositories (`PodcastRepository`, `PlaybackRepository`, `DownloadRepository`) and data mappers.
+* **`:core:designsystem`** — Themes, typography, shared composables.
+* **`:core:model`** — Domain models (`Episode`, `Podcast`, `Transcript`).
+* **`:core:network`** — Podcast Index API and edge proxy clients.
+</details>
+
+<details>
+<summary><b>Feature modules</b></summary>
+<br/>
+
+* **`:feature:explore`** — Search, For You, curiosity cards.
+* **`:feature:home`** — Mixtape, charts, briefing card.
+* **`:feature:player`** — Playback UI, transcripts, chapters.
+* **`:feature:briefing`** — Daily briefing screen.
+* **`:feature:library`** — Downloads, subscriptions, history.
+* **`:feature:info`** — Podcast and episode detail pages.
+</details>
+
+---
+
+## Tech stack
 
 | Technology | Purpose |
 |-----------|---------|
-| **Kotlin** | 100% Kotlin codebase for type-safe, concise code |
-| **Jetpack Compose** | Modern declarative UI framework with Material 3 Expressive |
-| **Clean Architecture** | Predictable state management |
-| **Coroutines & Flow** | Asynchronous programming and reactive streams |
-
-### **Networking & Database**
-
-| Component | Usage |
-|---------|-------|
+| **Kotlin** | 100% Kotlin codebase |
+| **Jetpack Compose** | UI with Material 3 |
+| **Coroutines & Flow** | Async and reactive state |
 | **Retrofit 2** | REST API client |
-| **Room** | Local database for user history and library |
-| **Cloudflare Workers** | Backend proxy (TypeScript) handling remote queries |
-| **Turso (libSQL)** | Distributed edge database storing chart rankings |
-
-### **Media & Playback**
-
-| Component | Description |
-|-----------|-------------|
-| **ExoPlayer (Media3)** | High performance audio playback for podcasts |
-| **MediaSession** | System-level playback controls and background service |
-| **Coil** | Image loading with caching and color extraction |
+| **Room** | Local database for history and library |
+| **ExoPlayer (Media3)** | Audio and video playback |
+| **Coil** | Image loading and color extraction |
+| **Cloudflare Workers** | Edge proxy for search and recommendations |
+| **bge-m3** | Embedding model for semantic search (1024-dim) |
 
 ---
 
-## 🌐 Data Sources
+## Data sources
 
-This app aggregates data from multiple public sources to provide a unified podcast experience:
-
-| Source | Data Provided |
+| Source | Data provided |
 |--------|---------------|
-| **Podcast Index API** | Global catalog of podcasts, episodes, and search results |
-| **Apple Podcast Charts** | Daily scraped trending feeds via GitHub Actions |
+| **Podcast Index API** | Podcast and episode catalog, keyword search |
+| **Apple Podcast Charts** | Daily trending feeds (US, IN, GB, FR) |
 
 ---
 
-## 🚀 Getting Started
+## Getting started
 
-### **Download & Install**
+### Install
 
-1. Download the latest APK from [Releases](../../releases) or click the **Download APK** badge above
-2. Enable "Install from Unknown Sources" in Android settings
-3. Install and enjoy! 🎙️
+**Google Play** — [cx.aswin.boxlore](https://play.google.com/store/apps/details?id=cx.aswin.boxlore)
 
-### **Build from Source**
+**APK** — Download from [Releases](../../releases) or use the badge at the top. Enable "Install from unknown sources" in Android settings if needed.
+
+### Build from source
 
 ```bash
-# Clone the repository
 git clone https://github.com/ashwkun/box.lore.android.git
 cd box.lore.android
-
-# Build the APK
 ./gradlew assembleDebug
-
-# Install to connected device
 ./gradlew installDebug
 ```
 
-**Requirements:**
-- Android Studio Ladybug or later
-- Android SDK 35+
-- JDK 17
-- Kotlin 1.9+
+**Requirements:** Android Studio Ladybug+, Android SDK 35+, JDK 17, Kotlin 1.9+
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
-This is a personal passion project, but contributions are welcome! Here's how you can help:
+Contributions welcome.
 
-1. **Report Bugs** — Open an issue with detailed reproduction steps
-2. **Suggest Features** — Share your ideas in the Discussions tab
-3. **Submit PRs** — Fork, code, and submit pull requests
-
----
-
-## 📄 License
-
-This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
-
-**Key Terms:**
-- ✅ You may use, modify, and distribute this software
-- ✅ Any derivative work **must also be open source** under GPL v3
-- ✅ You must disclose the source code of any modifications
-- ⚠️ No warranty is provided
+1. **Report bugs** — Open an issue with steps to reproduce
+2. **Suggest features** — Use Discussions
+3. **Submit PRs** — Fork, code, open a pull request
 
 ---
 
-## 📊 Repository Dashboard
+## License
 
-<div align="center">
+boxlore is **free and open source** under the [GNU General Public License v3.0](LICENSE).
 
-
-
-<!-- Contribution Activity graph -->
-<img src="https://github-readme-activity-graph.vercel.app/graph?username=ashwkun&theme=tokyonight&bg_color=0f172a&color=94a3b8&line=2ebbca&point=7F52FF&area=true&hide_border=true" alt="Commit Activity Graph" width="100%"/>
-
-</div>
+- You may use, modify, and distribute this software
+- Derivative works must also be open source under GPL v3
+- You must disclose source code for any modifications you distribute
+- No warranty is provided
 
 ---
 
-## 👥 Contributors
+## Contributors
 
 <div align="center">
   <a href="https://github.com/ashwkun/box.lore.android/graphs/contributors">
@@ -257,10 +280,8 @@ This project is licensed under the **GNU General Public License v3.0** — see t
 
 <div align="center">
 
-### Made with ❤️ and ☕ by a Podcast fan
+Built by someone who listens to too many podcasts.
 
-**If you love podcasts and this app, give it a ⭐ on GitHub!**
-
-[⬆ Back to Top](#changelog)
+[⬆ Back to top](#top)
 
 </div>
