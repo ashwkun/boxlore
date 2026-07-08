@@ -768,8 +768,10 @@ private fun PodcastFeed(
                             podcastArtist = "BoxCast AI",
                             duration = 180,
                             publishedDate = publishedDate,
-                            transcriptUrl = "https://api.aswin.cx/briefings/transcript/${briefing.region}?d=${briefing.date}$versionParam",
-                            chaptersUrl = "https://api.aswin.cx/briefings/chapters/${briefing.region}?d=${briefing.date}$versionParam"
+                            transcriptUrl = briefing.transcriptUrl
+                                ?: "https://api.aswin.cx/briefings/transcript/${briefing.region}?d=${briefing.date}$versionParam",
+                            chaptersUrl = briefing.chaptersUrl
+                                ?: "https://api.aswin.cx/briefings/chapters/${briefing.region}?d=${briefing.date}$versionParam"
                         ),
                         cx.aswin.boxcast.core.model.Podcast(
                             id = "briefing_${briefing.region}",

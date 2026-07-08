@@ -639,7 +639,7 @@ class PodcastRepository(
     suspend fun getBriefingMetadata(region: String): Briefing? = withContext(Dispatchers.IO) {
         val mappedRegion = mapRegionForBriefing(region)
         try {
-            val response = api.getBriefingMetadata(mappedRegion).execute()
+            val response = api.getBriefingMetadata(publicKey, mappedRegion).execute()
             if (response.isSuccessful) {
                 response.body()
             } else {
@@ -742,7 +742,8 @@ class PodcastRepository(
                         val audioUri = android.net.Uri.parse(fallbackBriefing.audioUrl)
                         val version = audioUri.getQueryParameter("v")
                         val versionParam = if (version != null) "&v=$version" else ""
-                        val chaptersUrl = "https://api.aswin.cx/briefings/chapters/${fallbackBriefing.region}?d=${fallbackBriefing.date}$versionParam"
+                        val chaptersUrl = fallbackBriefing.chaptersUrl
+                            ?: "https://api.aswin.cx/briefings/chapters/${fallbackBriefing.region}?d=${fallbackBriefing.date}$versionParam"
                         try {
                             briefingChapters = cx.aswin.boxcast.core.data.ChapterRepository.getChapters(chaptersUrl)
                         } catch (e: Exception) {

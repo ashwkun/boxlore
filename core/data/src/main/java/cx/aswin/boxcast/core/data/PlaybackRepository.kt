@@ -158,8 +158,9 @@ class PlaybackRepository(
                             var episode = _playerState.value.currentEpisode
                             android.util.Log.d("PlaybackRepo", "monitorChaptersAndTranscripts: currentEpisode title=${episode?.title}, audioUrl=${episode?.audioUrl}, chaptersUrl=${episode?.chaptersUrl}, transcriptUrl=${episode?.transcriptUrl}")
                             
-                            // If missing metadata, try to enrich from PodcastRepository
-                            if (episodeId.startsWith("briefing_")) {
+                            // If missing metadata, try to enrich from PodcastRepository.
+                            // Skip when URLs are already present (they may carry server signatures).
+                            if (episodeId.startsWith("briefing_") && (episode?.chaptersUrl == null || episode?.transcriptUrl == null)) {
                                 try {
                                     android.util.Log.d("PlaybackRepo", "monitorChaptersAndTranscripts: enriching briefing episode $episodeId")
                                     val parts = episodeId.split("_")
@@ -768,7 +769,8 @@ class PlaybackRepository(
                         }
                         
                         var newEpisode = finalQueue[finalSlotIndex]
-                        if (newEpisode.id.startsWith("briefing_")) {
+                        // Enrich only when URLs are missing; present ones may carry server signatures
+                        if (newEpisode.id.startsWith("briefing_") && (newEpisode.chaptersUrl == null || newEpisode.transcriptUrl == null)) {
                             try {
                                 val parts = newEpisode.id.split("_")
                                 if (parts.size >= 3) {
