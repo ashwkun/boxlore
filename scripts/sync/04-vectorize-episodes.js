@@ -182,11 +182,11 @@ async function main() {
                     vector,
                     payload: {
                         id: parseInt(ep.id, 10) || 0,
-                        title: ep.title || '',
-                        description: (ep.description || '').substring(0, cfg.PAYLOAD_DESCRIPTION_MAX),
+                        title: text.safeTruncate(ep.title || ''),
+                        description: text.safeTruncate(ep.description, cfg.PAYLOAD_DESCRIPTION_MAX),
                         podcast_id: parseInt(pod.id, 10) || 0,
-                        podcast_title: pod.title,
-                        podcast_author: pod.author,
+                        podcast_title: text.safeTruncate(pod.title),
+                        podcast_author: text.safeTruncate(pod.author),
                         podcast_image_url: pod.image_url,
                         podcast_categories: pod.categories,
                         language: pod.language,
@@ -216,8 +216,9 @@ async function main() {
             try {
                 await flush();
             } catch (e) {
-                errors += pointsQueue.length;
-                log.error(`Qdrant upsert batch failed: ${e.message}`);
+                // Count in show units (matches processedCount in the fail guard).
+                errors += Math.max(flagQueue.length, 1);
+                log.error(`Qdrant upsert batch failed (${pointsQueue.length} points, ${flagQueue.length} shows): ${e.message}`);
                 pointsQueue = [];
                 flagQueue = [];
             }
@@ -230,8 +231,8 @@ async function main() {
     try {
         await flush();
     } catch (e) {
-        errors += pointsQueue.length;
-        log.error(`Final Qdrant flush failed: ${e.message}`);
+        errors += Math.max(flagQueue.length, 1);
+        log.error(`Final Qdrant flush failed (${pointsQueue.length} points, ${flagQueue.length} shows): ${e.message}`);
     }
 
     const backlog = pending.length - processedCount;

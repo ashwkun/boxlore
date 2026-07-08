@@ -36,6 +36,18 @@ const BOILERPLATE_PATTERNS = [
 ];
 
 /**
+ * Truncate without producing malformed UTF-16: substring() can split a
+ * surrogate pair (e.g. an emoji) at the boundary, and the resulting lone
+ * surrogate makes Qdrant reject the whole JSON body ("unexpected end of
+ * hex escape"). toWellFormed() also scrubs lone surrogates already present
+ * in dirty source data.
+ */
+function safeTruncate(raw, maxLen) {
+    if (!raw || typeof raw !== 'string') return '';
+    return raw.substring(0, maxLen).toWellFormed();
+}
+
+/**
  * Strip HTML, URLs, emails, handles, timestamps, sponsor blocks, and
  * boilerplate. Truncates to maxLen (default 1000).
  */
@@ -58,7 +70,7 @@ function cleanDescription(raw, maxLen = 1000) {
     text = text.replace(/\b\d{1,2}:\d{2}(:\d{2})?\b/g, '');
     for (const p of SPONSOR_PATTERNS) text = text.replace(p, '');
     for (const p of BOILERPLATE_PATTERNS) text = text.replace(p, '');
-    return text.replace(/\s+/g, ' ').trim().substring(0, maxLen);
+    return safeTruncate(text.replace(/\s+/g, ' ').trim(), maxLen);
 }
 
 /** Text fed to the embedding model for an episode point. */
@@ -86,4 +98,4 @@ function podcastEmbedText(podcast) {
     return parts.join('. ').replace(/[\n\r]+/g, ' ').substring(0, 1000);
 }
 
-module.exports = { cleanDescription, episodeEmbedText, podcastEmbedText };
+module.exports = { safeTruncate, cleanDescription, episodeEmbedText, podcastEmbedText };

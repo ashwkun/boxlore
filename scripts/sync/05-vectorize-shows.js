@@ -121,9 +121,9 @@ async function main() {
                 vector,
                 payload: {
                     id: parseInt(pod.id, 10) || 0,
-                    title: pod.title,
-                    author: pod.author,
-                    description: (pod.description || '').substring(0, cfg.PAYLOAD_DESCRIPTION_MAX),
+                    title: text.safeTruncate(pod.title),
+                    author: text.safeTruncate(pod.author),
+                    description: text.safeTruncate(pod.description, cfg.PAYLOAD_DESCRIPTION_MAX),
                     image_url: pod.image_url,
                     categories: pod.categories,
                     language: pod.language,

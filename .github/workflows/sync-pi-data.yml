@@ -182,7 +182,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git remote set-url origin "https://github.com/${{ github.repository }}.git"
-          git pull --rebase origin master
+          # Stage and commit BEFORE any rebase: an up-front pull fails on the
+          # unstaged sync_cache.json changes stage 6 just wrote. The push
+          # retry loop below rebases only after committing, like the sync job.
           git add scripts/data/sync_cache.json
           if git diff --cached --quiet; then
             echo "No state changes to commit"
