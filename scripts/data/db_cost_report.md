@@ -2,6 +2,17 @@
 
 Daily totals accumulated across all runs of the sync pipeline.
 
+## 2026-07-08
+
+| Scope | Step | Runs | DB Reads | DB Writes |
+| :--- | :--- | ---: | ---: | ---: |
+| `global` | `import-podcasts` | 1 | 31,921 | 1,005 |
+|  | `refresh-charts` | 1 | 76,247 | 44,411 |
+|  | `sync-episodes` | 1 | 48,853 | 458 |
+|  | `vectorize-episodes` | 1 | 59,402 | 247 |
+|  | `vectorize-shows` | 1 | 50,039 | 352 |
+| | **Day total** | | **266,462** | **46,473** |
+
 ## 2026-07-07
 
 | Scope | Step | Runs | DB Reads | DB Writes |
