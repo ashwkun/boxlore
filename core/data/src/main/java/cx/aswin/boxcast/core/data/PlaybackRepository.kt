@@ -803,7 +803,7 @@ class PlaybackRepository(
                         }
                         
                         // 2. Derive podcast context from episode metadata & local DB
-                        val newPodcast = if (newEpisode.podcastId != null) {
+                        val newPodcast: Podcast? = if (newEpisode.podcastId != null) {
                             val existingPod = oldState.currentPodcast
                             val database = cx.aswin.boxcast.core.data.database.BoxLoreDatabase.getDatabase(context)
                             val dbPodEntity = database.podcastDao().getPodcast(newEpisode.podcastId!!)
@@ -878,9 +878,9 @@ class PlaybackRepository(
 
                         // 6. Auto-refill when queue is running low
                         val currentQueueSize = _playerState.value.queue.size
-                        newPodcast?.takeIf { currentQueueSize < QUEUE_REFILL_THRESHOLD }?.let { podcast ->
+                        if (currentQueueSize < QUEUE_REFILL_THRESHOLD && newPodcast != null) {
                             android.util.Log.d("PlaybackRepo", "Queue running low ($currentQueueSize items). Triggering auto-refill.")
-                            queueRefillCallback?.invoke(newEpisode, podcast)
+                            queueRefillCallback?.invoke(newEpisode, newPodcast)
                         }
                     }
                 }
