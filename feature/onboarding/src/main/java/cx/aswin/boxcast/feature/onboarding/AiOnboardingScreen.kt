@@ -68,7 +68,8 @@ internal fun AiOnboardingScreen(
     onRevealSuggestions: () -> Unit,
     onRetryCuration: () -> Unit,
     onSwitchToManual: () -> Unit,
-    onBuildFeedNow: () -> Unit
+    onBuildFeedNow: () -> Unit,
+    onSearchInstead: (String?) -> Unit
 ) {
     AiChatOnboardingScreen(
         uiState = uiState,
@@ -79,7 +80,8 @@ internal fun AiOnboardingScreen(
         onRevealSuggestions = onRevealSuggestions,
         onRetryCuration = onRetryCuration,
         onSwitchToManual = onSwitchToManual,
-        onBuildFeedNow = onBuildFeedNow
+        onBuildFeedNow = onBuildFeedNow,
+        onSearchInstead = onSearchInstead
     )
 }
 
@@ -94,7 +96,8 @@ private fun AiChatOnboardingScreen(
     onRevealSuggestions: () -> Unit,
     onRetryCuration: () -> Unit,
     onSwitchToManual: () -> Unit,
-    onBuildFeedNow: () -> Unit
+    onBuildFeedNow: () -> Unit,
+    onSearchInstead: (String?) -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
     val secondaryColor = MaterialTheme.colorScheme.secondary
@@ -105,7 +108,7 @@ private fun AiChatOnboardingScreen(
         
         list.add(
             ChatMessage.ModelMessage(
-                text = "Hi! I'm boxlore. To start, what kind of a listener are you?",
+                text = "Hi! I'm boxlore. I'll ask a few quick questions to learn your taste and build your feed. To start, what kind of a listener are you?",
                 key = "init_model"
             )
         )
@@ -282,9 +285,37 @@ private fun AiChatOnboardingScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Answer a few questions to help our AI customize your podcast experience.",
+                                text = "A few quick questions so our AI can learn your taste and build your feed — this isn't a show search.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(percent = 50))
+                                    .clickable { onSearchInstead(null) }
+                                    .padding(vertical = 2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Looking for a specific show? Search instead",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Chats here are anonymous and only used to improve recommendations.",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                             )
                         }
                     }
