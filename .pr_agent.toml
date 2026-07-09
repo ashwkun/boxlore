@@ -38,6 +38,7 @@ publish_labels = true
 use_bullet_points = true
 generate_ai_title = true
 async_ai_calls = false
+enable_pr_diagram = false
 # Forces the AI to discard the messy developer description and apply a strict template
 extra_instructions = """\
 You MUST format the PR title (the 'title' field in the YAML response) strictly according to the Conventional Commits specification: 'type(scope): description'. \
