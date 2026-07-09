@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed Qdrant existence checks by chunking requests in batches of 1000 IDs to avoid oversized request payloads.
 - Fixed double density scaling in image proxy URLs and stale proxyUrl memoization on density changes.
 - Fixed download artwork cleanup race condition and premature deletion of shared podcast artwork.
+- Fixed centering of podcast chip in daily curiosity card when title is long.
+- Fixed pagination race condition in LearnViewModel when load/refresh is in-flight.
+- Fixed unoptimized palette decodes, stale ambient accent colors, and unlocked play button clicks on loading.
 
 ## [v0.0.5] - 2026-07-08
 ### Added
