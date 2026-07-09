@@ -54,7 +54,8 @@ data class SearchResult(
 class PodcastRepository(
     private val baseUrl: String,
     val publicKey: String,
-    context: android.content.Context
+    context: android.content.Context,
+    private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
 ) {
     val api: BoxLoreApi = NetworkModule.createBoxLoreApi(baseUrl, context)
 
@@ -562,7 +563,7 @@ class PodcastRepository(
         message: String,
         appVersion: String,
         email: String? = null
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): Boolean = withContext(ioDispatcher) {
         try {
             val request = cx.aswin.boxcast.core.network.model.FeedbackRequest(category, message, appVersion, email)
             val response = api.submitFeedback(publicKey, request).execute()

@@ -51,6 +51,8 @@ object NetworkModule {
         } else {
             HttpLoggingInterceptor.Level.NONE
         }
+        redactHeader("X-Firebase-AppCheck")
+        redactHeader("X-App-Key")
     }
     
     private val okHttpClient = OkHttpClient.Builder().apply {
