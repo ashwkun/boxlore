@@ -9,7 +9,7 @@
 <br/>
 
 <a href="https://play.google.com/store/apps/details?id=cx.aswin.boxlore">
-  <img src="https://img.shields.io/badge/Google_Play-Get_it_on_Play_(Coming_Soon)-414141?style=for-the-badge&logo=googleplay&logoColor=white&labelColor=0f172a" alt="Get it on Google Play (Coming Soon)"/>
+  <img src="https://img.shields.io/badge/Google_Play-Get_it_on_Play-414141?style=for-the-badge&logo=googleplay&logoColor=white&labelColor=0f172a" alt="Get it on Google Play"/>
 </a>
 &nbsp;
 <a href="https://github.com/ashwkun/boxlore/releases/latest/download/app-release.apk">
@@ -22,11 +22,14 @@
   <img src="https://img.shields.io/badge/License-GPLv3-ff0080?style=flat-square&logo=gnu&logoColor=white" alt="GPL v3"/>
 </a>
 <img src="https://img.shields.io/github/downloads/ashwkun/boxlore/total?style=flat-square&logo=github&logoColor=white&color=2ebbca" alt="Total downloads"/>
+<img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin"/>
+<img src="https://img.shields.io/badge/Jetpack_Compose-UI-4285F4?style=flat-square" alt="Jetpack Compose"/>
+
+<br/><br/>
+
+**[About](#about)** · **[Features](#features)** · **[First launch](#first-launch)** · **[Screenshots](#screenshots)** · **[Install](#install--build)** · **[Developers](#for-developers)**
 
 </div>
-
-
-
 
 ## About
 
@@ -38,238 +41,184 @@ Spotify and Pocket Casts do personalize, but you're paying with ads or a subscri
 
 The smart layer runs on a search index that is rebuilt daily and covers popular chart podcasts — not every podcast on earth yet. It evolves every day and gets bigger. Recommendations and semantic search work best within that catalog; everything else still works as a normal podcast client.
 
----
-
 <!-- upcoming-changes:start -->
-## Upcoming Changes
-
-What's landing in the next release (also tracked in [CHANGELOG.md](CHANGELOG.md)).
+<details>
+<summary><b>✨ Upcoming in the next release</b></summary>
+<br/>
 
 ### Fixed
 - Reduced Home tab lag by flattening feed sections into individual lazy staggered‑grid items and pinning hero and Your Shows to avoid expensive recomposition ([#851](https://github.com/ashwkun/boxlore/pull/851))
 - Optimized skeleton shimmer rendering by removing temporary PerfLog instrumentation, caching draw paths, and slowing the shimmer pace from 1.6 s to 2.2 s for a calmer loading state ([#851](https://github.com/ashwkun/boxlore/pull/851))
+
+<br/>
+<p align="center"><sub>Full history in <a href="CHANGELOG.md">CHANGELOG.md</a></sub></p>
+</details>
 <!-- upcoming-changes:end -->
 
----
+<h2 id="features">What makes it different</h2>
 
-## What makes it different
+<table>
+<tr>
+<td align="center" width="50%" valign="top">
+<h3>🔍 Semantic search</h3>
+<p>Search episodes by <em>meaning</em>, not exact keywords.<br/>
+<em>"stories about startup failure"</em> → relevant episodes, not title matches.</p>
+</td>
+<td align="center" width="50%" valign="top">
+<h3>✨ For You</h3>
+<p>Personalized picks on Home and Explore from your listening, genres, and subs.<br/>
+<strong>Because You Like</strong> rows tied to a favorite show.</p>
+</td>
+</tr>
+<tr>
+<td align="center" width="50%" valign="top">
+<h3>🃏 Curiosity cards</h3>
+<p>Swipe question cards on Learn that point you at episodes you'd never search for.<br/>
+Right to queue · left to dismiss · tap to play.</p>
+</td>
+<td align="center" width="50%" valign="top">
+<h3>🚫 No ads, forever</h3>
+<p>No banners, no sponsored inserts, no premium tier to unlock search or recommendations.</p>
+</td>
+</tr>
+</table>
 
-### Semantic search
-
-Search episodes by meaning, not exact keywords. Ask *"stories about startup failure"* or *"deep dive on black holes"* in the Episodes tab and get relevant matches — not just titles that happen to contain those words.
-
-### For You
-
-Personalized episode picks on Home and Explore, based on what you've listened to, your genre interests, and your subscriptions. When the app knows your taste, sections are labeled **Based on Your Taste**; otherwise you'll see **Popular in your Region**. There's also a **Because You Like** row tied to a favorite show.
-
-### Curiosity cards
-
-On the Learn tab, swipe through question cards that point you at episodes you might not have found on your own. Swipe right to queue, left to dismiss, tap to play. Dismissals are remembered so you don't see the same card twice.
-
-### No ads, forever
-
-No banner ads, no sponsored inserts, no premium tier to unlock search or recommendations.
-
----
-
-## Getting set up
-
-First launch gives you a few ways in — pick what fits how you already listen.
-
-### New to podcasts? Let us help you find your taste.
-
-**AI onboarding** is the default path. A short chat with our AI about your preferences in natural language or via suggested options is all it takes, boxlore turns that into semantic search queries, pulls matching shows from the index, and builds a personalized feed of podcasts to follow. You pick what to subscribe to before entering the app. 
-
-### Switching from another podcast app?
-
-Switch to boxlore from Pocket Casts, Apple Podcasts, AntennaPod, or any app that exports OPML without rebuilding your library from scratch. On first launch, tap **Import library** and pick your `.opml` file — we will resolve each feed, subscribes your shows, and optionally marks back catalog as completed so your feed stays focused on new episodes. After import you get **similar-show recommendations** based on what you brought over.
-
-OPML export is in **Profile → Backup & Restore** when you want to move on or keep a portable copy of your subscriptions. JSON backup is there too if you need full restore (history, likes, and settings).
-
-### Already know what you follow?
-
-**I know my shows** opens search during setup — subscribe manually, get similar-show suggestions if you want them, or **Skip Setup** and explore on your own.
-
----
-
-## Screenshots
+<br/>
 
 <div align="center">
 <table>
   <tr>
-    <td align="center" width="25%">
-      <b>Onboarding</b><br/>
-      <sub>AI feed, OPML import, or search</sub><br/><br/>
-      <img src="docs/images/onboarding.png" width="180" alt="Onboarding Screen"/>
-    </td>
-    <td align="center" width="25%">
-      <b>Home</b><br/>
-      <sub>Mixtape, For You, briefing</sub><br/><br/>
-      <img src="docs/images/homescreen.png" width="180" alt="Homescreen Screen"/>
-    </td>
-    <td align="center" width="25%">
-      <b>Daily Briefing</b><br/>
-      <sub>AI news audio — optional</sub><br/><br/>
-      <img src="docs/images/daily_brief.png" width="180" alt="Daily Briefing Screen"/>
-    </td>
-    <td align="center" width="25%">
-      <b>Curiosity Cards</b><br/>
-      <sub>Swipe to discover</sub><br/><br/>
-      <img src="docs/images/curiosity_cards.png" width="180" alt="Curiosity Cards Screen"/>
-    </td>
-  </tr>
-  <tr>
     <td align="center">
-      <b>Semantic Search</b><br/>
-      <sub>Natural-language episode search</sub><br/><br/>
-      <img src="docs/images/semantic_search.png" width="180" alt="Semantic Search Screen"/>
+      <b>Home</b><br/><sub>For You &amp; your queue</sub><br/><br/>
+      <img src="docs/images/homescreen.png" width="200" alt="Home screen" style="border-radius: 16px;"/>
     </td>
     <td align="center">
-      <b>For You</b><br/>
-      <sub>Personalized recommendations</sub><br/><br/>
-      <img src="docs/images/recommendation_engine.png" width="180" alt="Recommendation Engine Screen"/>
+      <b>Semantic Search</b><br/><sub>Natural-language discovery</sub><br/><br/>
+      <img src="docs/images/semantic_search.png" width="200" alt="Semantic search" style="border-radius: 16px;"/>
     </td>
     <td align="center">
-      <b>Library</b><br/>
-      <sub>Subs, downloads, history</sub><br/><br/>
-      <img src="docs/images/library.png" width="180" alt="Library Screen"/>
-    </td>
-    <td align="center">
-      <b>Player</b><br/>
-      <sub>Chapters, transcript, video</sub><br/><br/>
-      <img src="docs/images/player.png" width="180" alt="Player Screen"/>
+      <b>Player</b><br/><sub>Chapters, transcript, video</sub><br/><br/>
+      <img src="docs/images/player.png" width="200" alt="Player" style="border-radius: 16px;"/>
     </td>
   </tr>
 </table>
 </div>
 
----
+<h2 id="first-launch">First launch</h2>
+
+First launch gives you a few ways in — pick what fits how you already listen.
+
+<table>
+<tr>
+<td width="33%" valign="top">
+<h3>🤖 New to podcasts?</h3>
+<p><strong>AI onboarding</strong> is the default path. A short chat about your preferences — natural language or suggested options — turns into semantic search queries, matching shows from the index, and a personalized feed to subscribe to before you enter the app.</p>
+</td>
+<td width="33%" valign="top">
+<h3>📥 Switching apps?</h3>
+<p>Import from Pocket Casts, Apple Podcasts, AntennaPod, or any app that exports <strong>OPML</strong>. Tap <strong>Import library</strong>, pick your file, and get similar-show recommendations based on what you brought over.</p>
+<p><sub>Export anytime via <strong>Profile → Backup & Restore</strong> (OPML or full JSON).</sub></p>
+</td>
+<td width="33%" valign="top">
+<h3>🔎 Know your shows?</h3>
+<p><strong>I know my shows</strong> opens search during setup — subscribe manually, grab similar-show suggestions if you want, or <strong>Skip Setup</strong> and explore on your own.</p>
+</td>
+</tr>
+</table>
 
 ## More features
 
 <details>
-<summary><b>Mixtapes</b></summary>
+<summary><b>🎧 Listening &amp; playback</b></summary>
 <br/>
 
-Your home queue — up to 15 episodes pulled from subscriptions: what you're mid-way through plus unplayed new drops, scored so you can press play and keep listening without picking the next show yourself.
+**Mixtapes** — Your home queue: up to 15 episodes from subscriptions (in-progress + unplayed new drops), scored so you can press play and keep going.
+
+**Player** — Mini and full player, queue, 0.5×–1.5× speed, sleep timer, skip controls, synced transcripts, chapters, video podcasts, Android Auto.
+
+**Podcasting 2.0** — Native chapters and transcripts when publishers provide them; AI-generated fallback when they don't (beta, daily limit). Video in 16:9.
+
 </details>
 
 <details>
-<summary><b>Daily briefing</b></summary>
+<summary><b>📚 Library &amp; offline</b></summary>
 <br/>
 
-Region-specific AI news audio with a full script, sources, and chapter stories. Handy if you want a quick listen; skip it if AI briefs aren't your thing. It's there when you want it, not forced on you.
+Subscriptions, downloads, history, and liked episodes in one place. Launch offline → land on your downloads.
+
+**Profile → Backup & Restore:** OPML (any podcast app) or JSON (full boxlore backup — subs, history, likes, settings).
+
 </details>
 
 <details>
-<summary><b>Smart Downloads vs auto-download</b></summary>
+<summary><b>⚡ Smart automation</b></summary>
 <br/>
 
-These are two separate things:
+**Daily briefing** — Optional region-specific AI news audio with script, sources, and chapter stories.
 
-- **Smart Downloads** (app-wide, off by default) — periodically builds a curated offline pool from your subscriptions, recommendations, and trending shows, within episode and storage limits you set.
-- **Auto-download** (per podcast, off by default) — when a new episode drops on a show you follow, it downloads automatically. Requires notifications to be on for that show.
+**Smart Downloads** *(app-wide, off by default)* — Curated offline pool from subs, recommendations, and trending, within limits you set.
+
+**Auto-download** *(per podcast, off by default)* — New episode drops → downloads automatically (notifications required).
+
+**New episode notifications** — Per-podcast bell. Off by default.
+
+**Design** — Material 3 / Material You, shimmer skeletons, stable lists, smooth transitions, fast image loading.
+
 </details>
 
-<details>
-<summary><b>New episode notifications</b></summary>
-<br/>
+<h2 id="screenshots">Screenshots</h2>
 
-Per-podcast bell toggle. Get a push when a new episode lands; tap to open the show. Off by default. Can pair with auto-download so the episode is already on your phone.
-</details>
+<div align="center">
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <b>Onboarding</b><br/><sub>AI · OPML · search</sub><br/><br/>
+      <img src="docs/images/onboarding.png" width="180" alt="Onboarding" style="border-radius: 14px;"/>
+    </td>
+    <td align="center" width="25%">
+      <b>Home</b><br/><sub>Mixtape · For You</sub><br/><br/>
+      <img src="docs/images/homescreen.png" width="180" alt="Home" style="border-radius: 14px;"/>
+    </td>
+    <td align="center" width="25%">
+      <b>Daily Briefing</b><br/><sub>AI news audio</sub><br/><br/>
+      <img src="docs/images/daily_brief.png" width="180" alt="Daily briefing" style="border-radius: 14px;"/>
+    </td>
+    <td align="center" width="25%">
+      <b>Curiosity Cards</b><br/><sub>Swipe to discover</sub><br/><br/>
+      <img src="docs/images/curiosity_cards.png" width="180" alt="Curiosity cards" style="border-radius: 14px;"/>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>Semantic Search</b><br/><sub>Meaning, not keywords</sub><br/><br/>
+      <img src="docs/images/semantic_search.png" width="180" alt="Semantic search" style="border-radius: 14px;"/>
+    </td>
+    <td align="center">
+      <b>For You</b><br/><sub>Personalized picks</sub><br/><br/>
+      <img src="docs/images/recommendation_engine.png" width="180" alt="For You" style="border-radius: 14px;"/>
+    </td>
+    <td align="center">
+      <b>Library</b><br/><sub>Subs · downloads</sub><br/><br/>
+      <img src="docs/images/library.png" width="180" alt="Library" style="border-radius: 14px;"/>
+    </td>
+    <td align="center">
+      <b>Player</b><br/><sub>Transcript · chapters</sub><br/><br/>
+      <img src="docs/images/player.png" width="180" alt="Player" style="border-radius: 14px;"/>
+    </td>
+  </tr>
+</table>
+</div>
 
-<details>
-<summary><b>Design</b></summary>
-<br/>
+<h2 id="install--build">Install &amp; build</h2>
 
-Built with Material 3 and Material You. Shimmer skeletons while content loads, stable lists that don't jump around on refresh, smooth navigation transitions, and fast image loading. The goal is an app that feels fast and stays out of your way.
-</details>
+| | |
+|---|---|
+| **Google Play** | [cx.aswin.boxlore](https://play.google.com/store/apps/details?id=cx.aswin.boxlore) |
+| **APK** | [Latest release](../../releases) or the badge at the top |
 
-<details>
-<summary><b>Player</b></summary>
-<br/>
+Enable *Install from unknown sources* in Android settings for sideloading.
 
-Mini player and expandable full player, queue management, variable speed (0.5×–1.5×), sleep timer, skip controls, synced transcripts, chapter navigation, video podcast support, and Android Auto.
-</details>
-
-<details>
-<summary><b>Podcasting 2.0</b></summary>
-<br/>
-
-Native chapters and transcripts from the feed when publishers provide them. AI-generated transcript and chapters as a beta fallback when they don't (with a daily generation limit). Video podcasts play in a proper 16:9 layout.
-</details>
-
-<details>
-<summary><b>Offline & library</b></summary>
-<br/>
-
-Subscriptions, downloaded episodes, listening history, and liked episodes in one place. Launch offline and you land on your downloads.
-
-**Profile → Backup & Restore:** export or import subscriptions as **OPML** (works with any podcast app), or use **JSON** for a full boxlore backup — subs, playback history, likes, and app preferences.
-</details>
-
----
-
-## Codebase structure
-
-<details>
-<summary><b>Core modules</b></summary>
-<br/>
-
-* **`:core:data`** — Repositories (`PodcastRepository`, `PlaybackRepository`, `DownloadRepository`) and data mappers.
-* **`:core:designsystem`** — Themes, typography, shared composables.
-* **`:core:model`** — Domain models (`Episode`, `Podcast`, `Transcript`).
-* **`:core:network`** — Podcast Index API and edge proxy clients.
-</details>
-
-<details>
-<summary><b>Feature modules</b></summary>
-<br/>
-
-* **`:feature:explore`** — Search, For You, curiosity cards.
-* **`:feature:home`** — Mixtape, charts, briefing card.
-* **`:feature:player`** — Playback UI, transcripts, chapters.
-* **`:feature:briefing`** — Daily briefing screen.
-* **`:feature:library`** — Downloads, subscriptions, history.
-* **`:feature:info`** — Podcast and episode detail pages.
-</details>
-
----
-
-## Tech stack
-
-| Technology | Purpose |
-|-----------|---------|
-| **Kotlin** | 100% Kotlin codebase |
-| **Jetpack Compose** | UI with Material 3 |
-| **Coroutines & Flow** | Async and reactive state |
-| **Retrofit 2** | REST API client |
-| **Room** | Local database for history and library |
-| **ExoPlayer (Media3)** | Audio and video playback |
-| **Coil** | Image loading and color extraction |
-| **Cloudflare Workers** | Edge proxy for search and recommendations |
-| **bge-m3** | Embedding model for semantic search (1024-dim) |
-
----
-
-## Data sources
-
-| Source | Data provided |
-|--------|---------------|
-| **Podcast Index API** | Podcast and episode catalog, keyword search |
-| **Apple Podcast Charts** | Daily trending feeds (US, IN, GB, FR) |
-
----
-
-## Getting started
-
-### Install
-
-**Google Play** — [cx.aswin.boxlore](https://play.google.com/store/apps/details?id=cx.aswin.boxlore)
-
-**APK** — Download from [Releases](../../releases) or use the badge at the top. Enable "Install from unknown sources" in Android settings if needed.
-
-### Build from source
+**Build from source**
 
 ```bash
 git clone https://github.com/ashwkun/boxlore.git
@@ -278,45 +227,76 @@ cd boxlore
 ./gradlew installDebug
 ```
 
-**Requirements:** Android Studio Ladybug+, Android SDK 35+, JDK 17, Kotlin 1.9+
+**Requirements:** Android Studio Ladybug+ · Android SDK 35+ · JDK 17 · Kotlin 1.9+
 
----
+<details id="for-developers">
+<summary><b>🛠 For developers</b></summary>
+<br/>
+
+**Codebase structure**
+
+| Module | Role |
+|--------|------|
+| `:core:data` | Repositories, mappers |
+| `:core:designsystem` | Themes, shared composables |
+| `:core:model` | Domain models |
+| `:core:network` | Podcast Index + edge proxy |
+| `:feature:explore` | Search, For You, curiosity cards |
+| `:feature:home` | Mixtape, charts, briefing |
+| `:feature:player` | Playback UI |
+| `:feature:briefing` | Daily briefing screen |
+| `:feature:library` | Downloads, subs, history |
+| `:feature:info` | Podcast & episode detail |
+
+**Tech stack**
+
+| Technology | Purpose |
+|-----------|---------|
+| **Kotlin** | 100% Kotlin codebase |
+| **Jetpack Compose** | UI with Material 3 |
+| **Coroutines & Flow** | Async and reactive state |
+| **Retrofit 2** | REST API client |
+| **Room** | Local database |
+| **ExoPlayer (Media3)** | Audio and video playback |
+| **Coil** | Image loading |
+| **Cloudflare Workers** | Edge proxy for search & recommendations |
+| **bge-m3** | Embeddings for semantic search (1024-dim) |
+
+**Data sources**
+
+| Source | Data |
+|--------|------|
+| **Podcast Index API** | Catalog, keyword search |
+| **Apple Podcast Charts** | Daily trending (US, IN, GB, FR) |
+
+</details>
 
 ## Contributing
 
 Contributions welcome.
 
-1. **Report bugs** — Open an issue with steps to reproduce
-2. **Suggest features** — Use Discussions
+1. **Report bugs** — [Open an issue](https://github.com/ashwkun/boxlore/issues) with steps to reproduce
+2. **Suggest features** — [Discussions](https://github.com/ashwkun/boxlore/discussions)
 3. **Submit PRs** — Fork, code, open a pull request
-
----
 
 ## License
 
 boxlore is **free and open source** under the [GNU General Public License v3.0](LICENSE).
 
-- You may use, modify, and distribute this software
-- Derivative works must also be open source under GPL v3
-- You must disclose source code for any modifications you distribute
-- No warranty is provided
-
----
-
 ## Contributors
 
 <div align="center">
   <a href="https://github.com/ashwkun/boxlore/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=ashwkun/boxlore" alt="Contributors Grid"/>
+    <img src="https://contrib.rocks/image?repo=ashwkun/boxlore" alt="Contributors"/>
   </a>
 </div>
 
----
+<br/>
 
 <div align="center">
 
 Built by someone who listens to too many podcasts.
 
-[⬆ Back to top](#top)
+**[⬆ Back to top](#top)**
 
 </div>

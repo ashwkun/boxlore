@@ -174,15 +174,19 @@ def _extract_unreleased_sections(content: str) -> dict[str, list[str]]:
 
 def _render_readme_upcoming_block(sections: dict[str, list[str]]) -> str:
     if not any(sections.values()):
-        body = "_Nothing queued yet — see [CHANGELOG.md](CHANGELOG.md) for release history._"
+        body = "<p><em>Nothing queued yet.</em></p>"
     else:
         body = _render_unreleased(sections)
 
     return (
         f"{UPCOMING_CHANGES_START}\n"
-        "## Upcoming Changes\n\n"
-        "What's landing in the next release (also tracked in [CHANGELOG.md](CHANGELOG.md)).\n\n"
-        f"{body}\n"
+        "<details>\n"
+        "<summary><b>✨ Upcoming in the next release</b></summary>\n"
+        "<br/>\n\n"
+        f"{body}\n\n"
+        "<br/>\n"
+        '<p align="center"><sub>Full history in <a href="CHANGELOG.md">CHANGELOG.md</a></sub></p>\n'
+        "</details>\n"
         f"{UPCOMING_CHANGES_END}"
     )
 
@@ -196,12 +200,12 @@ def _update_readme(content: str, sections: dict[str, list[str]]) -> str:
     if pattern.search(content):
         updated = pattern.sub(block, content, count=1)
     else:
-        anchor = re.search(r"^(---\s*\n)(## What makes it different)", content, flags=re.MULTILINE)
+        anchor = re.search(r"^(<!-- upcoming-changes:start -->|<h2 id=\"features\">)", content, flags=re.MULTILINE)
         if not anchor:
             raise ValueError(
                 "Could not find Upcoming Changes markers or insertion anchor in README.md"
             )
-        updated = content[: anchor.start(1)] + block + "\n\n" + content[anchor.start(1) :]
+        updated = content[: anchor.start()] + block + "\n\n" + content[anchor.start() :]
 
     if not updated.endswith("\n"):
         updated += "\n"
