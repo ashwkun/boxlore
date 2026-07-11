@@ -20,7 +20,7 @@ UPCOMING_CHANGES_START = "<!-- upcoming-changes:start -->"
 UPCOMING_CHANGES_END = "<!-- upcoming-changes:end -->"
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "openai/gpt-oss-120b"
-GROQ_USER_AGENT = "boxlore-changelog/1.2"
+GROQ_USER_AGENT = "boxlore-changelog/1.3"
 CATEGORY_ORDER = ("Added", "Changed", "Fixed", "Deprecated", "Removed", "Security")
 README_GROUP_ORDER = ("New features", "Improvements", "Fixes", "Security", "Other")
 DEFAULT_GITHUB_REPOSITORY = "ashwkun/boxlore"
@@ -55,20 +55,21 @@ def _require_env(name: str) -> str:
 
 
 def _groq_entries(api_key: str, pr_number: int, pr_title: str, pr_body: str) -> dict[str, list[str]]:
-    system_prompt = """You write Keep a Changelog entries for an Android podcast app (boxlore).
-Return ONLY valid JSON with these optional keys: Added, Changed, Fixed, Deprecated, Removed, Security.
+    system_prompt = """You write Keep a Changelog entries for boxlore (Android/Kotlin podcast app).
+Return ONLY valid JSON with optional keys: Added, Changed, Fixed, Deprecated, Removed, Security.
 Each value is an array of bullet strings WITHOUT leading dashes.
 
+Audience: developers and technical contributors reading CHANGELOG.md (NOT end-user README copy).
+
 Rules:
-- Use plain English, user-facing wording, matching existing changelog tone.
-- Merge related bullets into one line per feature area (e.g. all queue UX → one Added bullet).
-- Omit analytics-only, test-only, or CI-only changes from the changelog.
-- Use "Fixed ..." phrasing for bug fixes, "Added ..." for new features, "Changed ..." for behavior/UI updates.
-- Do not invent changes not supported by the PR title/body.
-- Omit empty categories entirely.
-- Do not include version headers, dates, PR numbers, or markdown formatting in bullets.
-- Aim for 3–8 bullets total per PR, not one bullet per commit.
-"""
+- Use precise technical wording: class/module names, tiers, repositories, and behavior when relevant.
+- Merge related changes into one bullet per feature area (e.g. all SmartQueueEngine work → one Added bullet).
+- Omit test-only, CI-only, or pure telemetry unless the PR is solely about analytics.
+- Use "Fixed ..." for bugs, "Added ..." for features, "Changed ..." for behavior/refactors, "Removed ..." for deletions.
+- Do not invent changes unsupported by the PR title/body.
+- Omit empty categories.
+- No version headers, dates, PR numbers, or markdown in bullets.
+- Aim for 2–6 bullets total per PR."""
 
     user_prompt = f"""PR #{pr_number}
 Title: {pr_title}
@@ -229,6 +230,135 @@ def _groq_chat_json(api_key: str, system_prompt: str, user_prompt: str, error_la
     return parsed
 
 
+def _format_changelog_bullet(text: str, pr_number: int | None) -> str:
+    return _format_readme_bullet(text, pr_number)
+
+
+def _parse_changelog_bullet(entry: object) -> tuple[str, int | None]:
+    return _parse_readme_bullet(entry)
+
+
+def _sections_from_cluster_bullets(
+    curated: dict[str, list[tuple[str, int | None]]],
+    clusters: list[ChangelogCluster],
+) -> dict[str, list[str]]:
+    """Sort bullets within each Keep a Changelog category by cluster importance."""
+    pr_importance = {c.pr_number: c.importance for c in clusters if c.pr_number is not None}
+
+    def sort_key(item: tuple[str, int | None]) -> tuple[int, str]:
+        _, pr_number = item
+        return (-pr_importance.get(pr_number, 0), str(pr_number or ""))
+
+    sections: dict[str, list[str]] = {}
+    for category in CATEGORY_ORDER:
+        items = curated.get(category, [])
+        if not items:
+            continue
+        sorted_items = sorted(items, key=sort_key)
+        bullets = [_format_changelog_bullet(text, pr) for text, pr in sorted_items if text.strip()]
+        if bullets:
+            sections[category] = bullets
+    return sections
+
+
+def _fallback_changelog_from_clusters(clusters: list[ChangelogCluster]) -> dict[str, list[str]]:
+    curated: dict[str, list[tuple[str, int | None]]] = defaultdict(list)
+    for cluster in clusters:
+        if cluster.importance < 40 or not cluster.items:
+            continue
+        by_category: dict[str, list[str]] = defaultdict(list)
+        for category, text in cluster.items:
+            by_category[category].append(text)
+        for category in CATEGORY_ORDER:
+            texts = by_category.get(category, [])
+            if not texts:
+                continue
+            merged = texts[0] if len(texts) == 1 else f"{texts[0]} (+ {len(texts) - 1} related changes)"
+            curated[category].append((merged, cluster.pr_number))
+    return _sections_from_cluster_bullets(curated, clusters)
+
+
+def _groq_curate_changelog_unreleased(
+    api_key: str, sections: dict[str, list[str]]
+) -> dict[str, list[str]]:
+    """Re-group and prioritize the full [Unreleased] section for CHANGELOG.md."""
+    if not any(sections.values()):
+        return {}
+
+    clusters = _cluster_sections_by_pr(sections)
+    clustered_input = _render_clustered_changelog(clusters)
+    if not clustered_input:
+        return {}
+
+    system_prompt = """You curate clustered changelog drafts for boxlore into a clean Keep a Changelog [Unreleased] section.
+
+Audience: developers — use technical, precise language (class names, tiers, modules, repositories, guards).
+This is NOT the user-facing README; do not simplify away useful implementation detail.
+
+Input is grouped by PR/theme with importance scores. Each ## block is one merged feature area.
+
+Return ONLY valid JSON:
+{"Added": [{"text": "...", "pr": 853}, ...], "Changed": [...], "Fixed": [...], "Removed": [...], ...}
+
+Rules:
+1. ONE bullet object per ## block per category. Merge all [Added] lines in a block into one Added bullet; same for Changed/Fixed/Removed.
+2. Include "pr" from the ## PR #NNN header on every bullet.
+3. Drop ## blocks with importance below 40 (gitignore, CI-only). Collapse pure analytics/telemetry into at most one Changed bullet at the bottom, or omit.
+4. Within each category array, order bullets by importance (queue/playback 95 first, home perf 80, NPS/surveys 42 last).
+5. Keep a Changelog category names exactly: Added, Changed, Fixed, Deprecated, Removed, Security.
+6. No PR numbers inside "text" (appended separately). No markdown headers in output.
+7. Prefer 2–4 bullets per PR cluster total across categories, not one line per commit.
+
+Tone examples (CHANGELOG — technical):
+- "Smart Queue v2: tiered SmartQueueEngine (T0–T4, T3.5) with skip memory, region-aware refill, and unified BoxLorePlaybackService path"
+- "EngagementPromptCoordinator: native PostHog NPS surveys, unified NPS/Play review modal, 14-day promoter cooldown"
+- "Fixed Tier 0 newest-sort adding archive episodes on latest-item play; discovery landing guard skips deep continuation"
+
+Do NOT use README listener tone like "shows why each item is there" — use provenance labels, AUTO_FILL, contextSourceId, etc."""
+
+    user_prompt = f"""Curate these PR/theme clusters into grouped Keep a Changelog bullets:
+
+{clustered_input}"""
+
+    parsed = _groq_chat_json(
+        api_key,
+        system_prompt,
+        user_prompt,
+        "Groq CHANGELOG curation error",
+    )
+
+    curated: dict[str, list[tuple[str, int | None]]] = defaultdict(list)
+    for category in CATEGORY_ORDER:
+        raw = parsed.get(category, [])
+        if not isinstance(raw, list):
+            continue
+        for entry in raw:
+            text, pr_number = _parse_changelog_bullet(entry)
+            if text:
+                curated[category].append((text, pr_number))
+
+    if curated:
+        return _sections_from_cluster_bullets(curated, clusters)
+    return _fallback_changelog_from_clusters(clusters)
+
+
+def _replace_unreleased_sections(content: str, sections: dict[str, list[str]]) -> str:
+    match = re.search(r"^## \[Unreleased\]\s*$", content, flags=re.MULTILINE)
+    if not match:
+        raise ValueError("Could not find '## [Unreleased]' header in CHANGELOG.md")
+
+    start = match.end()
+    next_version = re.search(r"^## \[", content[start:], flags=re.MULTILINE)
+    end = start + next_version.start() if next_version else len(content)
+
+    rendered = _render_unreleased(sections)
+    replacement = f"\n{rendered}\n" if rendered else "\n"
+    updated = content[:start] + replacement + content[end:]
+    if not updated.endswith("\n"):
+        updated += "\n"
+    return updated
+
+
 def _format_readme_bullet(text: str, pr_number: int | None) -> str:
     cleaned = text.strip()
     if not cleaned:
@@ -288,7 +418,10 @@ def _groq_curate_readme_upcoming(
     if not clustered_input:
         return []
 
-    system_prompt = """You curate clustered changelog entries for boxlore (Android podcast app) into a README "Upcoming Changes" section for listeners — not developers.
+    system_prompt = """You curate clustered changelog entries into a README "Upcoming Changes" section for boxlore listeners.
+
+Audience: podcast listeners using the app — plain English only. Do NOT use CHANGELOG-style technical terms (SmartQueueEngine, Tier 0, PlaybackRepository, AUTO_FILL, contextSourceId).
+The paired CHANGELOG entry for the same PR uses developer language; this README section must feel different.
 
 Input is pre-grouped by PR/theme with an importance score (higher = more user-visible). Each ## block is ONE feature area — merge its bullets into as few README lines as possible.
 
@@ -557,6 +690,33 @@ def append_changelog(api_key: str, pr_number: int, pr_title: str, pr_body: str) 
     return changelog_changed
 
 
+def sync_changelog_unreleased(api_key: str) -> bool:
+    if not CHANGELOG_PATH.exists():
+        print("CHANGELOG.md not found", file=sys.stderr)
+        sys.exit(1)
+
+    original = CHANGELOG_PATH.read_text(encoding="utf-8")
+    unreleased = _extract_unreleased_sections(original)
+    if not unreleased:
+        print("No [Unreleased] entries to curate.")
+        return False
+
+    print("Curating CHANGELOG [Unreleased] grouping and priority...")
+    curated = _groq_curate_changelog_unreleased(api_key, unreleased)
+    if not curated:
+        print("CHANGELOG curation produced no entries.")
+        return False
+
+    updated = _replace_unreleased_sections(original, curated)
+    if updated != original:
+        CHANGELOG_PATH.write_text(updated, encoding="utf-8")
+        print("Re-grouped CHANGELOG.md [Unreleased] section.")
+        return True
+
+    print("No CHANGELOG changes written.")
+    return False
+
+
 def sync_readme_upcoming(api_key: str) -> bool:
     if not CHANGELOG_PATH.exists():
         print("CHANGELOG.md not found", file=sys.stderr)
@@ -598,13 +758,14 @@ def main() -> None:
         "command",
         nargs="?",
         default="all",
-        choices=("all", "append", "sync-readme"),
-        help="append: write PR to CHANGELOG; sync-readme: curate full Unreleased into README; all: both",
+        choices=("all", "append", "sync-changelog", "sync-readme"),
+        help="append: write PR to CHANGELOG; sync-changelog: re-group [Unreleased]; sync-readme: curate README; all: append + sync-changelog + sync-readme",
     )
     args = parser.parse_args()
 
     api_key = _require_env("GROQ_API_KEY")
     changelog_changed = False
+    changelog_curated = False
     readme_changed = False
 
     if args.command in ("all", "append"):
@@ -613,10 +774,13 @@ def main() -> None:
         pr_body = os.environ.get("PR_BODY", "")
         changelog_changed = append_changelog(api_key, pr_number, pr_title, pr_body)
 
+    if args.command in ("all", "sync-changelog"):
+        changelog_curated = sync_changelog_unreleased(api_key)
+
     if args.command in ("all", "sync-readme"):
         readme_changed = sync_readme_upcoming(api_key)
 
-    if not changelog_changed and not readme_changed:
+    if not changelog_changed and not changelog_curated and not readme_changed:
         print("No CHANGELOG or README changes written.")
 
 

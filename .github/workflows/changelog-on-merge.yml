@@ -49,6 +49,11 @@ jobs:
           PR_BODY: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.pr_body || github.event.pull_request.body }}
         run: python3 .github/scripts/update_changelog.py append
 
+      - name: Curate CHANGELOG grouping and priority
+        env:
+          GROQ_API_KEY: ${{ secrets.REVIEW_KEY }}
+        run: python3 .github/scripts/update_changelog.py sync-changelog
+
       - name: Curate README from all unreleased changes
         env:
           GROQ_API_KEY: ${{ secrets.REVIEW_KEY }}

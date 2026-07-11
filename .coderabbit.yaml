@@ -96,11 +96,9 @@ reviews:
       - name: update changelog
         enabled: true
         instructions: |
-          Read the PR diff and update CHANGELOG.md and the README Upcoming Changes section.
-          Add bullet(s) under the [Unreleased] section only.
-          Use Keep a Changelog categories: Added, Changed, Fixed, Removed, Security.
-          Do not modify, reorder, or remove existing versioned sections.
-          Write concise, user-facing bullets in plain English.
+          Do NOT manually edit CHANGELOG.md or README Upcoming Changes on PRs — the changelog-on-merge workflow handles both after merge.
+          If reviewing a PR, ensure the PR title/body clearly describes user-visible and technical changes for Groq to summarize.
+          CHANGELOG uses developer/Keep a Changelog tone; README uses listener-friendly plain English.
 
   pre_merge_checks:
     title:
