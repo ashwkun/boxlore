@@ -10,6 +10,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 
@@ -391,6 +392,14 @@ class UserPreferencesRepository(context: Context) {
         val REVIEW_PROMPT_COUNT = androidx.datastore.preferences.core.intPreferencesKey("review_prompt_count")
         val REVIEW_HAS_REVIEWED = androidx.datastore.preferences.core.booleanPreferencesKey("review_has_reviewed")
         val REVIEW_FIRST_LAUNCH_AT = androidx.datastore.preferences.core.longPreferencesKey("review_first_launch_at")
+        // NPS survey: milestone marks eligibility (pending); the event fires on
+        // the next app open so it never surfaces during background playback.
+        val NPS_SURVEY_PENDING = androidx.datastore.preferences.core.booleanPreferencesKey("nps_survey_pending")
+        val NPS_SURVEY_FIRED = androidx.datastore.preferences.core.booleanPreferencesKey("nps_survey_fired")
+        val NPS_SURVEY_COMPLETED_COUNT = androidx.datastore.preferences.core.intPreferencesKey("nps_survey_completed_count")
+        val ENGAGEMENT_LAST_PROMPT_AT = androidx.datastore.preferences.core.longPreferencesKey("engagement_last_prompt_at")
+        val NPS_LAST_SCORE = androidx.datastore.preferences.core.intPreferencesKey("nps_last_score")
+        val PROMOTER_REVIEW_PENDING = androidx.datastore.preferences.core.booleanPreferencesKey("promoter_review_pending")
     }
 
     val hasLoggedFirstPlay: Flow<Boolean> = dataStore.data
@@ -478,51 +487,110 @@ class UserPreferencesRepository(context: Context) {
             val count = pref[AnalyticsKeys.REVIEW_PROMPT_COUNT] ?: 0
             pref[AnalyticsKeys.REVIEW_PROMPT_COUNT] = count + 1
             pref[AnalyticsKeys.REVIEW_LAST_PROMPT_AT] = System.currentTimeMillis()
+            pref[AnalyticsKeys.ENGAGEMENT_LAST_PROMPT_AT] = System.currentTimeMillis()
         }
     }
 
     /**
-     * Rules to show:
-     * - User has NOT reviewed yet
-     * - App installed for at least 2 days
-     * - Max 3 prompts lifetime
-     * - Minimum 30 days between prompts
-     * - They hit a milestone (5, 15, or 30 episodes completed)
+     * Rules to show milestone Play review:
+     * - NPS survey already fired; skip detractors (score &lt;= 7)
+     * - Shared 14-day engagement cooldown
+     * - User has NOT reviewed yet; app installed 2+ days; max 3 lifetime; 30-day review gap
+     * - Exact milestones: 5, 15, or 30 completed episodes; never during playback
      */
     suspend fun shouldShowReviewPrompt(completedCount: Int, isPlaying: Boolean): Boolean {
-        if (isPlaying) return false // Never interrupt playback
-        
-        // Only trigger on exact milestones so it doesn't prompt continuously
+        if (isPlaying) return false
         if (completedCount != 5 && completedCount != 15 && completedCount != 30) return false
 
-        var shouldShow = false
-        dataStore.edit { pref ->
-            val hasReviewed = pref[AnalyticsKeys.REVIEW_HAS_REVIEWED] ?: false
-            if (hasReviewed) return@edit // Early out
+        val prefs = dataStore.data.first()
+        if (prefs[AnalyticsKeys.REVIEW_HAS_REVIEWED] == true) return false
+        if (prefs[AnalyticsKeys.NPS_SURVEY_FIRED] != true) return false
 
-            val promptCount = pref[AnalyticsKeys.REVIEW_PROMPT_COUNT] ?: 0
-            if (promptCount >= 3) return@edit // Lifetime cap
+        val npsScore = prefs[AnalyticsKeys.NPS_LAST_SCORE]
+        if (npsScore != null && npsScore <= EngagementPromptCoordinator.DETRACTOR_SCORE_MAX) return false
 
-            // Initialize first launch time if empty
-            val firstLaunchStr = pref[AnalyticsKeys.REVIEW_FIRST_LAUNCH_AT]
-            if (firstLaunchStr == null) {
-                 pref[AnalyticsKeys.REVIEW_FIRST_LAUNCH_AT] = System.currentTimeMillis()
-                 return@edit // Don't show on very first day
-            }
-            
-            val daysSinceInstall = (System.currentTimeMillis() - firstLaunchStr) / (1000 * 60 * 60 * 24)
-            if (daysSinceInstall < 2) return@edit
+        if (!isEngagementCooldownElapsed(prefs)) return false
 
-            val lastPrompt = pref[AnalyticsKeys.REVIEW_LAST_PROMPT_AT] ?: 0L
-            val daysSinceLastPrompt = (System.currentTimeMillis() - lastPrompt) / (1000 * 60 * 60 * 24)
-            
-            if (lastPrompt == 0L || daysSinceLastPrompt >= 30) {
-                // We don't mark as shown here, we just check. The UI tier will mark it.
-                shouldShow = true
-            }
+        val promptCount = prefs[AnalyticsKeys.REVIEW_PROMPT_COUNT] ?: 0
+        if (promptCount >= 3) return false
+
+        val firstLaunch = prefs[AnalyticsKeys.REVIEW_FIRST_LAUNCH_AT]
+        if (firstLaunch == null) {
+            dataStore.edit { it[AnalyticsKeys.REVIEW_FIRST_LAUNCH_AT] = System.currentTimeMillis() }
+            return false
         }
-        
-        return shouldShow
+
+        val daysSinceInstall = (System.currentTimeMillis() - firstLaunch) / (1000 * 60 * 60 * 24)
+        if (daysSinceInstall < 2) return false
+
+        val lastPrompt = prefs[AnalyticsKeys.REVIEW_LAST_PROMPT_AT] ?: 0L
+        val daysSinceLastPrompt = (System.currentTimeMillis() - lastPrompt) / (1000 * 60 * 60 * 24)
+        return lastPrompt == 0L || daysSinceLastPrompt >= 30
+    }
+
+    suspend fun hasReviewedSync(): Boolean =
+        dataStore.data.first()[AnalyticsKeys.REVIEW_HAS_REVIEWED] ?: false
+
+    suspend fun recordEngagementPromptShown() {
+        dataStore.edit { pref ->
+            pref[AnalyticsKeys.ENGAGEMENT_LAST_PROMPT_AT] = System.currentTimeMillis()
+        }
+    }
+
+    suspend fun isEngagementCooldownElapsed(): Boolean =
+        isEngagementCooldownElapsed(dataStore.data.first())
+
+    private fun isEngagementCooldownElapsed(pref: Preferences): Boolean {
+        val last = pref[AnalyticsKeys.ENGAGEMENT_LAST_PROMPT_AT] ?: 0L
+        if (last == 0L) return true
+        val days = (System.currentTimeMillis() - last) / (1000 * 60 * 60 * 24)
+        return days >= EngagementPromptCoordinator.ENGAGEMENT_COOLDOWN_DAYS
+    }
+
+    suspend fun setNpsLastScore(score: Int) {
+        dataStore.edit { it[AnalyticsKeys.NPS_LAST_SCORE] = score }
+    }
+
+    suspend fun npsLastScore(): Int? = dataStore.data.first()[AnalyticsKeys.NPS_LAST_SCORE]
+
+    suspend fun setPromoterReviewPending(pending: Boolean) {
+        dataStore.edit { it[AnalyticsKeys.PROMOTER_REVIEW_PENDING] = pending }
+    }
+
+    suspend fun isPromoterReviewPending(): Boolean =
+        dataStore.data.first()[AnalyticsKeys.PROMOTER_REVIEW_PENDING] ?: false
+
+    // --- NPS SURVEY (PostHog) TRIGGER STATE ---
+    // The eligibility milestone (e.g. 3rd completed episode) can be reached
+    // while playback runs in the background. Rather than fire immediately, we
+    // mark the survey "pending" and let MainActivity fire the trigger event on
+    // the next app open. Firing happens at most once (guarded by the fired flag).
+
+    /** Mark the NPS survey pending (no-op if it has already fired). */
+    suspend fun markNpsSurveyPending(completedCount: Int) {
+        dataStore.edit { pref ->
+            if (pref[AnalyticsKeys.NPS_SURVEY_FIRED] == true) return@edit
+            pref[AnalyticsKeys.NPS_SURVEY_PENDING] = true
+            pref[AnalyticsKeys.NPS_SURVEY_COMPLETED_COUNT] = completedCount
+        }
+    }
+
+    suspend fun isNpsSurveyPending(): Boolean =
+        dataStore.data.first()[AnalyticsKeys.NPS_SURVEY_PENDING] ?: false
+
+    suspend fun hasNpsSurveyFired(): Boolean =
+        dataStore.data.first()[AnalyticsKeys.NPS_SURVEY_FIRED] ?: false
+
+    /** Completed-episode count captured when the survey became pending. */
+    suspend fun npsSurveyCompletedCount(): Int? =
+        dataStore.data.first()[AnalyticsKeys.NPS_SURVEY_COMPLETED_COUNT]
+
+    /** Mark the NPS survey as fired and clear the pending flag. */
+    suspend fun markNpsSurveyFired() {
+        dataStore.edit { pref ->
+            pref[AnalyticsKeys.NPS_SURVEY_FIRED] = true
+            pref[AnalyticsKeys.NPS_SURVEY_PENDING] = false
+        }
     }
 
     val hideCompletedInFeedsStream: Flow<Boolean> = dataStore.data

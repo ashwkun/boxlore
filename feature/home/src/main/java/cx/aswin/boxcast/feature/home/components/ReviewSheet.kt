@@ -25,6 +25,9 @@ import kotlinx.coroutines.launch
 /**
  * Milestone review prompt — M3 Expressive bottom sheet.
  * Diverts happy users to Play Store, frustrated users to Feedback.
+ *
+ * @param variant Milestone uses episode-based copy; [ReviewPromptVariant.PromoterHandoff]
+ *   acknowledges the user already scored 8+ on NPS.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,19 +35,54 @@ fun ReviewPromptSheet(
     completedCount: Int,
     onDismissRequest: () -> Unit,
     onNavigateToReview: () -> Unit,
-    onNavigateToFeedback: () -> Unit
+    onNavigateToFeedback: () -> Unit,
+    variant: ReviewPromptVariant = ReviewPromptVariant.Milestone,
 ) {
-    val title = when {
-        completedCount >= 30 -> "You're a podcast pro"
-        completedCount >= 15 -> "You're a regular listener"
-        else -> "You're on a roll"
-    }
-    
-    val body = when {
-        completedCount >= 30 -> "$completedCount episodes and counting — your review would mean the world to us."
-        completedCount >= 15 -> "You've finished $completedCount episodes. Mind leaving a quick rating?"
-        else -> "You've completed $completedCount episodes. How's boxcast treating you?"
-    }
+    val title =
+        when (variant) {
+            ReviewPromptVariant.PromoterHandoff -> "Glad you're enjoying boxcast"
+            ReviewPromptVariant.Milestone ->
+                when {
+                    completedCount >= 30 -> "You're a podcast pro"
+                    completedCount >= 15 -> "You're a regular listener"
+                    else -> "You're on a roll"
+                }
+        }
+
+    val body =
+        when (variant) {
+            ReviewPromptVariant.PromoterHandoff ->
+                "Thanks for the great score — a quick Play Store rating helps other listeners discover boxcast."
+            ReviewPromptVariant.Milestone ->
+                when {
+                    completedCount >= 30 ->
+                        "$completedCount episodes and counting — your review would mean the world to us."
+                    completedCount >= 15 ->
+                        "You've finished $completedCount episodes. Mind leaving a quick rating?"
+                    else -> "You've completed $completedCount episodes. How's boxcast treating you?"
+                }
+        }
+
+    val primaryLabel =
+        when (variant) {
+            ReviewPromptVariant.PromoterHandoff -> "Rate on Play Store"
+            ReviewPromptVariant.Milestone ->
+                if (completedCount >= 15) "Rate boxcast" else "Loving it"
+        }
+
+    val secondaryLabel =
+        when (variant) {
+            ReviewPromptVariant.PromoterHandoff -> "Not right now"
+            ReviewPromptVariant.Milestone ->
+                if (completedCount >= 30) "Not right now" else "Could be better"
+        }
+
+    val onSecondaryClick =
+        when (variant) {
+            ReviewPromptVariant.PromoterHandoff -> onDismissRequest
+            ReviewPromptVariant.Milestone ->
+                if (completedCount >= 30) onDismissRequest else onNavigateToFeedback
+        }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -118,7 +156,7 @@ fun ReviewPromptSheet(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (completedCount >= 15) "Rate boxcast" else "Loving it",
+                    text = primaryLabel,
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -127,19 +165,24 @@ fun ReviewPromptSheet(
             
             // Secondary — go to feedback or dismiss
             OutlinedButton(
-                onClick = if (completedCount >= 30) onDismissRequest else onNavigateToFeedback,
+                onClick = onSecondaryClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = if (completedCount >= 30) "Not right now" else "Could be better",
+                    text = secondaryLabel,
                     style = MaterialTheme.typography.labelLarge
                 )
             }
         }
     }
+}
+
+enum class ReviewPromptVariant {
+    Milestone,
+    PromoterHandoff,
 }
 
 /**
