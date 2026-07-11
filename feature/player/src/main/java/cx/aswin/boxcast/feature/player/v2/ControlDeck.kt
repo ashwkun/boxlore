@@ -125,8 +125,7 @@ fun PrimaryControls(
     val activeIndex = pressedIndex ?: latchedIndex
     val baseWeights = remember { listOf(1f, 1.18f, 1f) }
     fun targetWeight(index: Int): Float {
-        if (activeIndex == null) return baseWeights[index]
-        val active = activeIndex
+        val active = activeIndex ?: return baseWeights[index]
         val extra = baseWeights[active] * 0.14f
         return if (index == active) {
             baseWeights[index] + extra

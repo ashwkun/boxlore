@@ -1092,6 +1092,7 @@ class PlaybackRepository(
      * queue first, then the persisted queue rows (which carry contextType/source for
      * the queue-sheet labels), then the MediaItem itself as a last resort.
      */
+    @Suppress("kotlin:S3776")
     private fun reconcileQueueWithController() {
         val controller = mediaController ?: return
         if (controller.mediaItemCount == 0) return

@@ -346,11 +346,11 @@ private fun SwipeDismissTip(
 ) {
     var tipVisible by remember { mutableStateOf(true) }
     var dismissalReported by remember { mutableStateOf(false) }
-    val currentOnDismissed by rememberUpdatedState(onDismissed)
+    val currentOnDismissed = rememberUpdatedState(onDismissed)
     fun reportDismissal() {
         if (!dismissalReported) {
             dismissalReported = true
-            currentOnDismissed()
+            currentOnDismissed.value()
         }
     }
 
