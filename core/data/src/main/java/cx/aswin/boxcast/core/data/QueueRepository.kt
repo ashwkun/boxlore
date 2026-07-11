@@ -1,5 +1,6 @@
 package cx.aswin.boxcast.core.data
 
+import androidx.room.withTransaction
 import cx.aswin.boxcast.core.data.database.BoxLoreDatabase
 import cx.aswin.boxcast.core.data.database.entities.QueueItem
 import cx.aswin.boxcast.core.network.model.EpisodeItem
@@ -22,7 +23,7 @@ class QueueRepository @Inject constructor(
 
     val queue: Flow<List<EpisodeItem>> = queueDao.getAllQueueItems()
         .map { items ->
-            items.map { it.toEpisodeItem() }
+            items.distinctBy { it.episodeId }.map { it.toEpisodeItem() }
         }
 
     suspend fun addToQueue(
@@ -99,6 +100,19 @@ class QueueRepository @Inject constructor(
      * Used to sync in-memory queue state back to DB.
      */
     suspend fun replaceQueue(episodes: List<cx.aswin.boxcast.core.model.Episode>) {
+        val uniqueEpisodes = episodes.distinctBy { it.id }
+        if (uniqueEpisodes.size != episodes.size) {
+            android.util.Log.w(
+                TAG,
+                "replaceQueue: Removed ${episodes.size - uniqueEpisodes.size} duplicate episode IDs"
+            )
+        }
+        database.withTransaction {
+            replaceQueueItems(uniqueEpisodes)
+        }
+    }
+
+    private suspend fun replaceQueueItems(episodes: List<cx.aswin.boxcast.core.model.Episode>) {
         queueDao.clearQueue()
         episodes.forEachIndexed { index, ep ->
             val item = QueueItem(
@@ -132,10 +146,21 @@ class QueueRepository @Inject constructor(
     }
     
     suspend fun getQueueSnapshot(): List<cx.aswin.boxcast.core.model.Episode> {
-        android.util.Log.d(TAG, "getQueueSnapshot: Fetching sync")
-        val items = queueDao.getAllQueueItemsSync()
-        android.util.Log.d(TAG, "getQueueSnapshot: Got ${items.size} items")
-        return items.map { it.toDomainEpisode() }
+        return database.withTransaction {
+            android.util.Log.d(TAG, "getQueueSnapshot: Fetching sync")
+            val items = queueDao.getAllQueueItemsSync()
+            android.util.Log.d(TAG, "getQueueSnapshot: Got ${items.size} items")
+            val episodes = items.map { it.toDomainEpisode() }
+            val uniqueEpisodes = episodes.distinctBy { it.id }
+            if (uniqueEpisodes.size != episodes.size) {
+                android.util.Log.w(
+                    TAG,
+                    "getQueueSnapshot: Repairing ${episodes.size - uniqueEpisodes.size} duplicate queue rows"
+                )
+                replaceQueueItems(uniqueEpisodes)
+            }
+            uniqueEpisodes
+        }
     }
     
     private fun cx.aswin.boxcast.core.data.database.entities.QueueItem.toDomainEpisode(): cx.aswin.boxcast.core.model.Episode {
@@ -240,7 +265,7 @@ class QueueRepository @Inject constructor(
 
         val byEpisodeId = items.associateBy { it.episodeId }
         val reordered = mutableListOf<QueueItem>()
-        orderedEpisodeIds.forEach { episodeId ->
+        orderedEpisodeIds.distinct().forEach { episodeId ->
             byEpisodeId[episodeId]?.let { reordered.add(it) }
         }
         // Keep any rows that weren't part of the provided order (defensive) at the tail.
