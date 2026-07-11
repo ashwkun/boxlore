@@ -13,7 +13,7 @@ from pathlib import Path
 
 CHANGELOG_PATH = Path("CHANGELOG.md")
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 CATEGORY_ORDER = ("Added", "Changed", "Fixed", "Deprecated", "Removed", "Security")
 PR_MARKER_RE = re.compile(r"\(#(\d+)\)")
 
