@@ -9,7 +9,7 @@
 <br/>
 <br/>
 <div align="center">
-  <a href="https://github.com/ashwkun/boxlore/releases/latest">
+  <a href="https://github.com/ashwkun/boxlore/releases/latest/download/app-release.apk">
     <img src="docs/images/card_github.svg" height="70" alt="Download APK on GitHub"/>
   </a>
   &nbsp;&nbsp;
