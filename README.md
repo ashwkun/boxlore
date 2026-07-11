@@ -9,11 +9,11 @@
 <br/>
 
 <a href="https://play.google.com/store/apps/details?id=cx.aswin.boxlore">
-  <img src="https://img.shields.io/badge/Google_Play-Get_it_on_Play_(Coming_Soon)-414141?style=for-the-badge&logo=googleplay&logoColor=white&labelColor=0f172a" alt="Get it on Google Play (Coming Soon)"/>
+  <img src="https://img.shields.io/badge/Google%20Play-Get%20it%20on%20Play%20(Coming%20Soon)-414141?style=for-the-badge&logo=googleplay&logoColor=white&labelColor=0f172a" alt="Get it on Google Play (Coming Soon)"/>
 </a>
 &nbsp;
 <a href="https://github.com/ashwkun/boxlore/releases/latest/download/app-release.apk">
-  <img src="https://img.shields.io/badge/⬇_DOWNLOAD_APK-Latest_Release-2ebbca?style=for-the-badge&logo=android&logoColor=white&labelColor=0f172a" alt="Download APK"/>
+  <img src="https://img.shields.io/badge/Download%20APK-Latest%20Release-2ebbca?style=for-the-badge&logo=android&logoColor=white&labelColor=0f172a" alt="Download APK"/>
 </a>
 
 <br/><br/>
@@ -23,7 +23,7 @@
 </a>
 <img src="https://img.shields.io/github/downloads/ashwkun/boxlore/total?style=flat-square&logo=github&logoColor=white&color=2ebbca" alt="Total downloads"/>
 <img src="https://img.shields.io/badge/Kotlin-100%25-7F52FF?style=flat-square&logo=kotlin&logoColor=white" alt="Kotlin"/>
-<img src="https://img.shields.io/badge/Jetpack_Compose-UI-4285F4?style=flat-square" alt="Jetpack Compose"/>
+<img src="https://img.shields.io/badge/Jetpack%20Compose-UI-4285F4?style=flat-square" alt="Jetpack Compose"/>
 
 <br/><br/>
 
@@ -96,8 +96,8 @@ Right to queue · left to dismiss · tap to play.</p>
       <img src="docs/images/semantic_search.png" width="200" alt="Semantic search" style="border-radius: 16px;"/>
     </td>
     <td align="center">
-      <b>Player</b><br/><sub>Chapters, transcript, video</sub><br/><br/>
-      <img src="docs/images/player.png" width="200" alt="Player" style="border-radius: 16px;"/>
+      <b>Curiosity Cards</b><br/><sub>Swipe to discover</sub><br/><br/>
+      <img src="docs/images/curiosity_cards.png" width="200" alt="Curiosity cards" style="border-radius: 16px;"/>
     </td>
   </tr>
 </table>
