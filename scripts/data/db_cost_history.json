@@ -363,6 +363,11 @@
     "reads": 101935,
     "writes": 1033,
     "runs": 5
+   },
+   "cleanup-non-chart": {
+    "reads": 50884,
+    "writes": 0,
+    "runs": 1
    }
   }
  }
