@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-10T23:28:10.999Z",
+  "lastRun": "2026-07-11T00:59:33.675Z",
   "podcasts": {
     "2123": {
       "lastEpisodeId": "567722198",
@@ -70,6 +70,11 @@
       "lastEpisodeId": "57338895320",
       "lastEpisodeTitle": "Open Source Wins, AGI Is Here, and Scorsese's AI Toolkit with CEOs of Cerebras & Black Forest Labs",
       "lastCheckedAt": 1783703561283
+    },
+    "1076260": {
+      "lastEpisodeId": "57116111818",
+      "lastEpisodeTitle": "Shelly Sterk, Heleen van Royen & Eric van der Burg",
+      "lastCheckedAt": 1783731576392
     },
     "1258562": {
       "lastEpisodeId": "53310059829",
