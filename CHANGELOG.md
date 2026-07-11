@@ -8,18 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Smart Queue v2: tiered `SmartQueueEngine` (T0–T4, T3.5) batching 3–5 episodes with skip memory, region-aware recommendations/trending, signal-aware Tier 3 routing, and a unified guarded refill path in `BoxLorePlaybackService` ([#853](https://github.com/ashwkun/boxlore/pull/853))
-- Queue UX: drag-to-reorder sheet, provenance source labels, undo-remove snackbar with deferred skip signal, and Lore queue conflict dialog (`LORE` contextType) ([#853](https://github.com/ashwkun/boxlore/pull/853))
-- Engagement: native PostHog NPS surveys via `EngagementPromptCoordinator` — unified NPS/Play review modal, 14-day cooldown, and promoter-only review handoff ([#852](https://github.com/ashwkun/boxlore/pull/852))
+- Smart Queue v2: tiered SmartQueueEngine (T0–T4, T3.5) with batch refill, skip memory, region‑aware recommendations, signal‑aware Tier 3 routing, and unified guarded refill path in BoxLorePlaybackService; Queue UX enhancements include drag‑to‑reorder sheet, provenance source labels, undo‑remove snackbar with deferred skip signal, and Lore queue conflict dialog (LORE contextType). ([#853](https://github.com/ashwkun/boxlore/pull/853))
+- EngagementPromptCoordinator: native PostHog NPS surveys with unified NPS/Play review modal, 14‑day promoter cooldown, and promoter‑only review handoff. ([#852](https://github.com/ashwkun/boxlore/pull/852))
 ### Changed
-- Smart queue integration: Android Auto uses unified engine with refill guard; sleep-timer blocks end-of-episode refill; `AUTO_FILL` provenance persisted before append; `contextSourceId` gates Tier 0 on discovery landings ([#853](https://github.com/ashwkun/boxlore/pull/853))
-- Replaced `posthog-android-surveys-compose` with `BoxcastPostHogSurveysDelegate` for Material3 1.5 stability ([#852](https://github.com/ashwkun/boxlore/pull/852))
+- Integrated SmartQueueEngine with Android Auto using unified refill guard; sleep‑timer now blocks end‑of‑episode refill; AUTO_FILL provenance persisted before append; contextSourceId gates Tier 0 on discovery landings. ([#853](https://github.com/ashwkun/boxlore/pull/853))
+- Switched survey implementation from posthog-android-surveys-compose to BoxcastPostHogSurveysDelegate for Material3 1.5 stability. ([#852](https://github.com/ashwkun/boxlore/pull/852))
 ### Fixed
-- Home tab: flattened feed into lazy staggered-grid items and pinned hero/Your Shows to reduce recomposition lag ([#851](https://github.com/ashwkun/boxlore/pull/851))
-- Home skeleton shimmer: cached draw paths and slowed animation to 2.2s ([#851](https://github.com/ashwkun/boxlore/pull/851))
-- Smart queue: Tier 0 newest-sort guard for episodic/news; discovery landing skip; Tier 3.5 dedupe when Tier 3 already similar; skip memory filters removed/skipped auto-fill ([#853](https://github.com/ashwkun/boxlore/pull/853))
+- Fixed Tier 0 newest‑sort guard for episodic/news and discovery landing skip; added Tier 3.5 deduplication when Tier 3 already similar; corrected skip‑memory filters and removed auto‑fill skips. ([#853](https://github.com/ashwkun/boxlore/pull/853))
+- Optimized Home tab feed by flattening into lazy staggered‑grid items and pinning hero/Your Shows to reduce recomposition lag; cached skeleton shimmer draw paths and slowed animation to 2.2 s. ([#851](https://github.com/ashwkun/boxlore/pull/851))
 ### Removed
-- `QueueManager.refillQueue()` and `PlaybackRepository.queueRefillCallback` in favor of single service-side refill ([#853](https://github.com/ashwkun/boxlore/pull/853))
+- Removed QueueManager.refillQueue() and PlaybackRepository.queueRefillCallback in favor of single service‑side refill. ([#853](https://github.com/ashwkun/boxlore/pull/853))
 ## [v0.0.6] - 2026-07-09
 ### Added
 - Redesigned sleep timer nudge with dynamic-island style SleepTimerPopup component.
