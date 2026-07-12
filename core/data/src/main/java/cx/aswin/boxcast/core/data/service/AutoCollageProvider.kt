@@ -26,6 +26,7 @@ class AutoCollageProvider : ContentProvider() {
         private const val MAX_CACHE_BYTES = 64L * 1024L * 1024L
         private const val MAX_CACHE_FILES = 200
         private val artworkLocks = ConcurrentHashMap<String, Any>()
+        private val HEX_64_PATTERN = Regex("[a-f0-9]{64}")
         
         fun getUri(context: android.content.Context, filename: String): Uri {
             return Uri.Builder()
@@ -73,7 +74,7 @@ class AutoCollageProvider : ContentProvider() {
         if (cached != null) {
             return ParcelFileDescriptor.open(cached, ParcelFileDescriptor.MODE_READ_ONLY)
         }
-        if (!key.matches(Regex("[a-f0-9]{64}"))) return null
+        if (!key.matches(HEX_64_PATTERN)) return null
         return openPipeHelper(
             uri,
             "image/*",
@@ -92,14 +93,14 @@ class AutoCollageProvider : ContentProvider() {
     }
 
     private fun cachedRemoteArtwork(context: android.content.Context, key: String): File? {
-        if (!key.matches(Regex("[a-f0-9]{64}"))) return null
+        if (!key.matches(HEX_64_PATTERN)) return null
         val cacheDir = File(context.cacheDir, "auto_artwork").apply { mkdirs() }
         return childFile(cacheDir, key)
             ?.takeIf { it.isFile && it.length() in 1..MAX_ARTWORK_BYTES }
     }
 
     private fun getOrFetchRemoteArtwork(context: android.content.Context, key: String): File? {
-        if (!key.matches(Regex("[a-f0-9]{64}"))) return null
+        if (!key.matches(HEX_64_PATTERN)) return null
         val cacheDir = File(context.cacheDir, "auto_artwork").apply { mkdirs() }
         val target = childFile(cacheDir, key) ?: return null
         if (target.isFile && target.length() in 1..MAX_ARTWORK_BYTES) return target
@@ -107,7 +108,7 @@ class AutoCollageProvider : ContentProvider() {
         val source = context.getSharedPreferences(SOURCE_PREFS, android.content.Context.MODE_PRIVATE)
             .getString(key, null)
             ?: return null
-        val sourceUrl = runCatching { URL(source) }.getOrNull()
+        val sourceUrl = runCatching { java.net.URI(source).toURL() }.getOrNull()
             ?.takeIf(::isPublicHttpsUrl)
             ?: return null
         return synchronized(artworkLocks.getOrPut(key) { Any() }) {
@@ -117,6 +118,35 @@ class AutoCollageProvider : ContentProvider() {
             fetchRemoteArtwork(sourceUrl, cacheDir, target).also {
                 artworkLocks.remove(key)
             }
+        }
+    }
+
+    private fun verifyConnection(connection: HttpURLConnection): Boolean {
+        val contentLength = connection.contentLengthLong
+        val contentType = connection.contentType.orEmpty().lowercase()
+        return connection.responseCode in 200..299 &&
+            contentType.startsWith("image/") &&
+            contentLength <= MAX_ARTWORK_BYTES
+    }
+
+    private fun downloadStream(connection: HttpURLConnection, temp: File): Boolean {
+        return try {
+            connection.inputStream.use { input ->
+                temp.outputStream().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var totalBytes = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        totalBytes += read
+                        if (totalBytes > MAX_ARTWORK_BYTES) return false
+                        output.write(buffer, 0, read)
+                    }
+                }
+            }
+            temp.length() > 0L
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -130,30 +160,14 @@ class AutoCollageProvider : ContentProvider() {
             connection.instanceFollowRedirects = false
             connection.doInput = true
             connection.connect()
-            val contentLength = connection.contentLengthLong
-            val contentType = connection.contentType.orEmpty().lowercase()
-            if (
-                connection.responseCode !in 200..299 ||
-                !contentType.startsWith("image/") ||
-                contentLength > MAX_ARTWORK_BYTES
-            ) {
+
+            if (!verifyConnection(connection) || !downloadStream(connection, temp)) {
                 return null
             }
-            connection.inputStream.use { input ->
-                temp.outputStream().use { output ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    var totalBytes = 0L
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        totalBytes += read
-                        if (totalBytes > MAX_ARTWORK_BYTES) return null
-                        output.write(buffer, 0, read)
-                    }
-                }
+
+            if (!temp.renameTo(target)) {
+                temp.copyTo(target, overwrite = true)
             }
-            if (temp.length() == 0L) return null
-            if (!temp.renameTo(target)) temp.copyTo(target, overwrite = true)
             evictArtworkCache(cacheDir, target)
             target
         } catch (error: Exception) {
@@ -195,7 +209,7 @@ class AutoCollageProvider : ContentProvider() {
         context: android.content.Context,
         key: String,
     ): File? {
-        if (!key.matches(Regex("[a-f0-9]{64}"))) return null
+        if (!key.matches(HEX_64_PATTERN)) return null
         val path = context.getSharedPreferences(SOURCE_PREFS, android.content.Context.MODE_PRIVATE)
             .getString(key, null)
             ?: return null

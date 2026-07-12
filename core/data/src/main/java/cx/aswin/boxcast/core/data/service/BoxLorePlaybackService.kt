@@ -2029,60 +2029,64 @@ class BoxLorePlaybackService : MediaLibraryService() {
             return null
         }
 
+        private suspend fun searchPodcastMatch(normalizedQuery: String): MediaItem? {
+            return try {
+                val podcast = podcastRepository.searchPodcasts(normalizedQuery)
+                    .maxByOrNull {
+                        voiceMatchScore(it.title, it.artist, normalizedQuery)
+                    }
+                podcast?.let {
+                    val episode = it.latestEpisode
+                        ?: podcastRepository.getEpisodes(it.id).firstOrNull()
+                    episode?.let { match ->
+                        voiceEpisodeItem(
+                            episode = match,
+                            podcastTitle = it.title,
+                            podcastImageUrl = it.imageUrl,
+                        )
+                    }
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                android.util.Log.w(
+                    "AutoBrowse",
+                    "Voice podcast search unavailable",
+                    error,
+                )
+                null
+            }
+        }
+
+        private suspend fun searchEpisodeMatch(normalizedQuery: String): MediaItem? {
+            return try {
+                val region = smartQueueSources.getRegion()
+                podcastRepository.searchEpisodesSemantic(normalizedQuery, region)
+                    .firstOrNull()
+                    ?.let {
+                        voiceEpisodeItem(
+                            episode = it,
+                            podcastTitle = it.podcastTitle,
+                            podcastImageUrl = it.podcastImageUrl,
+                        )
+                    }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                android.util.Log.w(
+                    "AutoBrowse",
+                    "Voice episode search unavailable",
+                    error,
+                )
+                null
+            }
+        }
+
         private suspend fun handleVoiceQueryRemoteSearch(normalizedQuery: String): MutableList<MediaItem>? {
             val remoteItem = kotlinx.coroutines.withTimeoutOrNull(5_000L) {
                 kotlinx.coroutines.coroutineScope {
-                    val podcastMatch = async {
-                        try {
-                            val podcast = podcastRepository.searchPodcasts(normalizedQuery)
-                                .maxByOrNull {
-                                    voiceMatchScore(it.title, it.artist, normalizedQuery)
-                                }
-                            podcast?.let {
-                                val episode = it.latestEpisode
-                                    ?: podcastRepository.getEpisodes(it.id).firstOrNull()
-                                episode?.let { match ->
-                                    voiceEpisodeItem(
-                                        episode = match,
-                                        podcastTitle = it.title,
-                                        podcastImageUrl = it.imageUrl,
-                                    )
-                                }
-                            }
-                        } catch (error: kotlinx.coroutines.CancellationException) {
-                            throw error
-                        } catch (error: Exception) {
-                            android.util.Log.w(
-                                "AutoBrowse",
-                                "Voice podcast search unavailable",
-                                error,
-                            )
-                            null
-                        }
-                    }
-                    val episodeMatch = async {
-                        try {
-                            val region = smartQueueSources.getRegion()
-                            podcastRepository.searchEpisodesSemantic(normalizedQuery, region)
-                                .firstOrNull()
-                                ?.let {
-                                    voiceEpisodeItem(
-                                        episode = it,
-                                        podcastTitle = it.podcastTitle,
-                                        podcastImageUrl = it.podcastImageUrl,
-                                    )
-                                }
-                        } catch (error: kotlinx.coroutines.CancellationException) {
-                            throw error
-                        } catch (error: Exception) {
-                            android.util.Log.w(
-                                "AutoBrowse",
-                                "Voice episode search unavailable",
-                                error,
-                            )
-                            null
-                        }
-                    }
+                    val podcastMatch = async { searchPodcastMatch(normalizedQuery) }
+                    val episodeMatch = async { searchEpisodeMatch(normalizedQuery) }
                     podcastMatch.await()?.also {
                         episodeMatch.cancel()
                     } ?: episodeMatch.await()
