@@ -276,10 +276,10 @@ jobs:
       group: publish-release
       cancel-in-progress: false
     steps:
-      - name: Checkout exact merged release commit
+      - name: Checkout master with release history
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ github.sha }}
+          ref: master
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: false
@@ -299,7 +299,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
-          MERGE_SHA: ${{ github.sha }}
+          MERGE_SHA: ${{ steps.release.outputs.merge_sha }}
         run: |
           git fetch --force --tags origin
           if git show-ref --verify --quiet "refs/tags/${TAG}"; then
@@ -533,7 +533,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
-          MERGE_SHA: ${{ github.sha }}
+          MERGE_SHA: ${{ steps.release.outputs.merge_sha }}
           RELEASE_EXISTS: ${{ steps.state.outputs.release_exists }}
           TAG_EXISTS: ${{ steps.state.outputs.tag_exists }}
           APK_ASSET: ${{ steps.release.outputs.apk_asset }}

@@ -677,30 +677,71 @@ def prepare_release(args: argparse.Namespace) -> None:
     )
 
 
-def verify_release_diff(current: AppVersion) -> None:
+def git_show(revision_path: str) -> str:
     try:
-        changed_files = {
+        return subprocess.check_output(
+            ["git", "show", revision_path],
+            text=True,
+        )
+    except subprocess.CalledProcessError as exc:
+        fail(f"Could not read git object {revision_path}: {exc}")
+    raise AssertionError("unreachable")
+
+
+def git_changed_files(base: str, head: str) -> set[str]:
+    try:
+        return {
             line
             for line in subprocess.check_output(
-                ["git", "diff", "--name-only", "HEAD^1", "HEAD"],
+                ["git", "diff", "--name-only", base, head],
                 text=True,
             ).splitlines()
             if line
         }
-        previous_gradle = subprocess.check_output(
-            ["git", "show", "HEAD^1:app/build.gradle.kts"],
-            text=True,
-        )
     except subprocess.CalledProcessError as exc:
-        fail(f"Could not inspect the release merge diff: {exc}")
+        fail(f"Could not inspect git diff {base}..{head}: {exc}")
+    raise AssertionError("unreachable")
 
+
+def find_release_prepare_commit(version: AppVersion) -> str:
+    needle = f"release: prepare {version.tag}"
+    try:
+        sha = subprocess.check_output(
+            [
+                "git",
+                "log",
+                "-1",
+                "--format=%H",
+                "--fixed-strings",
+                f"--grep={needle}",
+            ],
+            text=True,
+        ).strip()
+    except subprocess.CalledProcessError as exc:
+        fail(f"Could not search for release prepare commit: {exc}")
+    if not sha:
+        fail(f"No commit found matching '{needle}'")
+    return sha
+
+
+def verify_release_diff(current: AppVersion, commit: str = "HEAD") -> None:
+    parent = f"{commit}^1"
+    changed_files = git_changed_files(parent, commit)
     if changed_files != EXPECTED_FILES:
         fail(
-            f"Release merge changed {sorted(changed_files)}; "
+            f"Release commit {commit[:12]} changed {sorted(changed_files)}; "
             f"expected exactly {sorted(EXPECTED_FILES)}"
         )
 
-    previous = read_app_version(previous_gradle)
+    previous = read_app_version(git_show(f"{parent}:app/build.gradle.kts"))
+    commit_version = read_app_version(git_show(f"{commit}:app/build.gradle.kts"))
+    if commit_version != current:
+        fail(
+            f"Release commit {commit[:12]} has {commit_version.name} "
+            f"({commit_version.code}) but workspace is {current.name} "
+            f"({current.code})"
+        )
+
     allowed_targets = {
         bump_version(previous, bump)
         for bump in ("patch", "minor", "major")
@@ -711,27 +752,20 @@ def verify_release_diff(current: AppVersion) -> None:
             f"bump after {previous.name} ({previous.code})"
         )
 
-    current_gradle = require_file(APP_GRADLE_PATH)
-    if replace_gradle_version(current_gradle, current, previous) != previous_gradle:
+    commit_gradle = git_show(f"{commit}:app/build.gradle.kts")
+    previous_gradle = git_show(f"{parent}:app/build.gradle.kts")
+    if replace_gradle_version(commit_gradle, current, previous) != previous_gradle:
         fail("Release merge changed app/build.gradle.kts beyond version fields")
 
 
-def verify_release(args: argparse.Namespace) -> None:
-    current = read_app_version()
-    verify_release_diff(current)
+def verify_release_metadata(current: AppVersion) -> None:
     changelog_version = latest_changelog_version()
     readme_version = latest_readme_version()
-    expected_branch = f"release/{current.tag}"
-    expected_title = f"release: {current.tag} [skip changelog]"
     if changelog_version != current.name or readme_version != current.name:
         fail(
             "Release metadata mismatch: "
             f"Gradle={current.name}, CHANGELOG={changelog_version}, README={readme_version}"
         )
-    if args.branch != expected_branch:
-        fail(f"Release branch must be {expected_branch}, got {args.branch}")
-    if args.title != expected_title:
-        fail(f"Release PR title must be exactly: {expected_title}")
     if update_changelog._extract_unreleased_sections(require_file(CHANGELOG_PATH)):
         fail("Release commit still contains [Unreleased] entries")
     repository = os.environ.get(
@@ -742,6 +776,12 @@ def verify_release(args: argparse.Namespace) -> None:
     if expected_download_url not in require_file(README_PATH):
         fail(f"README APK link must point to {current.apk_asset}")
 
+
+def write_release_verify_outputs(
+    current: AppVersion,
+    *,
+    merge_sha: str,
+) -> None:
     write_outputs(
         {
             "version": current.name,
@@ -749,7 +789,27 @@ def verify_release(args: argparse.Namespace) -> None:
             "tag": current.tag,
             "apk_asset": current.apk_asset,
             "aab_asset": current.aab_asset,
+            "merge_sha": merge_sha,
         }
+    )
+
+
+def verify_release(args: argparse.Namespace) -> None:
+    current = read_app_version()
+    verify_release_diff(current)
+    verify_release_metadata(current)
+    expected_branch = f"release/{current.tag}"
+    expected_title = f"release: {current.tag} [skip changelog]"
+    if args.branch != expected_branch:
+        fail(f"Release branch must be {expected_branch}, got {args.branch}")
+    if args.title != expected_title:
+        fail(f"Release PR title must be exactly: {expected_title}")
+    write_release_verify_outputs(
+        current,
+        merge_sha=subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            text=True,
+        ).strip(),
     )
 
 
@@ -875,12 +935,11 @@ def write_notification_outputs() -> None:
 
 def verify_merged_commit() -> None:
     current = read_app_version()
-    verify_release(
-        argparse.Namespace(
-            branch=f"release/{current.tag}",
-            title=f"release: {current.tag} [skip changelog]",
-        )
-    )
+    merge_sha = find_release_prepare_commit(current)
+    verify_release_diff(current, commit=merge_sha)
+    verify_release_metadata(current)
+    print(f"Publishing release prepare commit {merge_sha}")
+    write_release_verify_outputs(current, merge_sha=merge_sha)
 
 
 def cleanup_stale_release(args: argparse.Namespace) -> None:
