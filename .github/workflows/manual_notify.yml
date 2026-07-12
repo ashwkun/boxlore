@@ -1,4 +1,4 @@
-name: \ud83d\ude80 Manual Notification
+name: 🚀 Send boxlore Notification
 
 on:
   workflow_dispatch:
