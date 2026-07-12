@@ -50,8 +50,8 @@ class BoxLoreFcmService : FirebaseMessagingService() {
                 return
             }
 
-            val title = data["title"] ?: "BoxCast Update"
-            val body = data["body"] ?: "Check out what's new in BoxCast!"
+            val title = data["title"] ?: "boxlore Update"
+            val body = data["body"] ?: "Check out what's new in boxlore!"
             val messageType = type ?: "both" // push, in-app, both
             val route = data["route"]
             val imageUrl = data["image"]
@@ -208,7 +208,7 @@ class BoxLoreFcmService : FirebaseMessagingService() {
                 "Announcements",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "BoxCast news and updates"
+                description = "boxlore news and updates"
             }
             notificationManager.createNotificationChannel(channel)
         }

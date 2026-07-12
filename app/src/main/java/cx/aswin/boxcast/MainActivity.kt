@@ -2926,7 +2926,7 @@ fun OpmlImportDialog(
                                         Spacer(modifier = Modifier.width(16.dp))
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = "boxcast Backup (.json)",
+                                                text = "boxlore Backup (.json)",
                                                 style = MaterialTheme.typography.titleMedium,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface

@@ -41,7 +41,7 @@ fun ReviewPromptSheet(
 ) {
     val title =
         when (variant) {
-            ReviewPromptVariant.PromoterHandoff -> "Glad you're enjoying boxcast"
+            ReviewPromptVariant.PromoterHandoff -> "Glad you're enjoying boxlore"
             ReviewPromptVariant.Milestone ->
                 when {
                     completedCount >= 30 -> "You're a podcast pro"
@@ -53,14 +53,14 @@ fun ReviewPromptSheet(
     val body =
         when (variant) {
             ReviewPromptVariant.PromoterHandoff ->
-                "Thanks for the great score — a quick Play Store rating helps other listeners discover boxcast."
+                "Thanks for the great score — a quick Play Store rating helps other listeners discover boxlore."
             ReviewPromptVariant.Milestone ->
                 when {
                     completedCount >= 30 ->
                         "$completedCount episodes and counting — your review would mean the world to us."
                     completedCount >= 15 ->
                         "You've finished $completedCount episodes. Mind leaving a quick rating?"
-                    else -> "You've completed $completedCount episodes. How's boxcast treating you?"
+                    else -> "You've completed $completedCount episodes. How's boxlore treating you?"
                 }
         }
 
@@ -68,7 +68,7 @@ fun ReviewPromptSheet(
         when (variant) {
             ReviewPromptVariant.PromoterHandoff -> "Rate on Play Store"
             ReviewPromptVariant.Milestone ->
-                if (completedCount >= 15) "Rate boxcast" else "Loving it"
+                if (completedCount >= 15) "Rate boxlore" else "Loving it"
         }
 
     val secondaryLabel =
@@ -229,7 +229,7 @@ fun PostReviewSheet(
             Spacer(modifier = Modifier.height(20.dp))
             
             Text(
-                text = "Glad you're enjoying boxcast",
+                text = "Glad you're enjoying boxlore",
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface,
