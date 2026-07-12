@@ -1,4 +1,4 @@
-name: 🚀 Send boxlore Notification
+name: Send boxlore Notification
 
 on:
   workflow_dispatch:

@@ -227,53 +227,17 @@ class BoxLoreFcmService : FirebaseMessagingService() {
         showActionInPush: Boolean
     ) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        
-        val channelId: String
-        val channelName: String
-        val soundUri: Uri?
-        val importance: Int
+        val config = getPushChannelConfig(sound)
 
-        when (sound) {
-            "chime" -> {
-                channelId = "boxlore_new_episodes_v1"
-                channelName = "New Episode Alerts"
-                soundUri = Uri.parse("android.resource://$packageName/raw/boxlore_chime")
-                importance = NotificationManager.IMPORTANCE_DEFAULT
-            }
-            "silent" -> {
-                channelId = "boxlore_silent_v1"
-                channelName = "Silent Notifications"
-                soundUri = null
-                importance = NotificationManager.IMPORTANCE_LOW
-            }
-            "announcement" -> {
-                channelId = "boxlore_announcements_v2"
-                channelName = "Announcements"
-                soundUri = Uri.parse("android.resource://$packageName/raw/boxlore_announcement_chime")
-                importance = NotificationManager.IMPORTANCE_DEFAULT
-            }
-            else -> {
-                channelId = "boxlore_announcements_v2"
-                channelName = "Announcements"
-                soundUri = Uri.parse("android.resource://$packageName/raw/boxlore_announcement_chime")
-                importance = NotificationManager.IMPORTANCE_DEFAULT
-            }
-        }
-
-        // Create channel for Android O+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                channelName,
-                importance
-            ).apply {
+            val channel = NotificationChannel(config.id, config.name, config.importance).apply {
                 description = "boxlore news and updates"
-                if (soundUri != null) {
+                if (config.soundUri != null) {
                     val audioAttributes = AudioAttributes.Builder()
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .setUsage(AudioAttributes.USAGE_NOTIFICATION)
                         .build()
-                    setSound(soundUri, audioAttributes)
+                    setSound(config.soundUri, audioAttributes)
                 } else {
                     setSound(null, null)
                 }
@@ -281,21 +245,7 @@ class BoxLoreFcmService : FirebaseMessagingService() {
             notificationManager.createNotificationChannel(channel)
         }
 
-        // Setup intent (open app, or deep link)
-        val intent = if (route != null && route.startsWith("http")) {
-            Intent(Intent.ACTION_VIEW, Uri.parse(route)).apply {
-                putExtra("from_push", true)
-            }
-        } else {
-            Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                putExtra("from_push", true)
-                if (route != null) {
-                    putExtra("target_route", route)
-                }
-            }
-        }
-
+        val intent = createPushIntent(route)
         val pendingIntent = PendingIntent.getActivity(
             this, 
             0, 
@@ -303,7 +253,7 @@ class BoxLoreFcmService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notificationBuilder = NotificationCompat.Builder(this, channelId)
+        val notificationBuilder = NotificationCompat.Builder(this, config.id)
             .setSmallIcon(cx.aswin.boxcast.R.drawable.ic_notification_custom)
             .setColor(android.graphics.Color.parseColor("#5B5BD6")) // Brand purple color matching launcher icon
             .setContentTitle(title)
@@ -311,23 +261,12 @@ class BoxLoreFcmService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             
-        if (soundUri != null) {
-            notificationBuilder.setSound(soundUri)
+        if (config.soundUri != null) {
+            notificationBuilder.setSound(config.soundUri)
         }
 
-        // If showActionInPush is enabled and we have a deep link, add action button
         if (showActionInPush && !route.isNullOrBlank()) {
-            val actionIntent = if (route.startsWith("http")) {
-                Intent(Intent.ACTION_VIEW, Uri.parse(route)).apply {
-                    putExtra("from_push", true)
-                }
-            } else {
-                Intent(this, MainActivity::class.java).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                    putExtra("from_push", true)
-                    putExtra("target_route", route)
-                }
-            }
+            val actionIntent = createPushIntent(route)
             val actionPendingIntent = PendingIntent.getActivity(
                 this,
                 route.hashCode(),
@@ -342,27 +281,75 @@ class BoxLoreFcmService : FirebaseMessagingService() {
             )
         }
 
-        if (!imageUrl.isNullOrBlank()) {
-            try {
-                val optimizedUrl = imageUrl.optimizedImageUrl(500)
-                val url = java.net.URL(optimizedUrl)
-                val connection = url.openConnection() as java.net.HttpURLConnection
-                connection.doInput = true
-                connection.connect()
-                val bitmap = android.graphics.BitmapFactory.decodeStream(connection.inputStream)
-                if (bitmap != null) {
-                    notificationBuilder.setStyle(
-                        NotificationCompat.BigPictureStyle()
-                            .bigPicture(bitmap)
-                            .bigLargeIcon(null as android.graphics.Bitmap?)
-                    )
-                    notificationBuilder.setLargeIcon(bitmap)
+        loadPushImage(notificationBuilder, imageUrl)
+        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+    }
+
+    private data class PushChannelConfig(
+        val id: String,
+        val name: String,
+        val soundUri: Uri?,
+        val importance: Int
+    )
+
+    private fun getPushChannelConfig(sound: String?): PushChannelConfig {
+        return when (sound) {
+            "chime" -> PushChannelConfig(
+                id = "boxlore_new_episodes_v1",
+                name = "New Episode Alerts",
+                soundUri = Uri.parse("android.resource://$packageName/raw/boxlore_chime"),
+                importance = NotificationManager.IMPORTANCE_DEFAULT
+            )
+            "silent" -> PushChannelConfig(
+                id = "boxlore_silent_v1",
+                name = "Silent Notifications",
+                soundUri = null,
+                importance = NotificationManager.IMPORTANCE_LOW
+            )
+            else -> PushChannelConfig(
+                id = "boxlore_announcements_v2",
+                name = "Announcements",
+                soundUri = Uri.parse("android.resource://$packageName/raw/boxlore_announcement_chime"),
+                importance = NotificationManager.IMPORTANCE_DEFAULT
+            )
+        }
+    }
+
+    private fun createPushIntent(route: String?): Intent {
+        return if (route != null && route.startsWith("http")) {
+            Intent(Intent.ACTION_VIEW, Uri.parse(route)).apply {
+                putExtra("from_push", true)
+            }
+        } else {
+            Intent(this, MainActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                putExtra("from_push", true)
+                if (route != null) {
+                    putExtra("target_route", route)
                 }
-            } catch (e: Exception) {
-                // Ignore image fetch failure
             }
         }
+    }
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+    private fun loadPushImage(builder: NotificationCompat.Builder, imageUrl: String?) {
+        if (imageUrl.isNullOrBlank()) return
+        try {
+            val optimizedUrl = imageUrl.optimizedImageUrl(500)
+            val url = java.net.URL(optimizedUrl)
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.doInput = true
+            connection.connect()
+            val bitmap = android.graphics.BitmapFactory.decodeStream(connection.inputStream)
+            if (bitmap != null) {
+                builder.setStyle(
+                    NotificationCompat.BigPictureStyle()
+                        .bigPicture(bitmap)
+                        .bigLargeIcon(null as android.graphics.Bitmap?)
+                )
+                builder.setLargeIcon(bitmap)
+            }
+        } catch (e: Exception) {
+            // Ignore image fetch failure
+        }
     }
 }
