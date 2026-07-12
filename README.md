@@ -41,7 +41,7 @@ The smart layer runs on a search index that is rebuilt daily and covers popular 
 <details open>
 <summary><b>🔮 Upcoming in the Next Release</b></summary>
 <p align="left">
-We are currently focusing on backend optimizations for better recommendations, search performance and faster api response tiems.
+We are currently focusing on backend optimizations for better recommendations, search performance, and faster API response times.
 </p>
 </details>
 
