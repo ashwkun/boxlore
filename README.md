@@ -40,9 +40,10 @@ The smart layer runs on a search index that is rebuilt daily and covers popular 
 
 <details open>
 <summary><b>🔮 Upcoming in the Next Release</b></summary>
-<p align="left">
-We are currently focusing on backend optimizations for better recommendations, search performance, and faster API response times.
-</p>
+<b>🆕 New features:</b>
+<ul align="left">
+<li>Dry‑run mode parameter to send‑notification.yml and manual_dispatch.py with Admin UI support; Collapse‑key input;... <a href="https://github.com/ashwkun/boxlore/pull/861"><img src="https://img.shields.io/badge/PR-861-2ebbca?style=flat-square" alt="PR #861" height="18"/></a></li>
+</ul>
 </details>
 
 <br/>
