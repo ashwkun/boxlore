@@ -23,7 +23,7 @@ import cx.aswin.boxcast.core.designsystem.components.optimizedImageUrl
 
 class BoxLoreFcmService : FirebaseMessagingService() {
 
-    private val CHANNEL_ID = "boxlore_announcements_v1"
+    private val CHANNEL_ID = "boxlore_announcements_v2"
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -208,15 +208,21 @@ class BoxLoreFcmService : FirebaseMessagingService() {
 
     private fun showPushNotification(title: String, body: String, route: String?, imageUrl: String?) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val soundUri = Uri.parse("android.resource://$packageName/raw/boxlore_announcement_chime")
 
         // Create channel for Android O+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .build()
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 "Announcements",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
                 description = "boxlore news and updates"
+                setSound(soundUri, audioAttributes)
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -253,6 +259,7 @@ class BoxLoreFcmService : FirebaseMessagingService() {
             .setContentText(body)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
+            .setSound(soundUri)
 
         if (!imageUrl.isNullOrBlank()) {
             try {
