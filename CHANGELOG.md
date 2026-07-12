@@ -8,14 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Dry‑run mode parameter to send‑notification.yml and manual_dispatch.py with Admin UI support; collapse‑key input; sound routing options mapping chime, announcement, silent channels with HTML5 preview; live input validation for route prefixes and image asset status in dashboard.js; notification template persistence via localStorage; workflow execution list view; compose dialog card layout updated in MainActivity.kt using Material 3 color tokens; custom action button labels and visibility controls; dispatch readiness lock/unlock state banners. ([#861](https://github.com/ashwkun/boxlore/pull/861))
-- Customizable category badge label parameter added to InAppAnnouncementDialog, configurable via FCM payload. ([#862](https://github.com/ashwkun/boxlore/pull/862))
-- Documentation describing the FCM notification fix and migration steps for affected users. ([#863](https://github.com/ashwkun/boxlore/pull/863))
+- Dry‑run mode parameter to send‑notification.yml and manual_dispatch.py with Admin UI support; collapse‑key input; sound routing options mapping chime, announcement, silent channels with HTML5 preview; live input validation for route prefixes and image asset status in dashboard.js; notification template persistence via localStorage; workflow execution list view; compose dialog card layout updated in MainActivity.kt using Material 3 color tokens; custom action button labels and visibility controls; dispatch readiness lock/unlock state banners ([#861](https://github.com/ashwkun/boxlore/pull/861))
+- Customizable category badge label parameter added to InAppAnnouncementDialog, configurable via FCM payload ([#862](https://github.com/ashwkun/boxlore/pull/862))
+- Documentation describing the FCM notification fix and migration steps for affected users ([#863](https://github.com/ashwkun/boxlore/pull/863))
 ### Changed
-- Refactored BoxLoreFcmService.showPushNotification into smaller private methods to reduce cognitive complexity and eliminate duplicate branches. ([#861](https://github.com/ashwkun/boxlore/pull/861))
-- Constrained announcement dialog height with headroom and enabled scrolling for overflow content. ([#863](https://github.com/ashwkun/boxlore/pull/863))
+- Refactored BoxLoreFcmService.showPushNotification into smaller private methods to reduce cognitive complexity and eliminate duplicate branches ([#861](https://github.com/ashwkun/boxlore/pull/861))
+- Constrained announcement dialog height with headroom and enabled scrolling for overflow content ([#863](https://github.com/ashwkun/boxlore/pull/863))
 ### Fixed
-- Fixed dark‑mode contrast calculation in Survey using Material surface background fallback; reconciled FCM topic subscriptions on reinstall or device migration by re‑subscribing notification‑enabled podcasts via sentinel file in noBackupFilesDir; corrected markdown bullet list rendering in announcement dialogs. ([#863](https://github.com/ashwkun/boxlore/pull/863))
+- Stabilized artwork image transition in PlayerBottomSheet during drag gestures; updated next episode chevron styling and position to use Material 3 accent colors ([#864](https://github.com/ashwkun/boxlore/pull/864))
+- Fixed dark‑mode contrast calculation in Survey using Material surface background fallback; reconciled FCM topic subscriptions on reinstall or device migration by re‑subscribing notification‑enabled podcasts via sentinel file in noBackupFilesDir; corrected markdown bullet list rendering in announcement dialogs ([#863](https://github.com/ashwkun/boxlore/pull/863))
 ## [v0.0.7] - 2026-07-12
 
 ### Added
