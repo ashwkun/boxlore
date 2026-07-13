@@ -19,9 +19,13 @@ README_PATH = Path("README.md")
 UPCOMING_CHANGES_START = "<!-- upcoming-changes:start -->"
 UPCOMING_CHANGES_END = "<!-- upcoming-changes:end -->"
 README_AI_NOTICE = (
-    '<p align="left"><sub>AI-generated summary; may contain mistakes. '
-    'Verify details in the <a href="CHANGELOG.md">changelog</a> and linked '
-    "pull requests.</sub></p>"
+    '<p align="center">'
+    "<sub><sub>"
+    "AI-generated summary; may contain mistakes.<br/>"
+    'Verify details in the <a href="CHANGELOG.md">changelog</a> '
+    "and linked pull requests."
+    "</sub></sub>"
+    "</p>"
 )
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL = "openai/gpt-oss-120b"
@@ -254,6 +258,8 @@ Rules:
 - Use precise technical wording: class/module names, tiers, repositories, and behavior when relevant.
 - Merge related changes into one bullet per feature area (e.g. all SmartQueueEngine work → one Added bullet).
 - Omit test-only, CI-only, or pure telemetry unless the PR is solely about analytics.
+- Prefer summarizing analytics as "PostHog announcement viewed/dismissed/action events" — do not list every event property.
+- When the PR body includes "What changes in the user's life" / Listener impact, still write technical CHANGELOG bullets, but do not invent UI toolkit branding (e.g. "Material 3") as the main story.
 - Use "Fixed ..." for bugs, "Added ..." for features, "Changed ..." for behavior/refactors, "Removed ..." for deletions.
 - Do not invent changes unsupported by the PR title/body.
 - Omit empty categories.
@@ -686,8 +692,13 @@ def _groq_curate_readme_upcoming(
 
     system_prompt = """You curate clustered changelog entries into a README "Upcoming Changes" section for boxlore listeners.
 
-Audience: podcast listeners using the app — plain English only. Do NOT use CHANGELOG-style technical terms (SmartQueueEngine, Tier 0, PlaybackRepository, AUTO_FILL, contextSourceId).
+Audience: podcast listeners using the app — plain English only.
+This section must answer: what is different in the listener's day-to-day use of boxlore?
+Do NOT use CHANGELOG-style technical terms (SmartQueueEngine, Tier 0, PlaybackRepository, AUTO_FILL, contextSourceId, composable/class names, FCM payload keys, PackageManager, DataStore).
+Never mention: Material 3 / Material You, PostHog, analytics/telemetry/event names, CI, Groq, CodeRabbit, Sonar, refactoring, modules, workflows, or "logs views/actions".
 The paired CHANGELOG entry for the same PR uses developer language; this README section must feel different.
+
+If the PR/cluster text includes a "Listener impact" or "What changes in the user's life" idea, prioritize that outcome over implementation details.
 
 Input is pre-grouped by PR/theme with an importance score (higher = more user-visible). Each ## block is ONE feature area — merge its bullets into as few README lines as possible.
 
@@ -697,8 +708,8 @@ Return ONLY valid JSON:
 Each bullet MUST include "pr" copied from the matching ## PR #NNN block in the input. One bullet object per ## block you keep.
 
 Allowed headings (exactly one per group, omit empty):
-- "New features" — new capabilities (from Added clusters)
-- "Improvements" — behavior/UI polish (from Changed clusters)
+- "New features" — new capabilities listeners can use (from Added clusters that are truly new surfaces)
+- "Improvements" — clearer UI, polish, safer dismissal, better update notes (prefer this for announcement/dialog polish)
 - "Fixes" — bugs resolved (from Fixed clusters)
 - "Security" — privacy/security only
 
@@ -710,6 +721,7 @@ MANDATORY clustering rules:
 5. Merge all bullets inside a ## block before writing — e.g. four queue bullets → one: "Smart queue auto-refills, shows why items appear, supports drag reorder, and undo remove."
 6. Sort bullets within each group by the cluster importance score (highest first). user-impact-high MUST appear before medium/low.
 7. Cap at 8 bullets total across all groups.
+8. Prefer concrete listener outcomes (easier to read update notes, harder to dismiss by accident, Play installs skip GitHub download prompts) over UI toolkit or logging details.
 
 Importance guidance (respect the scores in input):
 - user-impact-high / 90–100: headline features
@@ -717,9 +729,10 @@ Importance guidance (respect the scores in input):
 - user-impact-low / 40–55: optional shorter lines
 - no-user-impact / below 40: omit from README (CHANGELOG only)
 
-Rewrite in plain English; no PR numbers inside "text", no Compose/modules jargon. Under 120 chars in "text" (PR link is appended separately)."""
+Rewrite in plain English; no PR numbers inside "text", no Compose/modules jargon. Under 140 chars in "text" (PR link is appended separately)."""
 
-    user_prompt = f"""Curate these PR/theme clusters into grouped README bullets:
+    user_prompt = f"""Curate these PR/theme clusters into grouped README bullets.
+Lead with what listeners notice. Ignore analytics and design-system branding.
 
 {clustered_input}"""
 
@@ -774,14 +787,15 @@ def _groq_readme_summary(api_key: str, sections: dict[str, list[str]]) -> list[s
 Return ONLY valid JSON: {"bullets": ["...", ...]}.
 
 Rules:
-- Write for listeners using the app, not developers.
+- Write for listeners using the app, not developers. Answer what changed in their day-to-day use.
 - One bullet per user-visible change; merge related technical items into one line.
-- Never mention: Compose, recomposition, lazy grid, PerfLog, CI, Groq, CodeRabbit, Sonar, refactoring, parameters, modules, workflows, or internal code names.
-- Describe what users notice: smoother scrolling, faster load, calmer animations, new screens, fixed bugs in plain terms.
-- Keep each bullet under 120 characters.
+- Never mention: Compose, recomposition, lazy grid, PerfLog, CI, Groq, CodeRabbit, Sonar, refactoring, parameters, modules, workflows, Material 3, PostHog, analytics event names, or internal code names.
+- Prefer outcomes like clearer update notes, accidental dismissals avoided, Play installs skipping GitHub download prompts.
+- Keep each bullet under 140 characters.
 - No leading dashes, PR numbers, or markdown links."""
 
-    user_prompt = f"""Convert these [Unreleased] changelog entries into user-facing README bullets:
+    user_prompt = f"""Convert these [Unreleased] changelog entries into user-facing README bullets.
+Ignore implementation detail; keep listener-facing outcomes only.
 
 {changelog_text}"""
 
