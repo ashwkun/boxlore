@@ -38,6 +38,15 @@
 - [ ] `user-impact-low`
 - [ ] `no-user-impact`
 
+### Listener impact — **required when** `user-impact-high` or `user-impact-medium`
+
+<!-- Write this for a listener, not an engineer. What is different in their day-to-day use of boxlore after this ships? -->
+<!-- Skip only for `user-impact-low` or `no-user-impact`. -->
+
+**What changes in the user’s life:**
+
+-
+
 ### Backend — optional, **pairable** with any user-impact level
 
 | Label | Use when |
