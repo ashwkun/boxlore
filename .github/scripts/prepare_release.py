@@ -852,12 +852,22 @@ def shorten_notification_line(text: str, limit: int = 180) -> str:
 def notification_bullets(content: str, version: AppVersion) -> list[str]:
     release_match = re.search(
         r"<details(?:\s+open)?>\s*"
-        rf"<summary><b>🎉 What's New \({re.escape(version.tag)}\)"
+        rf"<summary>.*?<b>🎉 What's New \({re.escape(version.tag)}\)"
         r"\s*-\s*\d{4}-\d{2}-\d{2}</b></summary>"
         r"(.*?)</details>",
         content,
         flags=re.DOTALL,
     )
+    if not release_match:
+        # Fallback for summaries without optional prefix content.
+        release_match = re.search(
+            r"<details(?:\s+open)?>\s*"
+            rf"<summary><b>🎉 What's New \({re.escape(version.tag)}\)"
+            r"\s*-\s*\d{4}-\d{2}-\d{2}</b></summary>"
+            r"(.*?)</details>",
+            content,
+            flags=re.DOTALL,
+        )
     if not release_match:
         fail(f"README.md has no What's New block for {version.tag}")
     release_body = release_match.group(1)
@@ -886,6 +896,7 @@ def notification_bullets(content: str, version: AppVersion) -> list[str]:
             not candidate
             or candidate in bullets
             or candidate.lower().startswith("for more details")
+            or candidate.lower().startswith("ai-generated")
         ):
             continue
         bullets.append(shorten_notification_line(candidate))

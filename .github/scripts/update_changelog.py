@@ -37,9 +37,119 @@ README_GROUP_EMOJI = {
 }
 DEFAULT_GITHUB_REPOSITORY = "ashwkun/boxlore"
 
+# Required on every PR. Drives CHANGELOG / README / notification priority.
+IMPACT_LABELS = ("user-impact", "backend-fix", "non-user-impact")
+IMPACT_SCORE = {
+    "user-impact": 95,
+    "backend-fix": 35,
+    "non-user-impact": 12,
+}
+IMPACT_ALIASES = {
+    "user-impact": "user-impact",
+    "user impact": "user-impact",
+    "backend-fix": "backend-fix",
+    "backend fix": "backend-fix",
+    "non-user-impact": "non-user-impact",
+    "non user impact": "non-user-impact",
+    "non-user impact": "non-user-impact",
+}
+IMPACT_MARKER_RE = re.compile(
+    r"<!--\s*impact:(user-impact|backend-fix|non-user-impact)\s*-->",
+    re.IGNORECASE,
+)
+
 
 def _github_repository() -> str:
     return os.environ.get("GITHUB_REPOSITORY", DEFAULT_GITHUB_REPOSITORY).strip() or DEFAULT_GITHUB_REPOSITORY
+
+
+def _normalize_impact_token(raw: str) -> str | None:
+    key = re.sub(r"[\s_]+", "-", raw.strip().lower())
+    key = re.sub(r"-+", "-", key).strip("-")
+    if key in IMPACT_LABELS:
+        return key
+    spaced = key.replace("-", " ")
+    return IMPACT_ALIASES.get(key) or IMPACT_ALIASES.get(spaced)
+
+
+def _resolve_impact(
+    labels: list[str] | None = None,
+    title: str = "",
+    body: str = "",
+) -> str | None:
+    """Pick exactly one impact label from PR labels, then title/body fallbacks."""
+    found: list[str] = []
+    for label in labels or []:
+        impact = _normalize_impact_token(label)
+        if impact and impact not in found:
+            found.append(impact)
+    if len(found) == 1:
+        return found[0]
+    if len(found) > 1:
+        # Prefer the highest-priority impact when multiple are present.
+        return max(found, key=lambda name: IMPACT_SCORE[name])
+
+    blob = f"{title}\n{body}"
+    for alias, impact in IMPACT_ALIASES.items():
+        pattern = rf"(?i)(?:^|[\s\[\(,;]){re.escape(alias)}(?:$|[\s\]\),;:])"
+        if re.search(pattern, blob):
+            return impact
+    return None
+
+
+def _impact_marker(impact: str) -> str:
+    return f"<!-- impact:{impact} -->"
+
+
+def _extract_impact(text: str) -> str | None:
+    match = IMPACT_MARKER_RE.search(text)
+    if not match:
+        return None
+    return _normalize_impact_token(match.group(1))
+
+
+def _strip_impact_marker(text: str) -> str:
+    return IMPACT_MARKER_RE.sub("", text).strip()
+
+
+def _attach_impact(text: str, impact: str | None) -> str:
+    cleaned = _strip_impact_marker(text).strip()
+    if not cleaned or not impact:
+        return cleaned
+    return f"{cleaned} {_impact_marker(impact)}"
+
+
+def _labels_from_env_or_payload(payload: dict | None = None) -> list[str]:
+    if payload is not None:
+        labels = payload.get("labels") or []
+        names: list[str] = []
+        if isinstance(labels, list):
+            for item in labels:
+                if isinstance(item, str):
+                    names.append(item)
+                elif isinstance(item, dict) and item.get("name"):
+                    names.append(str(item["name"]))
+        return names
+
+    raw_json = os.environ.get("PR_LABELS_JSON", "").strip()
+    if raw_json:
+        try:
+            data = json.loads(raw_json)
+        except json.JSONDecodeError:
+            data = None
+        if isinstance(data, list):
+            names = []
+            for item in data:
+                if isinstance(item, str):
+                    names.append(item)
+                elif isinstance(item, dict) and item.get("name"):
+                    names.append(str(item["name"]))
+            return names
+
+    csv = os.environ.get("PR_LABELS", "").strip()
+    if csv:
+        return [part.strip() for part in csv.split(",") if part.strip()]
+    return []
 
 
 def _pr_suffix(pr_number: int) -> str:
@@ -125,6 +235,7 @@ class ChangelogCluster:
     items: list[tuple[str, str]] = field(default_factory=list)
     importance: int = 50
     theme: str = "general"
+    impact: str | None = None
 
     def text_blob(self) -> str:
         return " ".join(text for _, text in self.items).lower()
@@ -144,7 +255,14 @@ def _cluster_theme(text: str) -> str:
     return "general"
 
 
-def _cluster_importance(theme: str, text: str, categories: set[str]) -> int:
+def _cluster_importance(
+    theme: str,
+    text: str,
+    categories: set[str],
+    impact: str | None = None,
+) -> int:
+    if impact in IMPACT_SCORE:
+        return IMPACT_SCORE[impact]
     if theme == "developer tooling" or theme == "analytics":
         return 10
     if theme == "queue & playback":
@@ -166,16 +284,25 @@ def _cluster_sections_by_pr(sections: dict[str, list[str]]) -> list[ChangelogClu
             if not bullet.strip():
                 continue
             pr_number = _extract_pr_number(bullet)
-            cleaned = _strip_pr_links(bullet)
+            impact = _extract_impact(bullet)
+            cleaned = _strip_impact_marker(_strip_pr_links(bullet))
             cluster = grouped.setdefault(pr_number, ChangelogCluster(pr_number=pr_number))
             cluster.items.append((category, cleaned))
+            if impact:
+                # Prefer the highest-priority impact seen on this PR's bullets.
+                if cluster.impact is None or IMPACT_SCORE[impact] > IMPACT_SCORE.get(
+                    cluster.impact, 0
+                ):
+                    cluster.impact = impact
 
     clusters: list[ChangelogCluster] = []
     for cluster in grouped.values():
         categories = {cat for cat, _ in cluster.items}
         blob = cluster.text_blob()
         cluster.theme = _cluster_theme(blob)
-        cluster.importance = _cluster_importance(cluster.theme, blob, categories)
+        cluster.importance = _cluster_importance(
+            cluster.theme, blob, categories, cluster.impact
+        )
         clusters.append(cluster)
 
     clusters.sort(key=lambda c: (-c.importance, c.pr_number or 0))
@@ -186,8 +313,9 @@ def _render_clustered_changelog(clusters: list[ChangelogCluster]) -> str:
     lines: list[str] = []
     for cluster in clusters:
         label = f"PR #{cluster.pr_number}" if cluster.pr_number is not None else "Unlinked"
+        impact = cluster.impact or "unlabeled"
         lines.append(
-            f"## {label} | importance {cluster.importance} | theme: {cluster.theme}"
+            f"## {label} | impact {impact} | importance {cluster.importance} | theme: {cluster.theme}"
         )
         by_category: dict[str, list[str]] = defaultdict(list)
         for category, text in cluster.items:
@@ -240,8 +368,12 @@ def _groq_chat_json(api_key: str, system_prompt: str, user_prompt: str, error_la
     return parsed
 
 
-def _format_changelog_bullet(text: str, pr_number: int | None) -> str:
-    return _format_readme_bullet(text, pr_number)
+def _format_changelog_bullet(
+    text: str,
+    pr_number: int | None,
+    impact: str | None = None,
+) -> str:
+    return _attach_impact(_format_readme_bullet(text, pr_number), impact)
 
 
 def _parse_changelog_bullet(entry: object) -> tuple[str, int | None]:
@@ -254,6 +386,7 @@ def _sections_from_cluster_bullets(
 ) -> dict[str, list[str]]:
     """Sort bullets within each Keep a Changelog category by cluster importance."""
     pr_importance = {c.pr_number: c.importance for c in clusters if c.pr_number is not None}
+    pr_impact = {c.pr_number: c.impact for c in clusters if c.pr_number is not None}
 
     def sort_key(item: tuple[str, int | None]) -> tuple[int, str]:
         _, pr_number = item
@@ -265,7 +398,11 @@ def _sections_from_cluster_bullets(
         if not items:
             continue
         sorted_items = sorted(items, key=sort_key)
-        bullets = [_format_changelog_bullet(text, pr) for text, pr in sorted_items if text.strip()]
+        bullets = [
+            _format_changelog_bullet(text, pr, pr_impact.get(pr) if pr is not None else None)
+            for text, pr in sorted_items
+            if text.strip()
+        ]
         if bullets:
             sections[category] = bullets
     return sections
@@ -305,7 +442,8 @@ def _groq_curate_changelog_unreleased(
 Audience: developers — use technical, precise language (class names, tiers, modules, repositories, guards).
 This is NOT the user-facing README; do not simplify away useful implementation detail.
 
-Input is grouped by PR/theme with importance scores. Each ## block is one merged feature area.
+Input is grouped by PR/theme with impact tags and importance scores. Each ## block is one merged feature area.
+Impact: user-impact (~95, prioritize), backend-fix (~35, keep concise), non-user-impact (~12, collapse last).
 
 Return ONLY valid JSON:
 {"Added": [{"text": "...", "pr": 853}, ...], "Changed": [...], "Fixed": [...], "Removed": [...], ...}
@@ -313,8 +451,8 @@ Return ONLY valid JSON:
 Rules:
 1. ONE bullet object per ## block per category. Merge all [Added] lines in a block into one Added bullet; same for Changed/Fixed/Removed.
 2. Include "pr" from the ## PR #NNN header on every bullet.
-3. Preserve every ## block so release reconciliation can prove each merged PR is represented. Put low-importance tooling or telemetry last and collapse it to one concise Changed bullet.
-4. Within each category array, order bullets by importance (queue/playback 95 first, home perf 80, NPS/surveys 42 last).
+3. Preserve every ## block so release reconciliation can prove each merged PR is represented. Put non-user-impact / tooling last and collapse it to one concise Changed bullet.
+4. Within each category array, order bullets by importance (user-impact first, then theme scores, non-user-impact last).
 5. Keep a Changelog category names exactly: Added, Changed, Fixed, Deprecated, Removed, Security.
 6. No PR numbers inside "text" (appended separately). No markdown headers in output.
 7. Prefer 2–4 bullets per PR cluster total across categories, not one line per commit.
@@ -421,7 +559,12 @@ def _fallback_readme_from_clusters(clusters: list[ChangelogCluster]) -> list[dic
     """Deterministic grouped README when Groq grouping fails."""
     grouped: dict[str, list[str]] = defaultdict(list)
     for cluster in clusters:
-        if cluster.importance < 40 or not cluster.items:
+        if not cluster.items:
+            continue
+        # Prefer explicit impact labels; otherwise keep legacy importance threshold.
+        if cluster.impact in ("backend-fix", "non-user-impact"):
+            continue
+        if cluster.impact != "user-impact" and cluster.importance < 40:
             continue
         heading = _dominant_readme_heading(cluster)
         preview = cluster.items[0][1]
@@ -467,9 +610,9 @@ MANDATORY clustering rules:
 1. ONE README bullet per input ## block in most cases. Never split a single PR/theme across multiple bullets.
 2. For importance 90+ themes (queue, playback, discovery): allow at most TWO bullets if they describe clearly distinct user wins; prefer ONE strong sentence.
 3. For importance 40–55 themes (NPS, surveys, review prompts): exactly ONE bullet, never lead the list.
-4. Drop clusters with importance below 40 entirely (analytics, gitignore, CI, internal plumbing).
+4. Drop clusters with importance below 40 entirely (analytics, gitignore, CI, internal plumbing). Also drop impact backend-fix and non-user-impact from README — only user-impact (or unlabeled importance 40+) belongs here.
 5. Merge all bullets inside a ## block before writing — e.g. four queue bullets → one: "Smart queue auto-refills, shows why items appear, supports drag reorder, and undo remove."
-6. Sort bullets within each group by the cluster importance score (highest first). Queue/playback MUST appear before NPS/survey lines.
+6. Sort bullets within each group by the cluster importance score (highest first). user-impact / queue/playback MUST appear before NPS/survey lines.
 7. Cap at 8 bullets total across all groups.
 
 Importance guidance (respect the scores in input):
@@ -588,6 +731,7 @@ def _merge_entries(
     existing: dict[str, list[str]],
     incoming: dict[str, list[str]],
     pr_number: int,
+    impact: str | None = None,
 ) -> dict[str, list[str]]:
     merged = {key: list(values) for key, values in existing.items()}
     suffix = _pr_suffix(pr_number)
@@ -597,6 +741,7 @@ def _merge_entries(
         seen = set(merged[category])
         for bullet in bullets:
             tagged = bullet if _pr_already_present(bullet, pr_number) else f"{bullet} {suffix}".strip()
+            tagged = _attach_impact(tagged, impact)
             if tagged not in seen:
                 merged[category].append(tagged)
                 seen.add(tagged)
@@ -615,15 +760,16 @@ def _extract_unreleased_sections(content: str) -> dict[str, list[str]]:
 
 
 def _bullet_to_html_list_item(bullet: str) -> str:
-    match = re.search(r"^(.*?)\s*\(\[#(\d+)\]\(([^)]+)\)\)\s*$", bullet.strip())
+    cleaned = _strip_impact_marker(bullet.strip())
+    match = re.search(r"^(.*?)\s*\(\[#(\d+)\]\(([^)]+)\)\)\s*$", cleaned)
     if match:
         text, pr_number, url = match.groups()
         return (
             f'<li>{text.strip()} '
-            f'<a href="{url}"><img src="https://img.shields.io/badge/PR-{pr_number}-2ebbca?style=flat-square" '
+            f'<a href="{url}"><img src="https://img.shields.io/badge/PR-{pr_number}-6750A4?style=flat-square" '
             f'alt="PR #{pr_number}" height="18"/></a></li>'
         )
-    return f"<li>{bullet.strip()}</li>"
+    return f"<li>{cleaned}</li>"
 
 
 def _render_readme_upcoming_body(groups: list[dict[str, list[str]]] | None = None, bullets: list[str] | None = None) -> str:
@@ -712,7 +858,12 @@ def _update_readme(content: str, groups: list[dict[str, list[str]]] | None = Non
     return updated
 
 
-def _update_changelog(content: str, entries: dict[str, list[str]], pr_number: int) -> tuple[str, bool]:
+def _update_changelog(
+    content: str,
+    entries: dict[str, list[str]],
+    pr_number: int,
+    impact: str | None = None,
+) -> tuple[str, bool]:
     if _pr_already_present(content, pr_number):
         print(f"CHANGELOG already contains entry for PR #{pr_number}; skipping merge.")
         return content, False
@@ -727,7 +878,7 @@ def _update_changelog(content: str, entries: dict[str, list[str]], pr_number: in
 
     unreleased_block = content[start:end]
     existing = _parse_unreleased_sections(unreleased_block)
-    merged = _merge_entries(existing, entries, pr_number)
+    merged = _merge_entries(existing, entries, pr_number, impact=impact)
     rendered = _render_unreleased(merged)
 
     if rendered:
@@ -741,10 +892,25 @@ def _update_changelog(content: str, entries: dict[str, list[str]], pr_number: in
     return updated, True
 
 
-def append_changelog(api_key: str, pr_number: int, pr_title: str, pr_body: str) -> bool:
+def append_changelog(
+    api_key: str,
+    pr_number: int,
+    pr_title: str,
+    pr_body: str,
+    labels: list[str] | None = None,
+) -> bool:
     if not CHANGELOG_PATH.exists():
         print("CHANGELOG.md not found", file=sys.stderr)
         sys.exit(1)
+
+    impact = _resolve_impact(labels=labels, title=pr_title, body=pr_body)
+    if impact:
+        print(f"PR #{pr_number} impact label: {impact}")
+    else:
+        print(
+            f"::warning::PR #{pr_number} is missing a required impact label "
+            f"({', '.join(IMPACT_LABELS)}). Prioritization will use theme heuristics only."
+        )
 
     changelog_original = CHANGELOG_PATH.read_text(encoding="utf-8")
     entries = _groq_entries(api_key, pr_number, pr_title, pr_body)
@@ -753,7 +919,7 @@ def append_changelog(api_key: str, pr_number: int, pr_title: str, pr_body: str) 
         return False
 
     changelog_updated, changelog_changed = _update_changelog(
-        changelog_original, entries, pr_number
+        changelog_original, entries, pr_number, impact=impact
     )
     if changelog_changed:
         CHANGELOG_PATH.write_text(changelog_updated, encoding="utf-8")
@@ -825,7 +991,7 @@ def sync_readme_upcoming(api_key: str) -> bool:
     return False
 
 
-def _load_pr_metadata(path: str) -> tuple[int, str, str]:
+def _load_pr_metadata(path: str) -> tuple[int, str, str, list[str]]:
     metadata_path = Path(path)
     if not metadata_path.is_file():
         raise ValueError(f"PR metadata file does not exist: {metadata_path}")
@@ -841,7 +1007,7 @@ def _load_pr_metadata(path: str) -> tuple[int, str, str]:
     body = str(payload.get("body") or "")
     if not title:
         raise ValueError("Pull request metadata is missing a title")
-    return number, title, body
+    return number, title, body, _labels_from_env_or_payload(payload)
 
 
 def main() -> None:
@@ -855,7 +1021,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--pr-json",
-        help="Path to `gh pr view --json number,title,body,mergedAt,baseRefName` output for append/backfill",
+        help="Path to `gh pr view --json number,title,body,mergedAt,baseRefName,labels` output for append/backfill",
     )
     args = parser.parse_args()
 
@@ -866,12 +1032,15 @@ def main() -> None:
 
     if args.command in ("all", "append"):
         if args.pr_json:
-            pr_number, pr_title, pr_body = _load_pr_metadata(args.pr_json)
+            pr_number, pr_title, pr_body, labels = _load_pr_metadata(args.pr_json)
         else:
             pr_number = int(_require_env("PR_NUMBER"))
             pr_title = _require_env("PR_TITLE")
             pr_body = os.environ.get("PR_BODY", "")
-        changelog_changed = append_changelog(api_key, pr_number, pr_title, pr_body)
+            labels = _labels_from_env_or_payload()
+        changelog_changed = append_changelog(
+            api_key, pr_number, pr_title, pr_body, labels=labels
+        )
 
     if args.command in ("all", "sync-changelog"):
         changelog_curated = sync_changelog_unreleased(api_key)

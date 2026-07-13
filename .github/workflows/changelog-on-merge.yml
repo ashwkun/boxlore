@@ -64,6 +64,7 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS_JSON: ${{ toJson(github.event.pull_request.labels) }}
         run: python3 .github/scripts/update_changelog.py append
 
       - name: Load and append backfill PR
@@ -79,7 +80,7 @@ jobs:
           fi
           gh pr view "$PR_NUMBER" \
             --repo "$GITHUB_REPOSITORY" \
-            --json number,title,body,mergedAt,baseRefName \
+            --json number,title,body,mergedAt,baseRefName,labels \
             > "$RUNNER_TEMP/pr.json"
           python3 .github/scripts/update_changelog.py append \
             --pr-json "$RUNNER_TEMP/pr.json"
@@ -691,7 +692,7 @@ jobs:
       dry_run: 'false'
       collapse_key: ${{ format('boxlore-release-{0}', needs.publish-release.outputs.tag) }}
       sound: silent
-      action_label: Download update
+      action_label: Download
       show_action_in_push: 'false'
       show_action_in_app: 'true'
       category: NEW RELEASE
