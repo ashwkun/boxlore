@@ -444,22 +444,22 @@
    "refresh-charts": {
     "reads": 81734,
     "writes": 57570,
-    "runs": 1
+    "runs": 2
    },
    "import-podcasts": {
-    "reads": 74934,
+    "reads": 112401,
     "writes": 3965,
-    "runs": 2
+    "runs": 3
    },
    "sync-episodes": {
-    "reads": 49891,
-    "writes": 3120,
-    "runs": 2
+    "reads": 49953,
+    "writes": 3244,
+    "runs": 3
    },
    "vectorize-episodes": {
-    "reads": 71950,
-    "writes": 863,
-    "runs": 2
+    "reads": 109954,
+    "writes": 2110,
+    "runs": 3
    },
    "vectorize-shows": {
     "reads": 42057,
