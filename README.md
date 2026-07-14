@@ -18,7 +18,7 @@
 
 <br/><br/>
 
-<a href="LICENSE"><img src="https://img.shields.io/badge/License-Proprietary-4F378B?style=flat-square&logo=lock&logoColor=EADDFF" alt="Proprietary License"/></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Strict-4F378B?style=flat-square&logo=lock&logoColor=EADDFF" alt="PolyForm Strict License"/></a>
 <img src="https://img.shields.io/github/downloads/ashwkun/boxlore/total?style=flat-square&logo=github&logoColor=white&color=6750A4" alt="Total downloads"/>
 <img src="https://img.shields.io/badge/Material%203-You-D0BCFF?style=flat-square&labelColor=4F378B&color=D0BCFF" alt="Material 3"/>
 <img src="https://img.shields.io/badge/Android-Podcast%20Player-1C1B1F?style=flat-square&logo=android&logoColor=D0BCFF" alt="Android podcast player"/>
@@ -346,7 +346,7 @@ Contributions welcome.
   <img src="docs/images/m3/header-license.svg" width="820" alt="License"/>
 </p>
 
-boxlore is proprietary. All Rights Reserved. See [LICENSE](LICENSE) for details.
+boxlore is source-available under the [PolyForm Strict License 1.0.0](LICENSE). You may read and use the code for noncommercial purposes; redistribution and derivative works are not permitted. See [LICENSE](LICENSE) for details.
 
 ## Contributors
 

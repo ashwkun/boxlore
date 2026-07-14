@@ -413,24 +413,58 @@
     "runs": 1
    },
    "import-podcasts": {
-    "reads": 146696,
+    "reads": 183370,
     "writes": 4100,
-    "runs": 4
+    "runs": 5
    },
    "sync-episodes": {
-    "reads": 50242,
-    "writes": 3818,
-    "runs": 4
+    "reads": 50613,
+    "writes": 4560,
+    "runs": 5
    },
    "vectorize-episodes": {
-    "reads": 145275,
-    "writes": 1414,
-    "runs": 4
+    "reads": 180279,
+    "writes": 1773,
+    "runs": 5
    },
    "vectorize-shows": {
-    "reads": 80539,
+    "reads": 99390,
     "writes": 1027,
-    "runs": 4
+    "runs": 5
+   },
+   "cleanup-non-chart": {
+    "reads": 52674,
+    "writes": 0,
+    "runs": 1
+   }
+  }
+ },
+ "2026-07-14": {
+  "global": {
+   "refresh-charts": {
+    "reads": 81734,
+    "writes": 57570,
+    "runs": 3
+   },
+   "import-podcasts": {
+    "reads": 224802,
+    "writes": 3965,
+    "runs": 6
+   },
+   "sync-episodes": {
+    "reads": 50722,
+    "writes": 4782,
+    "runs": 6
+   },
+   "vectorize-episodes": {
+    "reads": 208000,
+    "writes": 3919,
+    "runs": 6
+   },
+   "vectorize-shows": {
+    "reads": 98220,
+    "writes": 923,
+    "runs": 5
    }
   }
  }
