@@ -237,4 +237,12 @@ class AdaptiveRankingTest {
         assertEquals(facet, restored.facets!!.single())
         assertArrayEquals(exposure.featureVector, restored.exposures!!.single().featureVector)
     }
+
+    @Test
+    fun `adaptive rollout starts on home only`() {
+        assertTrue(RankingRolloutPolicy.isEnabledByDefault(RankingSurface.HOME))
+        RankingSurface.entries.filterNot { it == RankingSurface.HOME }.forEach { surface ->
+            assertFalse(RankingRolloutPolicy.isEnabledByDefault(surface))
+        }
+    }
 }

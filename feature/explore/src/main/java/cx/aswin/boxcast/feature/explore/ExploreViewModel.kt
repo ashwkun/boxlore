@@ -11,6 +11,7 @@ import cx.aswin.boxcast.core.data.ranking.CandidateSource
 import cx.aswin.boxcast.core.data.ranking.EpisodeRankingInput
 import cx.aswin.boxcast.core.data.ranking.PodcastRankingInput
 import cx.aswin.boxcast.core.data.ranking.RankingObjective
+import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import cx.aswin.boxcast.core.model.Podcast
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
@@ -575,6 +576,7 @@ class ExploreViewModel(
                 },
                 history = history,
                 objective = RankingObjective.DISCOVERY,
+                surface = RankingSurface.EXPLORE,
             )
         }
     }
@@ -594,6 +596,7 @@ class ExploreViewModel(
                 },
                 history = history,
                 objective = RankingObjective.DISCOVERY,
+                surface = RankingSurface.EXPLORE,
             )
             window.sortedByDescending { scores[it.id] ?: 0.0 }
         }

@@ -9,6 +9,7 @@ import cx.aswin.boxcast.core.data.ranking.CandidateSource
 import cx.aswin.boxcast.core.data.ranking.DiversityPolicy
 import cx.aswin.boxcast.core.data.ranking.EpisodeRankingInput
 import cx.aswin.boxcast.core.data.ranking.RankingObjective
+import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import kotlinx.coroutines.CancellationException
 
 private suspend inline fun <T> runSuspendCatching(crossinline block: suspend () -> T): Result<T> =
@@ -271,6 +272,7 @@ class DefaultSmartQueueEngine(
             },
             history = history,
             objective = RankingObjective.CONTINUATION,
+            surface = RankingSurface.QUEUE,
             diversityPolicy = DiversityPolicy(
                 limit = fallback.size,
                 maxPerShow = 2,
@@ -494,6 +496,7 @@ class DefaultSmartQueueEngine(
                 podcasts = validSubs.map { it.toScorable() },
                 history = history,
                 objective = RankingObjective.CONTINUATION,
+                surface = RankingSurface.QUEUE,
             ) ?: PodcastScoring.calculateScores(validSubs.map { it.toScorable() }, history)
         }.getOrElse {
             android.util.Log.e(LOG_TAG, "Tier 2 subscription scoring failed", it)

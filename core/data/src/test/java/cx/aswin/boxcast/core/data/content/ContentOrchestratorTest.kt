@@ -1,9 +1,12 @@
 package cx.aswin.boxcast.core.data.content
 
+import com.google.gson.Gson
 import cx.aswin.boxcast.core.data.ranking.CandidateSource
 import cx.aswin.boxcast.core.data.ranking.RankingObjective
 import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import cx.aswin.boxcast.core.model.Podcast
+import cx.aswin.boxcast.core.network.model.RecommendationSeedV2
+import cx.aswin.boxcast.core.network.model.RecommendationsV2Request
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -73,6 +76,24 @@ class ContentOrchestratorTest {
             listOf("duplicate", "unique"),
             slate.sections.flatMap(ContentSection::items).map(ContentCandidate::id),
         )
+    }
+
+    @Test
+    fun `recommendation v2 request excludes raw behavioral history`() {
+        val request = RecommendationsV2Request(
+            country = "us",
+            seeds = listOf(RecommendationSeedV2(kind = "episode", id = 42, weight = 0.8)),
+            subscribedPodcastIds = listOf(7),
+            excludedEpisodeIds = listOf(9),
+        )
+
+        val json = Gson().toJson(request)
+
+        assertTrue("\"contractVersion\":2" in json)
+        assertTrue("\"seeds\"" in json)
+        assertTrue("\"history\"" !in json)
+        assertTrue("\"progressMs\"" !in json)
+        assertTrue("\"isLiked\"" !in json)
     }
 
     private fun catalog(): ContentCatalogSnapshot = ContentCatalogSnapshot(

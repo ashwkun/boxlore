@@ -12,15 +12,28 @@ data class RankingShadowSnapshot(
     val recordedAt: Long,
 )
 
+object RankingRolloutPolicy {
+    fun isEnabledByDefault(surface: RankingSurface): Boolean {
+        return surface == RankingSurface.HOME
+    }
+}
+
 class RankingRuntimeControls private constructor(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(
         PREFERENCES_NAME,
         Context.MODE_PRIVATE,
     )
 
-    fun isAdaptiveEnabled(objective: RankingObjective): Boolean {
+    fun isAdaptiveEnabled(
+        objective: RankingObjective,
+        surface: RankingSurface,
+    ): Boolean {
         return preferences.getBoolean(ADAPTIVE_ENABLED, true) &&
-            preferences.getBoolean(objectiveKey(objective), true)
+            preferences.getBoolean(objectiveKey(objective), true) &&
+            preferences.getBoolean(
+                surfaceKey(surface),
+                RankingRolloutPolicy.isEnabledByDefault(surface),
+            )
     }
 
     fun isShadowDiagnosticsEnabled(): Boolean {
@@ -33,6 +46,10 @@ class RankingRuntimeControls private constructor(context: Context) {
 
     fun setObjectiveEnabled(objective: RankingObjective, enabled: Boolean) {
         preferences.edit().putBoolean(objectiveKey(objective), enabled).apply()
+    }
+
+    fun setSurfaceEnabled(surface: RankingSurface, enabled: Boolean) {
+        preferences.edit().putBoolean(surfaceKey(surface), enabled).apply()
     }
 
     fun setShadowDiagnosticsEnabled(enabled: Boolean) {
@@ -55,6 +72,10 @@ class RankingRuntimeControls private constructor(context: Context) {
 
         private fun objectiveKey(objective: RankingObjective): String {
             return "objective_${objective.name.lowercase()}_enabled"
+        }
+
+        private fun surfaceKey(surface: RankingSurface): String {
+            return "surface_${surface.name.lowercase()}_enabled"
         }
     }
 }

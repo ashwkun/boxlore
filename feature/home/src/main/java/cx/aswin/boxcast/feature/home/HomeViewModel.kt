@@ -1139,6 +1139,7 @@ class HomeViewModel(
                             },
                             history = allHistory,
                             objective = RankingObjective.DISCOVERY,
+                            surface = RankingSurface.HOME,
                             diversityPolicy = DiversityPolicy(
                                 limit = wrapper.trending.size,
                                 maxPerShow = 1,
@@ -1158,6 +1159,7 @@ class HomeViewModel(
                             },
                             history = allHistory,
                             objective = RankingObjective.DISCOVERY,
+                            surface = RankingSurface.HOME,
                             diversityPolicy = DiversityPolicy(
                                 limit = wrapper.recommendations.size,
                                 maxPerShow = 2,
@@ -1397,6 +1399,7 @@ class HomeViewModel(
                                 podcasts = subs.map { it.toScorable() },
                                 history = allHistory,
                                 objective = RankingObjective.YOUR_SHOWS,
+                                surface = RankingSurface.HOME,
                             )
                         } else {
                             emptyMap()
@@ -1466,7 +1469,10 @@ class HomeViewModel(
                                 resolvedSerialEpisodes = _resolvedSerialEpisodes.value,
                                 recommendations = rankedRecommendations,
                                 podcastScores = podScoresMap,
-                                adaptiveRanking = MixtapeEngine.AdaptiveRanking(adaptiveScorer),
+                                adaptiveRanking = MixtapeEngine.AdaptiveRanking(
+                                    scorer = adaptiveScorer,
+                                    surface = RankingSurface.HOME,
+                                ),
                             )
                             mixtapePodcasts = result.podcasts
                             mixtapeCount = result.unplayedCount
@@ -1859,6 +1865,7 @@ class HomeViewModel(
                 },
                 history = history,
                 objective = RankingObjective.SLATE,
+                surface = RankingSurface.HOME,
                 diversityPolicy = DiversityPolicy(
                     limit = 10,
                     maxPerShow = 1,
@@ -2252,11 +2259,13 @@ class HomeViewModel(
             podcastInputs,
             history,
             RankingObjective.DISCOVERY,
+            RankingSurface.HOME,
         )
         val episodeScores = adaptiveScorer.scoreEpisodes(
             episodeInputs,
             history,
             RankingObjective.DISCOVERY,
+            RankingSurface.HOME,
         )
         return podcasts.sortedByDescending { podcastScores[it.latestEpisode?.id] ?: 0.0 } to
             episodes.sortedByDescending { episodeScores[it.id] ?: 0.0 }

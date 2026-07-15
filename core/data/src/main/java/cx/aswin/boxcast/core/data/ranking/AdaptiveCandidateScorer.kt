@@ -33,6 +33,7 @@ class AdaptiveCandidateScorer private constructor(
         podcasts: List<ScorablePodcast>,
         history: List<ListeningHistoryEntity>,
         objective: RankingObjective,
+        surface: RankingSurface,
         includeAutoDownloadBoost: Boolean = true,
         nowMs: Long = System.currentTimeMillis(),
     ): Map<String, Double> {
@@ -42,7 +43,7 @@ class AdaptiveCandidateScorer private constructor(
             allHistory = history,
             includeAutoDownloadBoost = includeAutoDownloadBoost,
         )
-        if (!runtimeControls.isAdaptiveEnabled(objective)) return legacy
+        if (!runtimeControls.isAdaptiveEnabled(objective, surface)) return legacy
         val normalizedPriors = normalizePriors(legacy)
         val historyByPodcast = history.groupBy(ListeningHistoryEntity::podcastId)
         val adaptive = podcasts.associate { podcast ->
@@ -91,11 +92,12 @@ class AdaptiveCandidateScorer private constructor(
         inputs: List<EpisodeRankingInput>,
         history: List<ListeningHistoryEntity>,
         objective: RankingObjective,
+        surface: RankingSurface,
         nowMs: Long = System.currentTimeMillis(),
     ): Map<String, Double> {
         if (inputs.isEmpty()) return emptyMap()
         val normalizedPriors = normalizePriors(inputs.associate { it.episode.id to it.priorScore })
-        if (!runtimeControls.isAdaptiveEnabled(objective)) return normalizedPriors
+        if (!runtimeControls.isAdaptiveEnabled(objective, surface)) return normalizedPriors
         val historyByEpisode = history.associateBy(ListeningHistoryEntity::episodeId)
         val adaptive = inputs.associate { input ->
             val episodeHistory = historyByEpisode[input.episode.id]
@@ -160,10 +162,11 @@ class AdaptiveCandidateScorer private constructor(
         inputs: List<EpisodeRankingInput>,
         history: List<ListeningHistoryEntity>,
         objective: RankingObjective,
+        surface: RankingSurface,
         diversityPolicy: DiversityPolicy,
         nowMs: Long = System.currentTimeMillis(),
     ): List<Episode> {
-        val scores = scoreEpisodes(inputs, history, objective, nowMs)
+        val scores = scoreEpisodes(inputs, history, objective, surface, nowMs)
         val candidates = inputs.map { input ->
             RankedCandidate(
                 value = input.episode,
@@ -191,6 +194,7 @@ class AdaptiveCandidateScorer private constructor(
         inputs: List<PodcastRankingInput>,
         history: List<ListeningHistoryEntity>,
         objective: RankingObjective,
+        surface: RankingSurface,
         diversityPolicy: DiversityPolicy? = null,
         nowMs: Long = System.currentTimeMillis(),
     ): List<Podcast> {
@@ -243,7 +247,7 @@ class AdaptiveCandidateScorer private constructor(
                 ),
             )
             val priorScore = normalizedPriors[podcast.id] ?: 0.0
-            val finalScore = if (runtimeControls.isAdaptiveEnabled(objective)) {
+            val finalScore = if (runtimeControls.isAdaptiveEnabled(objective, surface)) {
                 rankingRepository.score(
                     objective = objective,
                     features = features,

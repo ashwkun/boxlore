@@ -104,6 +104,7 @@ class AdaptiveContentCandidateRanker(
             },
             history = history,
             objective = intent.objective,
+            surface = context.surface,
         )
         val podcastCandidates = candidates.filter { it.episode == null }
         val rankedPodcasts = scorer.rankPodcasts(
@@ -118,6 +119,7 @@ class AdaptiveContentCandidateRanker(
             },
             history = history,
             objective = intent.objective,
+            surface = context.surface,
         )
         val podcastScores = rankedPodcasts.mapIndexed { index, podcast ->
             podcast.id to reciprocalRank(index)

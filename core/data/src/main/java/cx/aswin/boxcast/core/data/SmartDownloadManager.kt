@@ -15,6 +15,7 @@ import cx.aswin.boxcast.core.data.ranking.AdaptiveCandidateScorer
 import cx.aswin.boxcast.core.data.ranking.CandidateSource
 import cx.aswin.boxcast.core.data.ranking.EpisodeRankingInput
 import cx.aswin.boxcast.core.data.ranking.RankingObjective
+import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import cx.aswin.boxcast.core.model.Episode
 import cx.aswin.boxcast.core.model.Podcast
 import kotlinx.coroutines.flow.first
@@ -537,6 +538,7 @@ class SmartDownloadManager(
                 podcasts = subs.map { it.toScorable() },
                 history = allHistory,
                 objective = RankingObjective.OFFLINE,
+                surface = RankingSurface.DOWNLOADS,
                 includeAutoDownloadBoost = false,
             )
 
@@ -563,6 +565,7 @@ class SmartDownloadManager(
                 },
                 history = allHistory,
                 objective = RankingObjective.OFFLINE,
+                surface = RankingSurface.DOWNLOADS,
             )
             val orderedCandidates = initialCandidates
                 .map { candidate ->

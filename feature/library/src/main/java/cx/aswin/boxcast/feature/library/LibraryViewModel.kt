@@ -13,6 +13,7 @@ import cx.aswin.boxcast.core.data.ranking.AdaptiveCandidateScorer
 import cx.aswin.boxcast.core.data.ranking.CandidateSource
 import cx.aswin.boxcast.core.data.ranking.EpisodeRankingInput
 import cx.aswin.boxcast.core.data.ranking.RankingObjective
+import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.SharingStarted
@@ -115,6 +116,7 @@ class LibraryViewModel(
             inputs = inputs,
             history = history,
             objective = RankingObjective.YOUR_SHOWS,
+            surface = RankingSurface.LIBRARY,
         )
     }
 
@@ -172,6 +174,7 @@ class LibraryViewModel(
                     podcasts = enrichedPodcasts.map { it.toScorable() },
                     history = allHistory,
                     objective = RankingObjective.YOUR_SHOWS,
+                    surface = RankingSurface.LIBRARY,
                 )
 
                 enrichedPodcasts.map { pod ->

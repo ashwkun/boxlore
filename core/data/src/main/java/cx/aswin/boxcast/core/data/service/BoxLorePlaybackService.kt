@@ -1157,7 +1157,8 @@ class BoxLorePlaybackService : MediaLibraryService() {
                     subscriptions = subscriptions.map { it.toAutoPodcast() },
                     history = history,
                     adaptiveRanking = cx.aswin.boxcast.core.data.MixtapeEngine.AdaptiveRanking(
-                        adaptiveCandidateScorer,
+                        scorer = adaptiveCandidateScorer,
+                        surface = cx.aswin.boxcast.core.data.ranking.RankingSurface.ANDROID_AUTO,
                     ),
                 )
                 if (mixtape.episodes.size < 3) {
@@ -1177,7 +1178,8 @@ class BoxLorePlaybackService : MediaLibraryService() {
                         history = history,
                         recommendations = recommendations,
                         adaptiveRanking = cx.aswin.boxcast.core.data.MixtapeEngine.AdaptiveRanking(
-                            adaptiveCandidateScorer,
+                            scorer = adaptiveCandidateScorer,
+                            surface = cx.aswin.boxcast.core.data.ranking.RankingSurface.ANDROID_AUTO,
                         ),
                     )
                 }
@@ -3317,6 +3319,7 @@ class BoxLorePlaybackService : MediaLibraryService() {
                 podcasts = subscriptions.map { it.toScorable() },
                 history = history,
                 objective = RankingObjective.YOUR_SHOWS,
+                surface = cx.aswin.boxcast.core.data.ranking.RankingSurface.ANDROID_AUTO,
             )
             val rankedSubscriptions = subscriptions.sortedByDescending {
                 scores[it.podcastId] ?: 0.0
@@ -3575,7 +3578,8 @@ class BoxLorePlaybackService : MediaLibraryService() {
                 subscriptions = subscriptions,
                 history = history,
                 adaptiveRanking = cx.aswin.boxcast.core.data.MixtapeEngine.AdaptiveRanking(
-                    adaptiveCandidateScorer,
+                    scorer = adaptiveCandidateScorer,
+                    surface = cx.aswin.boxcast.core.data.ranking.RankingSurface.ANDROID_AUTO,
                 ),
             )
             if (result.episodes.size < 3) {
@@ -3597,7 +3601,8 @@ class BoxLorePlaybackService : MediaLibraryService() {
                     history = history,
                     recommendations = recommendations,
                     adaptiveRanking = cx.aswin.boxcast.core.data.MixtapeEngine.AdaptiveRanking(
-                        adaptiveCandidateScorer,
+                        scorer = adaptiveCandidateScorer,
+                        surface = cx.aswin.boxcast.core.data.ranking.RankingSurface.ANDROID_AUTO,
                     ),
                 )
             }

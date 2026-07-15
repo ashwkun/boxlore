@@ -5,6 +5,7 @@ import cx.aswin.boxcast.core.data.ranking.AdaptiveCandidateScorer
 import cx.aswin.boxcast.core.data.ranking.CandidateSource
 import cx.aswin.boxcast.core.data.ranking.EpisodeRankingInput
 import cx.aswin.boxcast.core.data.ranking.RankingObjective
+import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import cx.aswin.boxcast.core.model.Episode
 import cx.aswin.boxcast.core.model.EpisodeStatus
 import cx.aswin.boxcast.core.model.Podcast
@@ -23,6 +24,7 @@ object MixtapeEngine {
     data class AdaptiveRanking(
         val scorer: AdaptiveCandidateScorer,
         val objective: RankingObjective = RankingObjective.CONTINUATION,
+        val surface: RankingSurface,
     )
 
     private data class Candidate(
@@ -81,6 +83,7 @@ object MixtapeEngine {
                 },
                 history = history,
                 objective = adaptiveRanking.objective,
+                surface = adaptiveRanking.surface,
                 nowMs = nowMs,
             )
             ordered = orderCandidates(
