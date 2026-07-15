@@ -509,20 +509,13 @@ class ExploreViewModel(
             try {
                 val searchResult = podcastRepository.searchPodcastsWithCorrection(query)
                 if (searchJob == myJob) {
-                    _searchResults.value = try {
-                        rankPodcastSearchTies(searchResult.podcasts)
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        searchResult.podcasts
-                    }
+                    _searchResults.value = rankPodcastsOrOriginal(searchResult.podcasts)
                     searchResult.podcasts.forEach { _seenPodcasts[it.id] = it }
                     cx.aswin.boxcast.core.data.analytics.AnalyticsHelper.trackExploreSearchPerformed(query, searchResult.podcasts.size)
                 }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) {
-                    throw e
-                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
                 if (searchJob == myJob) {
                     _searchResults.value = emptyList()
                 }
@@ -548,19 +541,12 @@ class ExploreViewModel(
                 val region = userPrefs.regionStream.first()
                 val results = podcastRepository.searchEpisodesSemantic(query, region)
                 if (semanticSearchJob == myJob) {
-                    _semanticSearchResults.value = try {
-                        rankEpisodeSearchTies(results)
-                    } catch (error: kotlinx.coroutines.CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        results
-                    }
+                    _semanticSearchResults.value = rankEpisodesOrOriginal(results)
                     _hasPerformedSemanticSearch.value = true
                 }
-            } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) {
-                    throw e
-                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) {
                 if (semanticSearchJob == myJob) {
                     _semanticSearchResults.value = emptyList()
                     _hasPerformedSemanticSearch.value = true
@@ -572,6 +558,26 @@ class ExploreViewModel(
             }
         }
         semanticSearchJob = myJob
+    }
+
+    private suspend fun rankPodcastsOrOriginal(results: List<Podcast>): List<Podcast> {
+        return try {
+            rankPodcastSearchTies(results)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            results
+        }
+    }
+
+    private suspend fun rankEpisodesOrOriginal(results: List<Episode>): List<Episode> {
+        return try {
+            rankEpisodeSearchTies(results)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            results
+        }
     }
 
     private suspend fun rankPodcastSearchTies(results: List<Podcast>): List<Podcast> {

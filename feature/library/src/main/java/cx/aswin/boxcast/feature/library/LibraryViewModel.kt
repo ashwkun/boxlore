@@ -191,7 +191,8 @@ class LibraryViewModel(
                 }
 
                 enrichedPodcasts.map { pod ->
-                    pod to (podScoresMap[pod.id] ?: pod.latestEpisode?.publishedDate?.toDouble() ?: 0.0)
+                    val fallbackScore = pod.latestEpisode?.let { it.publishedDate.toDouble() } ?: 0.0
+                    pod to (podScoresMap[pod.id] ?: fallbackScore)
                 }.sortedWith(
                     compareByDescending<Pair<Podcast, Double>> { it.second }
                         .thenBy { it.first.title }

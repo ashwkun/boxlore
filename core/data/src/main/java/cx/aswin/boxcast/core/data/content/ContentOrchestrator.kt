@@ -150,25 +150,7 @@ class ContentOrchestrator(
         if (!forceRefresh) sessionCache[cacheKey]?.let { return it }
         val rankedByIntent = supervisorScope {
             intents.map { intent ->
-                async {
-                    val candidates = providers.flatMap { provider ->
-                        try {
-                            provider.candidates(intent, context)
-                        } catch (error: CancellationException) {
-                            throw error
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }.distinctBy(ContentCandidate::id)
-                    val ranked = try {
-                        ranker.rank(candidates, intent, context)
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (_: Exception) {
-                        candidates.sortedByDescending(ContentCandidate::retrievalScore)
-                    }
-                    intent to ranked
-                }
+                async { intent to rankIntent(intent, context) }
             }.map { it.await() }
         }
         return slateComposer.compose(
@@ -178,6 +160,36 @@ class ContentOrchestrator(
             exposureBudget = exposureBudget,
             now = now,
         ).also { sessionCache[cacheKey] = it }
+    }
+
+    private suspend fun rankIntent(
+        intent: ContentIntent,
+        context: ContentContext,
+    ): List<ContentCandidate> {
+        val candidates = providers.flatMap { provider ->
+            providerCandidates(provider, intent, context)
+        }.distinctBy(ContentCandidate::id)
+        return try {
+            ranker.rank(candidates, intent, context)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            candidates.sortedByDescending(ContentCandidate::retrievalScore)
+        }
+    }
+
+    private suspend fun providerCandidates(
+        provider: CandidateProvider,
+        intent: ContentIntent,
+        context: ContentContext,
+    ): List<ContentCandidate> {
+        return try {
+            provider.candidates(intent, context)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     fun clearSession(sessionId: String) {
