@@ -17,6 +17,9 @@ import cx.aswin.boxcast.core.data.database.DownloadedEpisodeEntity
 import cx.aswin.boxcast.core.data.service.MediaDownloadService
 import cx.aswin.boxcast.core.model.Episode
 import cx.aswin.boxcast.core.model.Podcast
+import cx.aswin.boxcast.core.data.ranking.FeedbackTarget
+import cx.aswin.boxcast.core.data.ranking.RankingAction
+import cx.aswin.boxcast.core.data.ranking.RankingFeedbackRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -163,6 +166,16 @@ class DownloadRepository(
                     isSmartDownloaded = isSmartDownloaded
                 )
                 database.downloadedEpisodeDao().insert(entity)
+                if (!isSmartDownloaded) {
+                    RankingFeedbackRepository.getInstance(context).recordAction(
+                        target = FeedbackTarget(
+                            episodeId = episode.id,
+                            podcastId = podcast.id,
+                            genre = episode.podcastGenre ?: podcast.genre,
+                        ),
+                        action = RankingAction.MANUAL_DOWNLOAD,
+                    )
+                }
                 android.util.Log.d("DownloadRepo", "Optimistic insert successful for ${episode.id}")
             } catch (e: Exception) {
                 android.util.Log.e("DownloadRepo", "Optimistic insert failed for ${episode.id}", e)

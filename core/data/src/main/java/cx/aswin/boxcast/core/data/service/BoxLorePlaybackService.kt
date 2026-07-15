@@ -75,6 +75,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
     private val queueSkipMemory by lazy {
         cx.aswin.boxcast.core.data.QueueSkipMemory.fromContext(this)
     }
+    private val rankingFeedbackRepository by lazy {
+        cx.aswin.boxcast.core.data.ranking.RankingFeedbackRepository.getInstance(this)
+    }
     private val smartQueueSources by lazy {
         cx.aswin.boxcast.core.data.DefaultSmartQueueSources(
             context = this,
@@ -1565,6 +1568,30 @@ class BoxLorePlaybackService : MediaLibraryService() {
                         android.util.Log.e("AutoQueue", "Failed to record skip memory", e)
                     }
                 }
+            }
+
+            val adaptiveSource = when (playbackSessionContextType) {
+                "AUTO_FILL" -> cx.aswin.boxcast.core.data.ranking.CandidateSource.SERVER_RECOMMENDATION
+                cx.aswin.boxcast.core.data.QueueMath.CONTEXT_TYPE_LORE ->
+                    cx.aswin.boxcast.core.data.ranking.CandidateSource.CURATED_INTENT
+                else -> null
+            }
+            val isAdaptiveEarlySkip = isTransition &&
+                durationPlayedSeconds <= 30f &&
+                adaptiveSource != null
+            serviceScope.launch {
+                rankingFeedbackRepository.recordPlayback(
+                    target = cx.aswin.boxcast.core.data.ranking.FeedbackTarget(
+                        episodeId = currentEpisodeId,
+                        podcastId = currentPodcastId.orEmpty(),
+                        genre = currentPodcastGenre,
+                        source = adaptiveSource,
+                    ),
+                    listenSeconds = durationPlayedSeconds.toLong().coerceAtLeast(0L),
+                    durationSeconds = (totalDurationMs / 1_000L).coerceAtLeast(0L),
+                    completed = isCompleted,
+                    earlySkip = isAdaptiveEarlySkip,
+                )
             }
             
             // Flush events immediately to prevent losses during backgrounding/shutdown

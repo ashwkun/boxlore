@@ -14,6 +14,7 @@ import com.posthog.android.PostHogAndroid
 import com.posthog.android.PostHogAndroidConfig
 import cx.aswin.boxcast.core.data.EngagementPromptCoordinator
 import cx.aswin.boxcast.core.data.UserPreferencesRepository
+import cx.aswin.boxcast.core.data.ranking.RankingFeedbackRepository
 import cx.aswin.boxcast.core.network.NetworkModule
 import cx.aswin.boxcast.surveys.BoxcastPostHogSurveysDelegate
 import java.util.concurrent.TimeUnit
@@ -32,6 +33,7 @@ class BoxLoreApplication : Application() {
 
         userPreferencesRepository = UserPreferencesRepository(this)
         engagementPromptCoordinator = EngagementPromptCoordinator(userPreferencesRepository)
+        RankingFeedbackRepository.getInstance(this)
 
         val config = PostHogAndroidConfig(
             apiKey = BuildConfig.POSTHOG_API_KEY,
