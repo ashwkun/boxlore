@@ -1362,7 +1362,7 @@ class HomeViewModel(
                                 resolvedSerialEpisodes = _resolvedSerialEpisodes.value,
                                 recommendations = wrapper.recommendations,
                                 podcastScores = podScoresMap,
-                                adaptiveScorer = adaptiveScorer,
+                                adaptiveRanking = MixtapeEngine.AdaptiveRanking(adaptiveScorer),
                             )
                             mixtapePodcasts = result.podcasts
                             mixtapeCount = result.unplayedCount

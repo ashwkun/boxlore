@@ -20,6 +20,11 @@ object MixtapeEngine {
         val unplayedCount: Int,
     )
 
+    data class AdaptiveRanking(
+        val scorer: AdaptiveCandidateScorer,
+        val objective: RankingObjective = RankingObjective.CONTINUATION,
+    )
+
     private data class Candidate(
         val podcast: Podcast,
         val episode: Episode,
@@ -39,8 +44,7 @@ object MixtapeEngine {
             podcasts = subscriptions.map(Podcast::toScorable),
             allHistory = history,
         ),
-        adaptiveScorer: AdaptiveCandidateScorer? = null,
-        objective: RankingObjective = RankingObjective.CONTINUATION,
+        adaptiveRanking: AdaptiveRanking? = null,
         nowMs: Long = System.currentTimeMillis(),
     ): Result {
         val historyByEpisode = history.associateBy(ListeningHistoryEntity::episodeId)
@@ -64,8 +68,8 @@ object MixtapeEngine {
             subscriptionsById = subscriptionsById,
             historyByEpisode = historyByEpisode,
         )
-        if (adaptiveScorer != null) {
-            val adaptiveScores = adaptiveScorer.scoreEpisodes(
+        if (adaptiveRanking != null) {
+            val adaptiveScores = adaptiveRanking.scorer.scoreEpisodes(
                 inputs = ordered.map { candidate ->
                     EpisodeRankingInput(
                         episode = candidate.episode,
@@ -76,7 +80,7 @@ object MixtapeEngine {
                     )
                 },
                 history = history,
-                objective = objective,
+                objective = adaptiveRanking.objective,
                 nowMs = nowMs,
             )
             ordered = orderCandidates(

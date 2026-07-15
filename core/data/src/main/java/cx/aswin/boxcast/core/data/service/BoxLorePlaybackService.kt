@@ -1154,7 +1154,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
                 var mixtape = cx.aswin.boxcast.core.data.MixtapeEngine.build(
                     subscriptions = subscriptions.map { it.toAutoPodcast() },
                     history = history,
-                    adaptiveScorer = adaptiveCandidateScorer,
+                    adaptiveRanking = cx.aswin.boxcast.core.data.MixtapeEngine.AdaptiveRanking(
+                        adaptiveCandidateScorer,
+                    ),
                 )
                 if (mixtape.episodes.size < 3) {
                     val recommendations = runCatching {
@@ -1172,7 +1174,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
                         subscriptions = subscriptions.map { it.toAutoPodcast() },
                         history = history,
                         recommendations = recommendations,
-                        adaptiveScorer = adaptiveCandidateScorer,
+                        adaptiveRanking = cx.aswin.boxcast.core.data.MixtapeEngine.AdaptiveRanking(
+                            adaptiveCandidateScorer,
+                        ),
                     )
                 }
                 val mixtapeImages = mixtape.podcasts.mapNotNull { podcast ->
@@ -3559,7 +3563,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
             var result = cx.aswin.boxcast.core.data.MixtapeEngine.build(
                 subscriptions = subscriptions,
                 history = history,
-                adaptiveScorer = adaptiveCandidateScorer,
+                adaptiveRanking = cx.aswin.boxcast.core.data.MixtapeEngine.AdaptiveRanking(
+                    adaptiveCandidateScorer,
+                ),
             )
             if (result.episodes.size < 3) {
                 val recommendations = runCatching {
@@ -3579,7 +3585,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
                     subscriptions = subscriptions,
                     history = history,
                     recommendations = recommendations,
-                    adaptiveScorer = adaptiveCandidateScorer,
+                    adaptiveRanking = cx.aswin.boxcast.core.data.MixtapeEngine.AdaptiveRanking(
+                        adaptiveCandidateScorer,
+                    ),
                 )
             }
             val episodes = result.podcasts.mapNotNull { podcast ->
