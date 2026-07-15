@@ -435,10 +435,12 @@ class HomeViewModel(
         // Auto-selections resolve from the fresher subscriptionRepository list (passed in by the
         // caller) so a just-subscribed RSS podcast can trigger its refresh immediately, rather than
         // waiting for uiState to catch up. Manual selections keep resolving from uiState as before.
-        val podcast = autoResolvedPodcast
-            ?: uiState.value.subscribedPodcasts.firstOrNull { it.id == podcastId }
-            ?: return@applySelection
-        applySelectedPodcast(podcastId, podcast, isAuto)
+        val fromAuto = autoResolvedPodcast
+        val fromState = uiState.value.subscribedPodcasts.firstOrNull { it.id == podcastId }
+        val podcast = if (fromAuto != null) fromAuto else fromState
+        if (podcast != null) {
+            applySelectedPodcast(podcastId, podcast, isAuto)
+        }
     }
 
     private fun applySelectedPodcast(podcastId: String, podcast: Podcast, isAuto: Boolean) {

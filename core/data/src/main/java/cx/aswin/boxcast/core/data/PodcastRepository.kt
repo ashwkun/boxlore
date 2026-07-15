@@ -794,18 +794,27 @@ class PodcastRepository(
 
     suspend fun getPodcastMeta(feedId: String): cx.aswin.boxcast.core.network.model.PodcastMetaResponse? = withContext(Dispatchers.IO) {
         try {
-            val response = if (feedId.startsWith(FEED_PREFIX_URL)) {
-                val encodedUrl = feedId.substringAfter(FEED_PREFIX_URL)
-                val decodedUrl = java.net.URLDecoder.decode(encodedUrl, "UTF-8")
-                api.getPodcastMeta(publicKey = publicKey, feedUrl = decodedUrl).execute()
-            } else if (feedId.startsWith(FEED_PREFIX_GUID)) {
-                val guid = feedId.substringAfter(FEED_PREFIX_GUID)
-                api.getPodcastMeta(publicKey = publicKey, feedGuid = guid).execute()
-            } else if (feedId.startsWith(FEED_PREFIX_ITUNES)) {
-                val itunesId = feedId.substringAfter(FEED_PREFIX_ITUNES)
-                api.getPodcastMeta(publicKey = publicKey, itunesId = itunesId).execute()
-            } else {
-                api.getPodcastMeta(publicKey = publicKey, feedId = feedId).execute()
+            val response = when {
+                feedId.startsWith(FEED_PREFIX_URL) -> {
+                    val decodedUrl = java.net.URLDecoder.decode(
+                        feedId.substringAfter(FEED_PREFIX_URL),
+                        "UTF-8",
+                    )
+                    api.getPodcastMeta(publicKey = publicKey, feedUrl = decodedUrl).execute()
+                }
+                feedId.startsWith(FEED_PREFIX_GUID) -> {
+                    api.getPodcastMeta(
+                        publicKey = publicKey,
+                        feedGuid = feedId.substringAfter(FEED_PREFIX_GUID),
+                    ).execute()
+                }
+                feedId.startsWith(FEED_PREFIX_ITUNES) -> {
+                    api.getPodcastMeta(
+                        publicKey = publicKey,
+                        itunesId = feedId.substringAfter(FEED_PREFIX_ITUNES),
+                    ).execute()
+                }
+                else -> api.getPodcastMeta(publicKey = publicKey, feedId = feedId).execute()
             }
             if (response.isSuccessful) response.body() else null
         } catch (e: Exception) {
