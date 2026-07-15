@@ -57,13 +57,14 @@ The smart layer runs on a search index that is rebuilt daily and covers popular 
 <summary><b>🔮 Upcoming in the Next Release</b></summary>
 <b>🆕 New features:</b>
 <ul align="left">
-<li>Subscribe to RSS feeds, import/export OPML, and enjoy a new Settings hub with custom accent colors and privacy controls. <a href="https://github.com/ashwkun/boxlore/pull/874"><img src="https://img.shields.io/badge/PR-874-6750A4?style=flat-square" alt="PR #874" height="18"/></a></li>
-<li>Set intro/outro trim lengths and adjust seek steps for faster forward/backward jumps. <a href="https://github.com/ashwkun/boxlore/pull/875"><img src="https://img.shields.io/badge/PR-875-6750A4?style=flat-square" alt="PR #875" height="18"/></a></li>
-<li>Experience smarter episode suggestions with adaptive ranking across Home, Discovery, Queue and Downloads. <a href="https://github.com/ashwkun/boxlore/pull/876"><img src="https://img.shields.io/badge/PR-876-6750A4?style=flat-square" alt="PR #876" height="18"/></a></li>
+<li>Add RSS feed subscriptions, import/export OPML, a revamped Settings hub with custom colors and privacy page, plus refreshed navigation and player UI. <a href="https://github.com/ashwkun/boxlore/pull/874"><img src="https://img.shields.io/badge/PR-874-6750A4?style=flat-square" alt="PR #874" height="18"/></a></li>
+<li>Set automatic intro/outro trimming and customize skip forward/backward steps for smoother listening. <a href="https://github.com/ashwkun/boxlore/pull/875"><img src="https://img.shields.io/badge/PR-875-6750A4?style=flat-square" alt="PR #875" height="18"/></a></li>
+<li>Enjoy smarter episode ordering with adaptive recommendations that adjust to your listening habits. <a href="https://github.com/ashwkun/boxlore/pull/876"><img src="https://img.shields.io/badge/PR-876-6750A4?style=flat-square" alt="PR #876" height="18"/></a></li>
 </ul>
 <b>⚡ Improvements:</b>
 <ul align="left">
-<li>Announcement dialogs stay until you tap X or Dismiss, and Play Store prompts are no longer shown. <a href="https://github.com/ashwkun/boxlore/pull/870"><img src="https://img.shields.io/badge/PR-870-6750A4?style=flat-square" alt="PR #870" height="18"/></a></li>
+<li>New episode view with big artwork header, sticky playback bar, and clearer buffering indicator; home feed now adapts to time of day. <a href="https://github.com/ashwkun/boxlore/pull/877"><img src="https://img.shields.io/badge/PR-877-6750A4?style=flat-square" alt="PR #877" height="18"/></a></li>
+<li>Announcements stay on screen until you tap X or Dismiss, and Play Store installs no longer show extra “What’s New” prompts. <a href="https://github.com/ashwkun/boxlore/pull/870"><img src="https://img.shields.io/badge/PR-870-6750A4?style=flat-square" alt="PR #870" height="18"/></a></li>
 </ul>
 <p align="center"><sub><sub>AI-generated summary; may contain mistakes.<br/>Verify details in the <a href="CHANGELOG.md">changelog</a> and linked pull requests.</sub></sub></p>
 </details>
