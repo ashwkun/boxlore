@@ -151,6 +151,7 @@ data class ContentIntentDto(
     val dayparts: List<String>,
     val providerQueryRef: String,
     val layout: String,
+    val refreshPolicy: String? = null,
     val minCandidates: Int,
     val maxCandidates: Int,
     val freshnessDays: Int,

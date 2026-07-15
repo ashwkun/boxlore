@@ -83,11 +83,12 @@ class RankingFeedbackRepository private constructor(
         }
     }
 
-    suspend fun reset() {
-        safely("reset recommendations", Unit) {
+    suspend fun reset(): Boolean {
+        return safely("reset recommendations", false) {
             adaptiveRankingRepository?.reset()
             recentActions.clear()
             RankingShadowDiagnostics.clear()
+            adaptiveRankingRepository != null
         }
     }
 

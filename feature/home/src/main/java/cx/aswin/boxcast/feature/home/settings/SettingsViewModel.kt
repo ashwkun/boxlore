@@ -54,8 +54,12 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun resetRecommendations() {
         viewModelScope.launch {
-            rankingFeedbackRepository.reset()
-            _events.emit(SettingsEvent.ShowToast("Recommendations reset"))
+            val reset = rankingFeedbackRepository.reset()
+            _events.emit(
+                SettingsEvent.ShowToast(
+                    if (reset) "Recommendations reset" else "Couldn't reset recommendations",
+                ),
+            )
         }
     }
 

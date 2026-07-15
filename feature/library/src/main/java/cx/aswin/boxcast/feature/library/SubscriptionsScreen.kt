@@ -881,8 +881,13 @@ private fun LatestTabContent(
             initialValue = emptyMap(),
             filteredEpisodePodcasts,
             allHistory,
+            useSmartRank,
         ) {
-            value = scoreEpisodes(filteredEpisodePodcasts, allHistory)
+            value = if (useSmartRank) {
+                scoreEpisodes(filteredEpisodePodcasts, allHistory)
+            } else {
+                emptyMap()
+            }
         }
 
         val displayPodcasts = remember(filteredEpisodePodcasts, useSmartRank, episodeScores) {

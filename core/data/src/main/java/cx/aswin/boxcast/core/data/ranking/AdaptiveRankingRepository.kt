@@ -39,6 +39,16 @@ data class RankingAggregateTelemetry(
     val explorationEligible: Boolean,
 )
 
+data class RankingScoreInput(
+    val features: RankingFeatures,
+    val priorScore: Double,
+)
+
+data class PreferenceFacetKey(
+    val type: PreferenceFacetType,
+    val key: String,
+)
+
 data class AdaptiveRankingBackup(
     val version: Int = 1,
     val models: List<AdaptiveModelEntity>? = emptyList(),
@@ -66,6 +76,24 @@ class AdaptiveRankingRepository private constructor(
                 priorScore = priorScore,
                 state = loadState(objective),
             )
+        }
+    }
+
+    suspend fun scoreBatch(
+        objective: RankingObjective,
+        inputs: List<RankingScoreInput>,
+    ): List<RankingScore> {
+        if (inputs.isEmpty()) return emptyList()
+        return objectiveLock(objective).withLock {
+            val state = loadState(objective)
+            inputs.map { input ->
+                model.score(
+                    objective = objective,
+                    features = input.features,
+                    priorScore = input.priorScore,
+                    state = state,
+                )
+            }
         }
     }
 
@@ -153,6 +181,22 @@ class AdaptiveRankingRepository private constructor(
             ?: 0.0
     }
 
+    suspend fun facetAffinities(
+        keys: Set<PreferenceFacetKey>,
+        now: Long = System.currentTimeMillis(),
+    ): Map<PreferenceFacetKey, Double> {
+        if (keys.isEmpty()) return emptyMap()
+        val stored = dao.getAllFacets().associateBy { entity ->
+            entity.facetType to entity.facetKey
+        }
+        return keys.associateWith { request ->
+            stored[request.type.name to request.key.normalizedFacetKey()]
+                ?.toFacet()
+                ?.affinity(now)
+                ?: 0.0
+        }
+    }
+
     suspend fun updateFacet(
         type: PreferenceFacetType,
         key: String,
@@ -222,9 +266,9 @@ class AdaptiveRankingRepository private constructor(
         require(backup.version == ADAPTIVE_BACKUP_VERSION) {
             "Unsupported adaptive ranking backup version ${backup.version}"
         }
-        val models = backup.models.orEmpty()
-        val facets = backup.facets.orEmpty()
-        val exposures = backup.exposures.orEmpty()
+        val models = requireNotNull(backup.models) { "Adaptive model backup section is missing" }
+        val facets = requireNotNull(backup.facets) { "Preference facet backup section is missing" }
+        val exposures = requireNotNull(backup.exposures) { "Ranking exposure backup section is missing" }
         require(models.all(::isValidBackupModel)) { "Invalid adaptive model backup" }
         require(facets.all(::isValidBackupFacet)) { "Invalid preference facet backup" }
         require(exposures.size <= MAX_EXPOSURES && exposures.all(::isValidBackupExposure)) {

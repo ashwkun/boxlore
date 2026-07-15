@@ -9,6 +9,7 @@ import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import cx.aswin.boxcast.core.model.Episode
 import cx.aswin.boxcast.core.model.EpisodeStatus
 import cx.aswin.boxcast.core.model.Podcast
+import kotlinx.coroutines.CancellationException
 
 object MixtapeEngine {
     private const val MAX_ITEMS = 15
@@ -63,7 +64,7 @@ object MixtapeEngine {
             podcastScores = podcastScores,
             nowMs = nowMs,
         )
-        var ordered = orderCandidates(candidates).take(MAX_ITEMS).toMutableList()
+        var ordered = orderCandidates(candidates).toMutableList()
         addRecommendationFallbacks(
             candidates = ordered,
             recommendations = recommendations,
@@ -71,26 +72,34 @@ object MixtapeEngine {
             historyByEpisode = historyByEpisode,
         )
         if (adaptiveRanking != null) {
-            val adaptiveScores = adaptiveRanking.scorer.scoreEpisodes(
-                inputs = ordered.map { candidate ->
-                    EpisodeRankingInput(
-                        episode = candidate.episode,
-                        podcast = candidate.podcast,
-                        priorScore = candidate.score,
-                        source = candidate.source,
-                        isNovel = candidate.source == CandidateSource.SERVER_RECOMMENDATION,
-                    )
-                },
-                history = history,
-                objective = adaptiveRanking.objective,
-                surface = adaptiveRanking.surface,
-                nowMs = nowMs,
-            )
-            ordered = orderCandidates(
-                ordered.map { candidate ->
-                    candidate.copy(score = adaptiveScores[candidate.episode.id] ?: candidate.score)
-                },
-            ).take(MAX_ITEMS).toMutableList()
+            ordered = try {
+                val adaptiveScores = adaptiveRanking.scorer.scoreEpisodes(
+                    inputs = ordered.map { candidate ->
+                        EpisodeRankingInput(
+                            episode = candidate.episode,
+                            podcast = candidate.podcast,
+                            priorScore = candidate.score,
+                            source = candidate.source,
+                            isNovel = candidate.source == CandidateSource.SERVER_RECOMMENDATION,
+                        )
+                    },
+                    history = history,
+                    objective = adaptiveRanking.objective,
+                    surface = adaptiveRanking.surface,
+                    nowMs = nowMs,
+                )
+                orderCandidates(
+                    ordered.map { candidate ->
+                        candidate.copy(score = adaptiveScores[candidate.episode.id] ?: candidate.score)
+                    },
+                ).take(MAX_ITEMS).toMutableList()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                orderCandidates(ordered).take(MAX_ITEMS).toMutableList()
+            }
+        } else {
+            ordered = ordered.take(MAX_ITEMS).toMutableList()
         }
         val podcasts = ordered.map { candidate ->
             val status = when {

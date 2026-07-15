@@ -1536,6 +1536,10 @@ object AnalyticsHelper {
             properties = mapOf(
                 "ranker_version" to statuses.maxOf(RankingAggregateTelemetry::rankerVersion),
                 "objectives" to statuses.map(RankingAggregateTelemetry::objective),
+                "ranker_versions" to statuses.map(RankingAggregateTelemetry::rankerVersion),
+                "ranker_versions_by_objective" to statuses.associate {
+                    it.objective to it.rankerVersion
+                },
                 "learning_stages" to statuses.map(RankingAggregateTelemetry::learningStage),
                 "outcome_count_buckets" to statuses.map(
                     RankingAggregateTelemetry::outcomeCountBucket,

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items as lazyRowItems
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.LazyStaggeredGridState
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
@@ -42,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.navigation.NavController
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -164,7 +166,7 @@ data class HomeFeedCallbacks(
     val onEpisodeClick: ((Episode, Podcast, String?) -> Unit)?,
     val onCuratedEpisodeClick: ((Episode, Podcast, String, Int) -> Unit)?,
     val onCuratedImpression: (String, List<String>) -> Unit,
-    val onAdaptiveSectionVisible: (ContentSection) -> Unit,
+    val onAdaptiveSectionVisible: (ContentSection, Set<String>) -> Unit,
     val onPlayClick: ((Podcast, android.os.Bundle?) -> Unit)?,
     val onNavigateToLibrary: (() -> Unit)?,
     val onNavigateToExplore: ((String?, String, String?) -> Unit)?,
@@ -590,7 +592,7 @@ private fun PodcastFeed(
     subscribedItems: StablePodcastList,
     timeBlock: CuratedTimeBlock?,
     adaptiveSections: StableContentSectionList,
-    onAdaptiveSectionVisible: (ContentSection) -> Unit,
+    onAdaptiveSectionVisible: (ContentSection, Set<String>) -> Unit,
     gridItems: StablePodcastList,
     selectedCategory: String?,
     currentPlayingPodcastId: String?,
@@ -965,8 +967,25 @@ private fun PodcastFeed(
                 key = "adaptive_${section.stableId}",
                 contentType = "adaptive_section",
             ) {
-                LaunchedEffect(section.stableId) {
-                    onAdaptiveSectionVisible(section)
+                val rowState = rememberLazyListState()
+                val sectionKey = "adaptive_${section.stableId}"
+                LaunchedEffect(section, gridState, rowState) {
+                    snapshotFlow {
+                        val sectionVisible = gridState.layoutInfo.visibleItemsInfo.any {
+                            it.key == sectionKey
+                        }
+                        if (sectionVisible) {
+                            rowState.layoutInfo.visibleItemsInfo
+                                .mapNotNull { it.key as? String }
+                                .toSet()
+                        } else {
+                            emptySet()
+                        }
+                    }.distinctUntilChanged().collect { visibleCandidateIds ->
+                        if (visibleCandidateIds.isNotEmpty()) {
+                            onAdaptiveSectionVisible(section, visibleCandidateIds)
+                        }
+                    }
                 }
                 Column(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -988,7 +1007,10 @@ private fun PodcastFeed(
                             )
                         }
                     }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LazyRow(
+                        state = rowState,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         lazyRowItems(
                             items = section.items,
                             key = { candidate -> candidate.id },

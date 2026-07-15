@@ -8,6 +8,7 @@ import cx.aswin.boxcast.core.data.ranking.EpisodeRankingInput
 import cx.aswin.boxcast.core.data.ranking.PodcastRankingInput
 import cx.aswin.boxcast.core.model.Episode
 import cx.aswin.boxcast.core.model.Podcast
+import kotlinx.coroutines.CancellationException
 
 class PodcastCandidateProvider(
     override val source: CandidateSource,
@@ -84,6 +85,23 @@ class AdaptiveContentCandidateRanker(
     private val historyProvider: suspend () -> List<ListeningHistoryEntity>,
 ) : ContentCandidateRanker {
     override suspend fun rank(
+        candidates: List<ContentCandidate>,
+        intent: ContentIntent,
+        context: ContentContext,
+    ): List<ContentCandidate> {
+        return try {
+            rankAdaptively(candidates, intent, context)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            candidates.sortedWith(
+                compareByDescending(ContentCandidate::retrievalScore)
+                    .thenBy(ContentCandidate::id),
+            )
+        }
+    }
+
+    private suspend fun rankAdaptively(
         candidates: List<ContentCandidate>,
         intent: ContentIntent,
         context: ContentContext,

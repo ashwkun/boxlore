@@ -753,7 +753,8 @@ class MainActivity : ComponentActivity() {
                             val backupManager = cx.aswin.boxcast.core.data.backup.LibraryBackupManager(
                                 subscriptionRepository,
                                 playbackRepository,
-                                podcastRepository
+                                podcastRepository,
+                                context = applicationContext,
                             )
                             val feeds = backupManager.parseOpmlFeeds(inputStream)
                             inputStream.close()
@@ -809,7 +810,8 @@ class MainActivity : ComponentActivity() {
                             val backupManager = cx.aswin.boxcast.core.data.backup.LibraryBackupManager(
                                 subscriptionRepository,
                                 playbackRepository,
-                                podcastRepository
+                                podcastRepository,
+                                context = applicationContext,
                             )
                             val total = state.podcastsToMark.size
                             for (index in state.podcastsToMark.indices) {
@@ -1674,7 +1676,12 @@ class MainActivity : ComponentActivity() {
                                         onExportOpml = { uri ->
                                             scope.launch(kotlinx.coroutines.Dispatchers.IO) {
                                                 try {
-                                                    val opmlXml = cx.aswin.boxcast.core.data.backup.LibraryBackupManager(subscriptionRepository, playbackRepository, podcastRepository).exportLibraryAsOpml()
+                                                    val opmlXml = cx.aswin.boxcast.core.data.backup.LibraryBackupManager(
+                                                        subscriptionRepository,
+                                                        playbackRepository,
+                                                        podcastRepository,
+                                                        context = application,
+                                                    ).exportLibraryAsOpml()
                                                     (application.contentResolver.openOutputStream(uri) ?: error("Unable to open export destination")).use { it.write(opmlXml.toByteArray()) }
                                                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { android.widget.Toast.makeText(application, "Subscriptions Exported as OPML", android.widget.Toast.LENGTH_SHORT).show() }
                                                 } catch(e: Exception){

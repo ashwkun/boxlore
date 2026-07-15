@@ -509,7 +509,13 @@ class ExploreViewModel(
             try {
                 val searchResult = podcastRepository.searchPodcastsWithCorrection(query)
                 if (searchJob == myJob) {
-                    _searchResults.value = rankPodcastSearchTies(searchResult.podcasts)
+                    _searchResults.value = try {
+                        rankPodcastSearchTies(searchResult.podcasts)
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        searchResult.podcasts
+                    }
                     searchResult.podcasts.forEach { _seenPodcasts[it.id] = it }
                     cx.aswin.boxcast.core.data.analytics.AnalyticsHelper.trackExploreSearchPerformed(query, searchResult.podcasts.size)
                 }
@@ -542,7 +548,13 @@ class ExploreViewModel(
                 val region = userPrefs.regionStream.first()
                 val results = podcastRepository.searchEpisodesSemantic(query, region)
                 if (semanticSearchJob == myJob) {
-                    _semanticSearchResults.value = rankEpisodeSearchTies(results)
+                    _semanticSearchResults.value = try {
+                        rankEpisodeSearchTies(results)
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        results
+                    }
                     _hasPerformedSemanticSearch.value = true
                 }
             } catch (e: Exception) {

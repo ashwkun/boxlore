@@ -1,6 +1,7 @@
 package cx.aswin.boxcast.core.data.content
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 
@@ -45,6 +46,9 @@ class SharedExposureBudget(
         exposedItems.clear()
         showCounts.clear()
     }
+
+    @Synchronized
+    fun <T> atomically(block: () -> T): T = block()
 }
 
 class SlateComposer {
@@ -54,7 +58,7 @@ class SlateComposer {
         rankedByIntent: List<Pair<ContentIntent, List<ContentCandidate>>>,
         exposureBudget: SharedExposureBudget,
         now: Long = System.currentTimeMillis(),
-    ): ContentSlate {
+    ): ContentSlate = exposureBudget.atomically {
         val proposed = rankedByIntent.mapNotNull { (intent, candidates) ->
             val eligible = candidates
                 .asSequence()
@@ -62,7 +66,7 @@ class SlateComposer {
                 .filter(exposureBudget::allows)
                 .take(intent.maximumItems)
                 .toList()
-            eligible.takeIf { it.size >= intent.minimumItems }?.let {
+            eligible.takeIf { it.isNotEmpty() && it.size >= intent.minimumItems }?.let {
                 ContentSection(
                     stableId = "${context.surface.name.lowercase()}:${intent.id}",
                     intent = intent,
@@ -80,7 +84,7 @@ class SlateComposer {
             )
         val sections = enforceCrossSectionConstraints(protected + optional)
         sections.forEach { exposureBudget.record(it.items) }
-        return ContentSlate(
+        ContentSlate(
             surface = context.surface,
             sessionId = context.sessionId,
             sections = sections,
@@ -139,18 +143,31 @@ class ContentOrchestrator(
         context: ContentContext,
         catalog: ContentCatalogSnapshot?,
         forceRefresh: Boolean = false,
+        now: Long = System.currentTimeMillis(),
     ): ContentSlate {
-        val cacheKey = "${context.sessionId}:${context.surface.name}"
-        if (!forceRefresh) sessionCache[cacheKey]?.let { return it }
         val (catalogVersion, intents) = intentResolver.resolve(catalog, context)
+        val cacheKey = cacheKey(context, catalogVersion, intents, now)
+        if (!forceRefresh) sessionCache[cacheKey]?.let { return it }
         val rankedByIntent = supervisorScope {
             intents.map { intent ->
                 async {
                     val candidates = providers.flatMap { provider ->
-                        runCatching { provider.candidates(intent, context) }
-                            .getOrDefault(emptyList())
+                        try {
+                            provider.candidates(intent, context)
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
                     }.distinctBy(ContentCandidate::id)
-                    intent to ranker.rank(candidates, intent, context)
+                    val ranked = try {
+                        ranker.rank(candidates, intent, context)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        candidates.sortedByDescending(ContentCandidate::retrievalScore)
+                    }
+                    intent to ranked
                 }
             }.map { it.await() }
         }
@@ -159,6 +176,7 @@ class ContentOrchestrator(
             catalogVersion = catalogVersion,
             rankedByIntent = rankedByIntent,
             exposureBudget = exposureBudget,
+            now = now,
         ).also { sessionCache[cacheKey] = it }
     }
 
@@ -169,6 +187,37 @@ class ContentOrchestrator(
     fun clearAll() {
         sessionCache.clear()
         exposureBudget.reset()
+    }
+
+    private fun cacheKey(
+        context: ContentContext,
+        catalogVersion: String,
+        intents: List<ContentIntent>,
+        now: Long,
+    ): String {
+        val refreshFingerprint = intents.joinToString(",") { intent ->
+            val token = when (intent.refreshPolicy) {
+                ContentRefreshPolicy.SESSION -> context.sessionId
+                ContentRefreshPolicy.MANUAL -> "manual"
+                ContentRefreshPolicy.DAYPART -> context.daypart.name
+                ContentRefreshPolicy.DAILY -> (now / DAY_MILLIS).toString()
+            }
+            "${intent.id}:${intent.refreshPolicy.name}:$token"
+        }
+        return listOf(
+            context.sessionId,
+            context.surface.name,
+            catalogVersion,
+            context.region,
+            context.subscriptionCount,
+            context.historyMaturity,
+            context.currentEpisodeId.orEmpty(),
+            refreshFingerprint,
+        ).joinToString(":")
+    }
+
+    companion object {
+        private const val DAY_MILLIS = 24L * 60L * 60L * 1_000L
     }
 }
 

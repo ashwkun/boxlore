@@ -684,12 +684,20 @@ class PodcastRepository(
         android.util.Log.d("PodcastRepository", "Recommendation cache miss; fetching candidates")
 
         try {
-            val results = fetchRecommendationV2(
-                history = podcastIndexHistory,
-                interests = interests,
-                country = country,
-                subscribedPodcastIds = podcastIndexSubscriptionIds,
-            ) ?: fetchLegacyRecommendations(
+            val v2Results = try {
+                fetchRecommendationV2(
+                    history = podcastIndexHistory,
+                    interests = interests,
+                    country = country,
+                    subscribedPodcastIds = podcastIndexSubscriptionIds,
+                )
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                android.util.Log.w("BoxCastRepo", "Recommendation v2 failed; using legacy", error)
+                null
+            }
+            val results = v2Results ?: fetchLegacyRecommendations(
                 history = podcastIndexHistory,
                 interests = interests,
                 country = country,
@@ -698,6 +706,8 @@ class PodcastRepository(
             )
             recommendationsCache[cacheKey] = Pair(results, now)
             results
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("BoxCastRepo", "Personalized Recommendations Error", e)
             emptyList()
@@ -950,6 +960,7 @@ class PodcastRepository(
             serverRank = item.serverRank,
             recommendationAlgorithmVersion = item.algorithmVersion,
             language = item.language,
+            podcastGenre = item.genre,
         )
     }
     suspend fun getPodcastType(feedId: String): String = withContext(Dispatchers.IO) {
@@ -1212,7 +1223,8 @@ private fun cx.aswin.boxcast.core.network.model.ContentCatalogResponse.toContent
                 subtitle = intent.subtitleFallback,
                 providerQueryRef = intent.providerQueryRef,
                 layout = layout,
-                refreshPolicy = cx.aswin.boxcast.core.data.content.ContentRefreshPolicy.SESSION,
+                refreshPolicy = intent.refreshPolicy.toContentRefreshPolicy()
+                    ?: cx.aswin.boxcast.core.data.content.ContentRefreshPolicy.SESSION,
                 minimumItems = intent.minCandidates,
                 maximumItems = intent.maxCandidates,
                 protected = intent.layout == "protected_card",
@@ -1253,6 +1265,17 @@ private fun String.toContentLayout(): cx.aswin.boxcast.core.data.content.Content
         "podcast_rail" -> cx.aswin.boxcast.core.data.content.ContentLayout.PODCAST_RAIL
         "compact_list" -> cx.aswin.boxcast.core.data.content.ContentLayout.COMPACT_LIST
         "protected_card" -> cx.aswin.boxcast.core.data.content.ContentLayout.PROTECTED_CARD
+        else -> null
+    }
+}
+
+private fun String?.toContentRefreshPolicy():
+    cx.aswin.boxcast.core.data.content.ContentRefreshPolicy? {
+    return when (this?.lowercase()) {
+        "session" -> cx.aswin.boxcast.core.data.content.ContentRefreshPolicy.SESSION
+        "manual" -> cx.aswin.boxcast.core.data.content.ContentRefreshPolicy.MANUAL
+        "daypart" -> cx.aswin.boxcast.core.data.content.ContentRefreshPolicy.DAYPART
+        "daily" -> cx.aswin.boxcast.core.data.content.ContentRefreshPolicy.DAILY
         else -> null
     }
 }

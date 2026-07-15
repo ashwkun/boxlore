@@ -39,15 +39,9 @@ class BoxLoreApplication : Application() {
 
         userPreferencesRepository = UserPreferencesRepository(this)
         engagementPromptCoordinator = EngagementPromptCoordinator(userPreferencesRepository)
-        try {
-            RankingFeedbackRepository.getInstance(this)
-        } catch (error: Exception) {
-            android.util.Log.e(
-                "BoxLoreApplication",
-                "Failed to initialize adaptive ranking",
-                error,
-            )
-        }
+        // getInstance installs a no-op fallback if Room initialization fails, keeping
+        // ranking optional without hiding unrelated startup programming errors here.
+        RankingFeedbackRepository.getInstance(this)
 
         val config = PostHogAndroidConfig(
             apiKey = BuildConfig.POSTHOG_API_KEY,
@@ -77,12 +71,7 @@ class BoxLoreApplication : Application() {
             PostHog.register("is_internal", false)
             PostHog.register("app_environment", "production")
         }
-        applicationScope.launch {
-            val statuses = AdaptiveRankingRepository.getInstance(this@BoxLoreApplication)
-                .aggregateTelemetry()
-            cx.aswin.boxcast.core.data.analytics.AnalyticsHelper
-                .trackAdaptiveRankingStatus(statuses)
-        }
+        reportAdaptiveRankingStatus()
 
         setupAppCheck()
 
@@ -114,6 +103,27 @@ class BoxLoreApplication : Application() {
             })
         } catch (e: Exception) {
             android.util.Log.e("BoxCastApp", "Failed to register connectivity observer", e)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun reportAdaptiveRankingStatus() {
+        applicationScope.launch {
+            try {
+                val statuses = AdaptiveRankingRepository.getInstance(this@BoxLoreApplication)
+                    .aggregateTelemetry()
+                cx.aswin.boxcast.core.data.analytics.AnalyticsHelper
+                    .trackAdaptiveRankingStatus(statuses)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // Aggregate telemetry is optional and must never destabilize app startup.
+                android.util.Log.w(
+                    "BoxLoreApplication",
+                    "Failed to report adaptive ranking status",
+                    error,
+                )
+            }
         }
     }
 

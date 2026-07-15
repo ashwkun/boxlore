@@ -46,16 +46,19 @@ class AdaptiveCandidateScorer private constructor(
         if (!runtimeControls.isAdaptiveEnabled(objective, surface)) return legacy
         val normalizedPriors = normalizePriors(legacy)
         val historyByPodcast = history.groupBy(ListeningHistoryEntity::podcastId)
-        val adaptive = podcasts.associate { podcast ->
+        val affinities = rankingRepository.facetAffinities(
+            podcasts.mapTo(mutableSetOf()) { podcast ->
+                PreferenceFacetKey(PreferenceFacetType.SHOW, podcast.id)
+            },
+            nowMs,
+        )
+        val featuresByPodcast = podcasts.associate { podcast ->
             val podcastHistory = historyByPodcast[podcast.id].orEmpty()
             val latestHistory = podcast.latestEpisode?.let { latest ->
                 podcastHistory.firstOrNull { it.episodeId == latest.id }
             }
-            val showAffinity = rankingRepository.facetAffinity(
-                PreferenceFacetType.SHOW,
-                podcast.id,
-                nowMs,
-            )
+            val showAffinity =
+                affinities[PreferenceFacetKey(PreferenceFacetType.SHOW, podcast.id)] ?: 0.0
             val features = CandidateFeatureBuilder.build(
                 CandidateSignals(
                     showAffinity = showAffinity.toUnitAffinity(),
@@ -77,13 +80,20 @@ class AdaptiveCandidateScorer private constructor(
                         ?.let { (nowMs - it).coerceAtLeast(0L) / 3_600_000.0 },
                 ),
             )
-            val score = rankingRepository.score(
-                objective = objective,
-                features = features,
-                priorScore = normalizedPriors[podcast.id] ?: 0.0,
-            )
-            podcast.id to score.finalScore
+            podcast.id to features
         }
+        val scores = rankingRepository.scoreBatch(
+            objective = objective,
+            inputs = podcasts.map { podcast ->
+                RankingScoreInput(
+                    features = featuresByPodcast.getValue(podcast.id),
+                    priorScore = normalizedPriors[podcast.id] ?: 0.0,
+                )
+            },
+        )
+        val adaptive = podcasts.mapIndexed { index, podcast ->
+            podcast.id to scores[index].finalScore
+        }.toMap()
         recordShadowComparison(objective, legacy, adaptive)
         return adaptive
     }
@@ -99,24 +109,27 @@ class AdaptiveCandidateScorer private constructor(
         val normalizedPriors = normalizePriors(inputs.associate { it.episode.id to it.priorScore })
         if (!runtimeControls.isAdaptiveEnabled(objective, surface)) return normalizedPriors
         val historyByEpisode = history.associateBy(ListeningHistoryEntity::episodeId)
-        val adaptive = inputs.associate { input ->
+        val facetKeys = buildSet {
+            inputs.forEach { input ->
+                add(PreferenceFacetKey(PreferenceFacetType.SHOW, input.podcast.id))
+                add(PreferenceFacetKey(PreferenceFacetType.SOURCE, input.source.name))
+                input.podcast.rankingGenres().forEach { genre ->
+                    add(PreferenceFacetKey(PreferenceFacetType.GENRE, genre))
+                }
+            }
+        }
+        val affinities = rankingRepository.facetAffinities(facetKeys, nowMs)
+        val featuresByEpisode = inputs.associate { input ->
             val episodeHistory = historyByEpisode[input.episode.id]
-            val showAffinity = rankingRepository.facetAffinity(
-                PreferenceFacetType.SHOW,
-                input.podcast.id,
-                nowMs,
-            )
-            val genreAffinity = input.podcast.genre
-                .split(",")
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .map { rankingRepository.facetAffinity(PreferenceFacetType.GENRE, it, nowMs) }
+            val showAffinity =
+                affinities[PreferenceFacetKey(PreferenceFacetType.SHOW, input.podcast.id)] ?: 0.0
+            val genreAffinity = input.podcast.rankingGenres()
+                .map { genre ->
+                    affinities[PreferenceFacetKey(PreferenceFacetType.GENRE, genre)] ?: 0.0
+                }
                 .averageOrNeutral()
-            val sourceAffinity = rankingRepository.facetAffinity(
-                PreferenceFacetType.SOURCE,
-                input.source.name,
-                nowMs,
-            )
+            val sourceAffinity =
+                affinities[PreferenceFacetKey(PreferenceFacetType.SOURCE, input.source.name)] ?: 0.0
             val features = CandidateFeatureBuilder.build(
                 CandidateSignals(
                     showAffinity = showAffinity.toUnitAffinity(),
@@ -147,13 +160,20 @@ class AdaptiveCandidateScorer private constructor(
                         ?.let { (nowMs - it).coerceAtLeast(0L) / 3_600_000.0 },
                 ),
             )
-            val score = rankingRepository.score(
-                objective = objective,
-                features = features,
-                priorScore = normalizedPriors[input.episode.id] ?: 0.0,
-            )
-            input.episode.id to score.finalScore
+            input.episode.id to features
         }
+        val scores = rankingRepository.scoreBatch(
+            objective = objective,
+            inputs = inputs.map { input ->
+                RankingScoreInput(
+                    features = featuresByEpisode.getValue(input.episode.id),
+                    priorScore = normalizedPriors[input.episode.id] ?: 0.0,
+                )
+            },
+        )
+        val adaptive = inputs.mapIndexed { index, input ->
+            input.episode.id to scores[index].finalScore
+        }.toMap()
         recordShadowComparison(objective, normalizedPriors, adaptive)
         return adaptive
     }
@@ -179,7 +199,9 @@ class AdaptiveCandidateScorer private constructor(
         }
         val ranked = DiversityReranker.rerank(candidates, diversityPolicy)
             .map(RankedCandidate<Episode>::value)
-        if (runtimeControls.isShadowDiagnosticsEnabled()) {
+        if (runtimeControls.isShadowDiagnosticsEnabled() &&
+            runtimeControls.isAdaptiveEnabled(objective, surface)
+        ) {
             RankingShadowDiagnostics.record(
                 objective = objective,
                 priorOrder = inputs.sortedByDescending(EpisodeRankingInput::priorScore)
@@ -201,31 +223,41 @@ class AdaptiveCandidateScorer private constructor(
         if (inputs.isEmpty()) return emptyList()
         val normalizedPriors = normalizePriors(inputs.associate { it.podcast.id to it.priorScore })
         val historyByPodcast = history.groupBy(ListeningHistoryEntity::podcastId)
-        val scored = inputs.map { input ->
+        val adaptiveEnabled = runtimeControls.isAdaptiveEnabled(objective, surface)
+        val facetKeys = if (adaptiveEnabled) {
+            buildSet {
+                inputs.forEach { input ->
+                    add(PreferenceFacetKey(PreferenceFacetType.SHOW, input.podcast.id))
+                    add(PreferenceFacetKey(PreferenceFacetType.SOURCE, input.source.name))
+                    input.podcast.rankingGenres().forEach { genre ->
+                        add(PreferenceFacetKey(PreferenceFacetType.GENRE, genre))
+                    }
+                }
+            }
+        } else {
+            emptySet()
+        }
+        val affinities = rankingRepository.facetAffinities(facetKeys, nowMs)
+        val features = inputs.map { input ->
             val podcast = input.podcast
             val latestHistory = podcast.latestEpisode?.let { episode ->
                 historyByPodcast[podcast.id].orEmpty().firstOrNull { it.episodeId == episode.id }
             }
-            val showAffinity = rankingRepository.facetAffinity(
-                PreferenceFacetType.SHOW,
-                podcast.id,
-                nowMs,
-            )
-            val genreAffinity = podcast.genre
-                .split(",")
-                .map(String::trim)
-                .filter(String::isNotEmpty)
-                .map { rankingRepository.facetAffinity(PreferenceFacetType.GENRE, it, nowMs) }
+            val showAffinity =
+                affinities[PreferenceFacetKey(PreferenceFacetType.SHOW, podcast.id)] ?: 0.0
+            val genreAffinity = podcast.rankingGenres()
+                .map { genre ->
+                    affinities[PreferenceFacetKey(PreferenceFacetType.GENRE, genre)] ?: 0.0
+                }
                 .averageOrNeutral()
-            val features = CandidateFeatureBuilder.build(
+            CandidateFeatureBuilder.build(
                 CandidateSignals(
                     showAffinity = showAffinity.toUnitAffinity(),
                     genreAffinity = genreAffinity.toUnitAffinity(),
-                    sourceAffinity = rankingRepository.facetAffinity(
-                        PreferenceFacetType.SOURCE,
-                        input.source.name,
-                        nowMs,
-                    ).toUnitAffinity(),
+                    sourceAffinity = (
+                        affinities[PreferenceFacetKey(PreferenceFacetType.SOURCE, input.source.name)]
+                            ?: 0.0
+                        ).toUnitAffinity(),
                     ageHours = podcast.latestEpisode?.let { episode ->
                         (nowMs / 1_000.0 - episode.publishedDate).coerceAtLeast(0.0) / 3_600.0
                     },
@@ -246,16 +278,24 @@ class AdaptiveCandidateScorer private constructor(
                         ?.let { (nowMs - it).coerceAtLeast(0L) / 3_600_000.0 },
                 ),
             )
+        }
+        val adaptiveScores = if (adaptiveEnabled) {
+            rankingRepository.scoreBatch(
+                objective = objective,
+                inputs = inputs.mapIndexed { index, input ->
+                    RankingScoreInput(
+                        features = features[index],
+                        priorScore = normalizedPriors[input.podcast.id] ?: 0.0,
+                    )
+                },
+            )
+        } else {
+            emptyList()
+        }
+        val scored = inputs.mapIndexed { index, input ->
+            val podcast = input.podcast
             val priorScore = normalizedPriors[podcast.id] ?: 0.0
-            val finalScore = if (runtimeControls.isAdaptiveEnabled(objective, surface)) {
-                rankingRepository.score(
-                    objective = objective,
-                    features = features,
-                    priorScore = priorScore,
-                ).finalScore
-            } else {
-                priorScore
-            }
+            val finalScore = adaptiveScores.getOrNull(index)?.finalScore ?: priorScore
             RankedCandidate(
                 value = podcast,
                 episodeId = podcast.id,
@@ -272,7 +312,9 @@ class AdaptiveCandidateScorer private constructor(
             DiversityReranker.rerank(scored, diversityPolicy)
         }
         val ranked = ordered.map(RankedCandidate<Podcast>::value)
-        if (runtimeControls.isShadowDiagnosticsEnabled()) {
+        if (runtimeControls.isShadowDiagnosticsEnabled() &&
+            runtimeControls.isAdaptiveEnabled(objective, surface)
+        ) {
             RankingShadowDiagnostics.record(
                 objective = objective,
                 priorOrder = inputs.sortedByDescending(PodcastRankingInput::priorScore)
@@ -332,6 +374,11 @@ private fun ListeningHistoryEntity?.progressRatio(): Double {
 }
 
 private fun List<Double>.averageOrNeutral(): Double = if (isEmpty()) 0.0 else average()
+
+private fun Podcast.rankingGenres(): List<String> = genre
+    .split(",")
+    .map(String::trim)
+    .filter(String::isNotEmpty)
 
 private fun durationFit(durationSeconds: Int): Double {
     if (durationSeconds <= 0) return 0.5

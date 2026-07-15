@@ -260,26 +260,31 @@ class DefaultSmartQueueEngine(
     ): List<QueueEntry> {
         val scorer = adaptiveScorer ?: return fallback
         val history = runSuspendCatching { sources.getRecentHistory(300) }.getOrDefault(emptyList())
-        val rankedEpisodes = scorer.rankEpisodes(
-            inputs = fallback.mapIndexed { index, entry ->
-                EpisodeRankingInput(
-                    episode = entry.toRankingEpisode(),
-                    podcast = entry.podcast,
-                    priorScore = (fallback.size - index).toDouble(),
-                    source = entry.source.toCandidateSource(),
-                    isNovel = entry.podcast.id !in recentPodcastIds,
-                )
-            },
-            history = history,
-            objective = RankingObjective.CONTINUATION,
-            surface = RankingSurface.QUEUE,
-            diversityPolicy = DiversityPolicy(
-                limit = fallback.size,
-                maxPerShow = 2,
-                recentPodcastIds = recentPodcastIds,
-                reserveNovelSlot = true,
-            ),
-        )
+        val rankedEpisodes = runSuspendCatching {
+            scorer.rankEpisodes(
+                inputs = fallback.mapIndexed { index, entry ->
+                    EpisodeRankingInput(
+                        episode = entry.toRankingEpisode(),
+                        podcast = entry.podcast,
+                        priorScore = (fallback.size - index).toDouble(),
+                        source = entry.source.toCandidateSource(),
+                        isNovel = entry.podcast.id !in recentPodcastIds,
+                    )
+                },
+                history = history,
+                objective = RankingObjective.CONTINUATION,
+                surface = RankingSurface.QUEUE,
+                diversityPolicy = DiversityPolicy(
+                    limit = fallback.size,
+                    maxPerShow = 2,
+                    recentPodcastIds = recentPodcastIds,
+                    reserveNovelSlot = true,
+                ),
+            )
+        }.getOrElse {
+            android.util.Log.w(LOG_TAG, "Adaptive fallback ranking failed", it)
+            return fallback
+        }
         val entryByEpisode = fallback.associateBy { it.episode.id.toString() }
         return rankedEpisodes.mapNotNull { entryByEpisode[it.id] }
     }

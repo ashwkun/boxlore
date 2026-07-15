@@ -540,13 +540,24 @@ class SmartDownloadManager(
             val resolvedSerial = resolveOldestSerialNextEpisodes(subs, allHistory, completedEpisodeIds)
 
             val historyByEpisode = allHistory.associateBy { it.episodeId }
-            val podScoresMap = adaptiveScorer.scorePodcasts(
-                podcasts = subs.map { it.toScorable() },
-                history = allHistory,
-                objective = RankingObjective.OFFLINE,
-                surface = RankingSurface.DOWNLOADS,
-                includeAutoDownloadBoost = false,
-            )
+            val podScoresMap = try {
+                adaptiveScorer.scorePodcasts(
+                    podcasts = subs.map { it.toScorable() },
+                    history = allHistory,
+                    objective = RankingObjective.OFFLINE,
+                    surface = RankingSurface.DOWNLOADS,
+                    includeAutoDownloadBoost = false,
+                )
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w("SmartDownloadManager", "Adaptive podcast scoring failed", error)
+                PodcastScoring.calculateScores(
+                    podcasts = subs.map { it.toScorable() },
+                    allHistory = allHistory,
+                    includeAutoDownloadBoost = false,
+                )
+            }
 
             val initialCandidates = generateMixtapeCandidates(
                 subs,
@@ -555,24 +566,31 @@ class SmartDownloadManager(
                 resolvedSerial,
                 podScoresMap,
             )
-            val adaptiveScores = adaptiveScorer.scoreEpisodes(
-                inputs = initialCandidates.map { candidate ->
-                    EpisodeRankingInput(
-                        episode = candidate.episode,
-                        podcast = candidate.podcast,
-                        priorScore = candidate.score,
-                        source = if (candidate.isProgress) {
-                            CandidateSource.LOCAL_HISTORY
-                        } else {
-                            CandidateSource.SUBSCRIPTION
-                        },
-                        online = false,
-                    )
-                },
-                history = allHistory,
-                objective = RankingObjective.OFFLINE,
-                surface = RankingSurface.DOWNLOADS,
-            )
+            val adaptiveScores = try {
+                adaptiveScorer.scoreEpisodes(
+                    inputs = initialCandidates.map { candidate ->
+                        EpisodeRankingInput(
+                            episode = candidate.episode,
+                            podcast = candidate.podcast,
+                            priorScore = candidate.score,
+                            source = if (candidate.isProgress) {
+                                CandidateSource.LOCAL_HISTORY
+                            } else {
+                                CandidateSource.SUBSCRIPTION
+                            },
+                            online = false,
+                        )
+                    },
+                    history = allHistory,
+                    objective = RankingObjective.OFFLINE,
+                    surface = RankingSurface.DOWNLOADS,
+                )
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w("SmartDownloadManager", "Adaptive episode scoring failed", error)
+                initialCandidates.associate { it.episodeId to it.score }
+            }
             val orderedCandidates = initialCandidates
                 .map { candidate ->
                     candidate.copy(

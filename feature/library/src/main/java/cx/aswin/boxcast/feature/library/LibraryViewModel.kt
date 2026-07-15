@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 enum class SubscriptionSort { SmartRank, RecentlyUpdated, Alphabetical, MostListened }
@@ -112,12 +113,18 @@ class LibraryViewModel(
                 )
             }
         }
-        return adaptiveScorer.scoreEpisodes(
-            inputs = inputs,
-            history = history,
-            objective = RankingObjective.YOUR_SHOWS,
-            surface = RankingSurface.LIBRARY,
-        )
+        return try {
+            adaptiveScorer.scoreEpisodes(
+                inputs = inputs,
+                history = history,
+                objective = RankingObjective.YOUR_SHOWS,
+                surface = RankingSurface.LIBRARY,
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            inputs.associate { it.episode.id to it.priorScore }
+        }
     }
 
     val hideCompletedInSubs: StateFlow<Boolean> = userPreferencesRepository.hideCompletedInSubsStream
@@ -170,15 +177,21 @@ class LibraryViewModel(
         // Apply sorting
         val sortedPodcasts = when (sort) {
             SubscriptionSort.SmartRank -> {
-                val podScoresMap = adaptiveScorer.scorePodcasts(
-                    podcasts = enrichedPodcasts.map { it.toScorable() },
-                    history = allHistory,
-                    objective = RankingObjective.YOUR_SHOWS,
-                    surface = RankingSurface.LIBRARY,
-                )
+                val podScoresMap = try {
+                    adaptiveScorer.scorePodcasts(
+                        podcasts = enrichedPodcasts.map { it.toScorable() },
+                        history = allHistory,
+                        objective = RankingObjective.YOUR_SHOWS,
+                        surface = RankingSurface.LIBRARY,
+                    )
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    emptyMap()
+                }
 
                 enrichedPodcasts.map { pod ->
-                    pod to (podScoresMap[pod.id] ?: 0.0)
+                    pod to (podScoresMap[pod.id] ?: pod.latestEpisode?.publishedDate?.toDouble() ?: 0.0)
                 }.sortedWith(
                     compareByDescending<Pair<Podcast, Double>> { it.second }
                         .thenBy { it.first.title }

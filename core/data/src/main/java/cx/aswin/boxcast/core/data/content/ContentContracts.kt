@@ -112,6 +112,7 @@ data class ContentSection(
 ) {
     init {
         require(stableId.isNotBlank())
+        require(items.isNotEmpty())
         require(utility.isFinite())
     }
 }

@@ -61,8 +61,9 @@ class LibraryBackupManager(
     private val playbackRepository: PlaybackRepository,
     private val podcastRepository: PodcastRepository,
     private val userPrefs: cx.aswin.boxcast.core.data.UserPreferencesRepository? = null,
-    private val context: android.content.Context? = null
+    context: android.content.Context,
 ) {
+    private val context = context.applicationContext
     private val gson: Gson = GsonBuilder()
         .setPrettyPrinting()
         .create()
@@ -101,10 +102,7 @@ class LibraryBackupManager(
             )
         } else null
 
-        val appContext = requireNotNull(context) {
-            "A context is required to export a complete JSON backup"
-        }
-        val rankingBackup = AdaptiveRankingRepository.getInstance(appContext).exportBackup()
+        val rankingBackup = AdaptiveRankingRepository.getInstance(context).exportBackup()
         val backup = BoxCastBackup(
             version = 5,
             subscriptions = subscriptions,
@@ -172,14 +170,12 @@ class LibraryBackupManager(
                     prefs.hideCompletedInSubs?.let { up.setHideCompletedInSubs(it) }
                     prefs.smartDownloadsEnabled?.let { enabled ->
                         up.setSmartDownloadsEnabled(enabled)
-                        if (context != null) {
-                            if (enabled) {
-                                val wifiOnly = prefs.smartDownloadsWifiOnly ?: true
-                                val chargingOnly = prefs.smartDownloadsChargingOnly ?: false
-                                cx.aswin.boxcast.core.data.SmartDownloadManager.schedulePeriodicSync(context, wifiOnly, chargingOnly)
-                            } else {
-                                cx.aswin.boxcast.core.data.SmartDownloadManager.cancelPeriodicSync(context)
-                            }
+                        if (enabled) {
+                            val wifiOnly = prefs.smartDownloadsWifiOnly ?: true
+                            val chargingOnly = prefs.smartDownloadsChargingOnly ?: false
+                            cx.aswin.boxcast.core.data.SmartDownloadManager.schedulePeriodicSync(context, wifiOnly, chargingOnly)
+                        } else {
+                            cx.aswin.boxcast.core.data.SmartDownloadManager.cancelPeriodicSync(context)
                         }
                     }
                     prefs.smartDownloadsMaxEpisodes?.let { up.setSmartDownloadsMaxEpisodes(it) }
@@ -327,10 +323,7 @@ class LibraryBackupManager(
             // 3. Restore the complete on-device learning state when present. Older backups
             // remain compatible because this versioned field is optional.
             backup.adaptiveRanking?.let { rankingBackup ->
-                val appContext = requireNotNull(context) {
-                    "A context is required to restore adaptive ranking"
-                }
-                AdaptiveRankingRepository.getInstance(appContext).restoreBackup(rankingBackup)
+                AdaptiveRankingRepository.getInstance(context).restoreBackup(rankingBackup)
             }
             
             // 4. Trigger check for new episodes

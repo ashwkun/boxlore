@@ -168,6 +168,13 @@ object ModeSwitchState {
     fun finish() { _isSwitching.value = false }
 }
 
+private data class AdaptiveContentTrigger(
+    val region: String,
+    val subscriptionIds: Set<String>,
+    val latestEpisodeId: String?,
+    val latestPodcastId: String?,
+    val historyMaturity: Int,
+)
 
 @Suppress("kotlin:S6310")
 class HomeViewModel(
@@ -231,7 +238,7 @@ class HomeViewModel(
     private val _isRecommendationsFallback = MutableStateFlow(true)
     private val _adaptiveSections = MutableStateFlow<List<ContentSection>>(emptyList())
     private val adaptiveContentSessionId = java.util.UUID.randomUUID().toString()
-    private val exposedAdaptiveSections = mutableSetOf<String>()
+    private val exposedAdaptiveCandidates = mutableSetOf<String>()
     private val contentContextEngine = ContentContextEngine()
     private val contentOrchestrator = ContentOrchestrator(
         providers = listOf(
@@ -854,42 +861,65 @@ class HomeViewModel(
 
     private fun loadAdaptiveContent() {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            runCatching {
-                val region = userPrefs.regionStream.first()
-                val subscriptions = subscriptionRepository.subscribedPodcasts.first()
-                val history = playbackRepository.getAllHistory().first()
+            combine(
+                userPrefs.regionStream,
+                subscriptionRepository.subscribedPodcasts,
+                playbackRepository.getAllHistory(),
+            ) { region, subscriptions, history ->
                 val latestHistory = history.maxByOrNull(ListeningHistoryEntity::lastPlayedAt)
-                val context = contentContextEngine.create(
-                    ContentContextInput(
-                        surface = RankingSurface.HOME,
-                        region = region,
-                        isDriving = false,
-                        isOnline = true,
-                        availableMinutes = null,
-                        currentEpisodeId = latestHistory?.episodeId,
-                        currentPodcastId = latestHistory?.podcastId,
-                        historyMaturity = history.size,
-                        subscriptionCount = subscriptions.size,
-                        sessionId = adaptiveContentSessionId,
-                    ),
+                AdaptiveContentTrigger(
+                    region = region,
+                    subscriptionIds = subscriptions.map(Podcast::id).toSet(),
+                    latestEpisodeId = latestHistory?.episodeId,
+                    latestPodcastId = latestHistory?.podcastId,
+                    historyMaturity = history.size,
                 )
-                contentOrchestrator.compose(
-                    context = context,
-                    catalog = podcastRepository.getContentCatalog(),
-                )
-            }.onSuccess { slate ->
-                _adaptiveSections.value = slate.sections
-            }.onFailure { error ->
-                if (error is CancellationException) throw error
-                android.util.Log.w("HomeViewModel", "Adaptive content composition failed", error)
+            }.distinctUntilChanged().collectLatest { trigger ->
+                try {
+                    val context = contentContextEngine.create(
+                        ContentContextInput(
+                            surface = RankingSurface.HOME,
+                            region = trigger.region,
+                            isDriving = false,
+                            isOnline = true,
+                            availableMinutes = null,
+                            currentEpisodeId = trigger.latestEpisodeId,
+                            currentPodcastId = trigger.latestPodcastId,
+                            historyMaturity = trigger.historyMaturity,
+                            subscriptionCount = trigger.subscriptionIds.size,
+                            sessionId = adaptiveContentSessionId,
+                        ),
+                    )
+                    val slate = contentOrchestrator.compose(
+                        context = context,
+                        catalog = podcastRepository.getContentCatalog(),
+                        forceRefresh = true,
+                    )
+                    _adaptiveSections.value = slate.sections
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    android.util.Log.w(
+                        "HomeViewModel",
+                        "Adaptive content composition failed",
+                        error,
+                    )
+                }
             }
         }
     }
 
-    fun trackAdaptiveSectionVisible(section: ContentSection) {
-        if (!exposedAdaptiveSections.add(section.stableId)) return
+    fun trackAdaptiveSectionVisible(
+        section: ContentSection,
+        visibleCandidateIds: Set<String>,
+    ) {
+        val newlyVisible = section.items.filter { candidate ->
+            candidate.id in visibleCandidateIds &&
+                exposedAdaptiveCandidates.add("${section.stableId}:${candidate.id}")
+        }
+        if (newlyVisible.isEmpty()) return
         viewModelScope.launch {
-            section.items.forEach { candidate ->
+            newlyVisible.forEach { candidate ->
                 rankingFeedback.recordExposure(
                     RankingExposure(
                         episodeId = candidate.id,
@@ -2234,6 +2264,7 @@ class HomeViewModel(
         episodes: List<Episode>,
     ): Pair<List<Podcast>, List<Episode>> {
         val history = database.listeningHistoryDao().getRecentHistoryList(300)
+        val subscribedIds = subscriptionRepository.subscribedPodcastIds.first()
         val podcastById = podcasts.associateBy(Podcast::id)
         val podcastInputs = podcasts.mapIndexedNotNull { index, candidate ->
             candidate.latestEpisode?.let { episode ->
@@ -2242,7 +2273,7 @@ class HomeViewModel(
                     podcast = candidate,
                     priorScore = (podcasts.size - index).toDouble(),
                     source = CandidateSource.SERVER_RECOMMENDATION,
-                    isNovel = true,
+                    isNovel = candidate.id !in subscribedIds,
                 )
             }
         }
@@ -2252,7 +2283,7 @@ class HomeViewModel(
                 podcast = podcastById[episode.podcastId] ?: episode.toRecommendationPodcast(),
                 priorScore = (episodes.size - index).toDouble(),
                 source = CandidateSource.SERVER_RECOMMENDATION,
-                isNovel = episode.podcastId !in podcastById,
+                isNovel = episode.podcastId !in subscribedIds,
             )
         }
         val podcastScores = adaptiveScorer.scoreEpisodes(

@@ -153,6 +153,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
     
     private var playbackSessionBufferingStartTimeMs: Long = 0L
     private var playbackSessionTotalBufferedTimeMs: Long = 0L
+    private var playbackSessionConsumedAudioMs: Long = 0L
+    private var playbackSessionLastPositionMs: Long? = null
+    private var playbackSessionLastPositionSampleMs: Long = 0L
     // Remembers the episode that was paused so a subsequent play() with no explicit source
     // (e.g. from the notification / lock screen / Bluetooth) can be attributed as a resume.
     private var lastPausedEpisodeId: String? = null
@@ -277,6 +280,8 @@ class BoxLorePlaybackService : MediaLibraryService() {
                 reason: Int
             ) {
                 android.util.Log.d("BoxCastPlayer", "onPositionDiscontinuity: reason=$reason, from ${oldPosition.positionMs} to ${newPosition.positionMs}")
+                playbackSessionLastPositionMs = newPosition.positionMs
+                playbackSessionLastPositionSampleMs = android.os.SystemClock.elapsedRealtime()
                 if (reason == Player.DISCONTINUITY_REASON_SEEK) {
                     updateHeartbeatsForPosition(newPosition.positionMs, playbackSessionTotalDurationMs)
                     val source = cx.aswin.boxcast.core.data.analytics.AnalyticsHelper.consumeSeekSource()
@@ -1284,6 +1289,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
         playbackSessionStartTimeMs = System.currentTimeMillis()
         playbackSessionBufferingStartTimeMs = 0L
         playbackSessionTotalBufferedTimeMs = 0L
+        playbackSessionConsumedAudioMs = 0L
+        playbackSessionLastPositionMs = mediaSession?.player?.currentPosition
+        playbackSessionLastPositionSampleMs = android.os.SystemClock.elapsedRealtime()
         playbackSessionEpisodeId = episodeId
         
         val title = currentItem?.mediaMetadata?.title?.toString()
@@ -1465,8 +1473,10 @@ class BoxLorePlaybackService : MediaLibraryService() {
     private fun endPlaybackSession(forceCompleted: Boolean = false, isTransition: Boolean = false) {
         val currentEpisodeId = playbackSessionEpisodeId
         if (playbackSessionStartTimeMs > 0 && currentEpisodeId != null) {
+            mediaSession?.player?.let(::updateConsumedAudio)
             val durationPlayedMs = System.currentTimeMillis() - playbackSessionStartTimeMs
             val durationPlayedSeconds = durationPlayedMs / 1000f
+            val consumedAudioSeconds = playbackSessionConsumedAudioMs / 1000f
             val currentPodcastId = playbackSessionPodcastId
             val currentPodcastName = playbackSessionPodcastName
             val currentPodcastGenre = playbackSessionPodcastGenre
@@ -1566,7 +1576,7 @@ class BoxLorePlaybackService : MediaLibraryService() {
                 // Track skip if it's a transition skip within 30 seconds for an AUTO_FILL episode.
                 // Also feed local skip memory so the SmartQueueEngine never re-suggests it
                 // and can down-rank the podcast after repeated rejections.
-                if (isTransition && durationPlayedSeconds <= 30f && playbackSessionContextType == "AUTO_FILL") {
+                if (isTransition && consumedAudioSeconds <= 30f && playbackSessionContextType == "AUTO_FILL") {
                     cx.aswin.boxcast.core.data.analytics.AnalyticsHelper.trackSmartQueueEpisodeSkipped(
                         episodeId = currentEpisodeId,
                         recommendationSource = playbackSessionContextSourceId ?: "unknown",
@@ -1591,7 +1601,7 @@ class BoxLorePlaybackService : MediaLibraryService() {
                 else -> null
             }
             val isAdaptiveEarlySkip = isTransition &&
-                durationPlayedSeconds <= 30f &&
+                consumedAudioSeconds <= 30f &&
                 adaptiveSource != null
             serviceScope.launch {
                 rankingFeedbackRepository.recordPlayback(
@@ -1601,7 +1611,7 @@ class BoxLorePlaybackService : MediaLibraryService() {
                         genre = currentPodcastGenre,
                         source = adaptiveSource,
                     ),
-                    listenSeconds = durationPlayedSeconds.toLong().coerceAtLeast(0L),
+                    listenSeconds = consumedAudioSeconds.toLong().coerceAtLeast(0L),
                     durationSeconds = (totalDurationMs / 1_000L).coerceAtLeast(0L),
                     completed = isCompleted,
                     earlySkip = isAdaptiveEarlySkip,
@@ -1615,6 +1625,9 @@ class BoxLorePlaybackService : MediaLibraryService() {
             playbackSessionStartTimeMs = 0L
             playbackSessionBufferingStartTimeMs = 0L
             playbackSessionTotalBufferedTimeMs = 0L
+            playbackSessionConsumedAudioMs = 0L
+            playbackSessionLastPositionMs = null
+            playbackSessionLastPositionSampleMs = 0L
             playbackSessionEpisodeId = null
             playbackSessionEpisodeTitle = null
             playbackSessionPodcastId = null
@@ -1847,6 +1860,7 @@ class BoxLorePlaybackService : MediaLibraryService() {
         var tickCount = 0
         while (true) {
             kotlinx.coroutines.delay(1_000)
+            updateConsumedAudio(player)
             
             // Continuous Service-Level Sleep Timer Enforcement (fires even when locked in Doze mode)
             val sleepEnd = cx.aswin.boxcast.core.data.SleepTimerHolder.activeSleepTimerEndMs
@@ -1864,6 +1878,24 @@ class BoxLorePlaybackService : MediaLibraryService() {
                 dispatchHeartbeatTelemetry(player)
             }
         }
+    }
+
+    private fun updateConsumedAudio(player: Player) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        val currentPosition = player.currentPosition.coerceAtLeast(0L)
+        val previousPosition = playbackSessionLastPositionMs
+        val previousSample = playbackSessionLastPositionSampleMs
+        if (player.isPlaying && previousPosition != null && previousSample > 0L) {
+            val positionAdvance = currentPosition - previousPosition
+            val elapsed = (now - previousSample).coerceAtLeast(0L)
+            val maximumNaturalAdvance =
+                (elapsed * player.playbackParameters.speed * 1.5f).toLong() + 1_000L
+            if (positionAdvance in 0..maximumNaturalAdvance) {
+                playbackSessionConsumedAudioMs += positionAdvance
+            }
+        }
+        playbackSessionLastPositionMs = currentPosition
+        playbackSessionLastPositionSampleMs = now
     }
 
     private fun dispatchHeartbeatTelemetry(player: ExoPlayer) {

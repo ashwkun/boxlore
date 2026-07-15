@@ -7,10 +7,13 @@ import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import cx.aswin.boxcast.core.model.Podcast
 import cx.aswin.boxcast.core.network.model.RecommendationSeedV2
 import cx.aswin.boxcast.core.network.model.RecommendationsV2Request
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 class ContentOrchestratorTest {
@@ -79,6 +82,92 @@ class ContentOrchestratorTest {
     }
 
     @Test
+    fun `content section rejects an empty item list`() {
+        try {
+            ContentSection(
+                stableId = "empty",
+                intent = intent("empty"),
+                items = emptyList(),
+                utility = 0.0,
+            )
+            fail("Expected empty section to be rejected")
+        } catch (_: IllegalArgumentException) {
+            // Expected.
+        }
+    }
+
+    @Test
+    fun `ranker failure falls back to retrieval order`() = runTest {
+        val orchestrator = ContentOrchestrator(
+            providers = listOf(
+                provider(CandidateSource.SERVER_RECOMMENDATION) {
+                    listOf(
+                        candidate("low", "show-a", score = 0.2),
+                        candidate("high", "show-b", score = 0.9),
+                    )
+                },
+            ),
+            ranker = ContentCandidateRanker { _, _, _ -> error("ranking unavailable") },
+        )
+
+        val slate = orchestrator.compose(context(), catalog())
+
+        assertEquals(listOf("high", "low"), slate.sections.single().items.map(ContentCandidate::id))
+    }
+
+    @Test
+    fun `provider cancellation is never converted to an empty result`() = runTest {
+        val orchestrator = ContentOrchestrator(
+            providers = listOf(
+                provider(CandidateSource.TRENDING) {
+                    throw CancellationException("cancelled")
+                },
+            ),
+            ranker = ContentCandidateRanker { candidates, _, _ -> candidates },
+        )
+
+        try {
+            orchestrator.compose(context(), catalog())
+            fail("Expected cancellation")
+        } catch (_: CancellationException) {
+            // Expected: structured concurrency must remain cancellable.
+        }
+    }
+
+    @Test
+    fun `daily refresh policy invalidates slate on the next day`() = runTest {
+        var calls = 0
+        val dailyIntent = intent("daily", refreshPolicy = ContentRefreshPolicy.DAILY)
+        val dailyCatalog = ContentCatalogSnapshot(
+            schemaVersion = 1,
+            catalogVersion = "daily-test",
+            validUntil = Long.MAX_VALUE,
+            intents = listOf(dailyIntent),
+        )
+        val orchestrator = ContentOrchestrator(
+            providers = listOf(
+                provider(CandidateSource.TRENDING) {
+                    calls++
+                    listOf(candidate("episode-$calls", "show-$calls", score = 1.0))
+                },
+            ),
+            ranker = ContentCandidateRanker { candidates, _, _ -> candidates },
+        )
+
+        val first = orchestrator.compose(context(), dailyCatalog, now = 1)
+        val cached = orchestrator.compose(context(), dailyCatalog, now = 2)
+        val nextDay = orchestrator.compose(
+            context(),
+            dailyCatalog,
+            now = 24L * 60L * 60L * 1_000L,
+        )
+
+        assertSame(first, cached)
+        assertNotSame(first, nextDay)
+        assertEquals(2, calls)
+    }
+
+    @Test
     fun `recommendation v2 request excludes raw behavioral history`() {
         val request = RecommendationsV2Request(
             country = "us",
@@ -103,12 +192,17 @@ class ContentOrchestratorTest {
         intents = listOf(intent("discover")),
     )
 
-    private fun intent(id: String, protected: Boolean = false): ContentIntent = ContentIntent(
+    private fun intent(
+        id: String,
+        protected: Boolean = false,
+        refreshPolicy: ContentRefreshPolicy = ContentRefreshPolicy.SESSION,
+    ): ContentIntent = ContentIntent(
         id = id,
         objective = RankingObjective.DISCOVERY,
         eligibleSurfaces = setOf(RankingSurface.HOME),
         title = id,
         layout = ContentLayout.PODCAST_RAIL,
+        refreshPolicy = refreshPolicy,
         protected = protected,
     )
 
