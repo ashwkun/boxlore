@@ -28,8 +28,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Forward30
-import androidx.compose.material.icons.rounded.Replay10
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.Replay
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -88,7 +88,9 @@ data class MiniPlayerContent(
     val isPlaying: Boolean,
     val isLoading: Boolean,
     val position: Long,
-    val duration: Long
+    val duration: Long,
+    val seekBackwardSeconds: Int = 10,
+    val seekForwardSeconds: Int = 30,
 )
 
 data class MiniPlayerColors(
@@ -341,7 +343,9 @@ private fun MiniPlayerRow(
             colorScheme = colorScheme,
             onPlayPause = actions.onPlayPause,
             onReplay = actions.onReplay,
-            onForward = actions.onForward
+            onForward = actions.onForward,
+            seekBackwardSeconds = content.seekBackwardSeconds,
+            seekForwardSeconds = content.seekForwardSeconds,
         )
     }
 }
@@ -483,7 +487,9 @@ private fun MiniTransportButtons(
     colorScheme: ColorScheme,
     onPlayPause: () -> Unit,
     onReplay: () -> Unit,
-    onForward: () -> Unit
+    onForward: () -> Unit,
+    seekBackwardSeconds: Int,
+    seekForwardSeconds: Int,
 ) {
     val playShape = AbsoluteSmoothCornerShape(
         cornerRadiusTL = 14.dp, smoothnessAsPercentTL = 60,
@@ -497,8 +503,9 @@ private fun MiniTransportButtons(
         verticalAlignment = Alignment.CenterVertically
     ) {
         MiniSeekButton(
-            icon = Icons.Rounded.Replay10,
-            contentDescription = "Seek back 10 seconds",
+            seconds = seekBackwardSeconds,
+            forward = false,
+            contentDescription = "Seek back $seekBackwardSeconds seconds",
             isLoading = isLoading,
             colorScheme = colorScheme,
             shape = RoundedCornerShape(13.dp),
@@ -508,8 +515,9 @@ private fun MiniTransportButtons(
         MiniPlayButton(isPlaying, isLoading, colorScheme, playShape, onPlayPause)
 
         MiniSeekButton(
-            icon = Icons.Rounded.Forward30,
-            contentDescription = "Seek forward 30 seconds",
+            seconds = seekForwardSeconds,
+            forward = true,
+            contentDescription = "Seek forward $seekForwardSeconds seconds",
             isLoading = isLoading,
             colorScheme = colorScheme,
             shape = RoundedCornerShape(13.dp),
@@ -582,7 +590,8 @@ private fun MiniPlayButtonContent(
 
 @Composable
 private fun MiniSeekButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    seconds: Int,
+    forward: Boolean,
     contentDescription: String,
     isLoading: Boolean,
     colorScheme: ColorScheme,
@@ -605,8 +614,9 @@ private fun MiniSeekButton(
             },
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            icon,
+        cx.aswin.boxcast.feature.player.SeekDurationIcon(
+            seconds = seconds,
+            forward = forward,
             contentDescription = contentDescription,
             tint = colorScheme.onPrimaryContainer.copy(alpha = if (isLoading) 0.45f else 0.82f),
             modifier = Modifier.size(21.dp)
