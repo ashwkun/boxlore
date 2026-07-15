@@ -153,6 +153,7 @@ private fun ExpressiveEpisodeCard(
     imageUrl: String?,
     onClick: () -> Unit,
 ) {
+    val durationText = formatEpisodeDuration(episode.duration)
     OutlinedCard(
         modifier = Modifier
             .width(160.dp)
@@ -181,7 +182,7 @@ private fun ExpressiveEpisodeCard(
                         .clip(RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp)),
                     contentScale = ContentScale.Crop,
                 )
-                if (episode.duration > 0) {
+                if (durationText.isNotEmpty()) {
                     Surface(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
@@ -191,7 +192,7 @@ private fun ExpressiveEpisodeCard(
                         contentColor = Color.White,
                     ) {
                         Text(
-                            text = formatEpisodeDuration(episode.duration),
+                            text = durationText,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
