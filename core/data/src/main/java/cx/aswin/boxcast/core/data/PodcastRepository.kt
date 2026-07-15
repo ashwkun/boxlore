@@ -1,5 +1,6 @@
 package cx.aswin.boxcast.core.data
 
+import cx.aswin.boxcast.core.data.database.PodcastEntity
 import cx.aswin.boxcast.core.model.Episode
 import cx.aswin.boxcast.core.model.Person
 import cx.aswin.boxcast.core.model.Podcast
@@ -34,6 +35,43 @@ private fun String?.toHttps(): String {
     }
 }
 
+/**
+ * Canonical [PodcastEntity] → [Podcast] mapper shared across the data layer (and by feature
+ * modules such as `feature/info`) so every caller maps the same fields the same way — see
+ * [RssPodcastRepository]'s own variant for the one deliberate RSS-specific override
+ * (notifications/auto-download are not surfaced from that entity snapshot).
+ */
+fun PodcastEntity.toPodcast(): Podcast = Podcast(
+    id = podcastId,
+    title = title,
+    artist = author,
+    imageUrl = imageUrl,
+    type = type,
+    description = description,
+    genre = genre ?: "Podcast",
+    fallbackImageUrl = latestEpisode?.imageUrl,
+    latestEpisode = latestEpisode,
+    subscribedAt = subscribedAt,
+    fundingUrl = fundingUrl,
+    fundingMessage = fundingMessage,
+    podcastGuid = podcastGuid,
+    medium = medium,
+    hasValue = hasValue,
+    updateFrequency = updateFrequency,
+    location = location,
+    license = license,
+    isLocked = isLocked,
+    preferredSort = preferredSort,
+    notificationsEnabled = notificationsEnabled,
+    autoDownloadEnabled = autoDownloadEnabled,
+    sourceType = sourceType,
+    feedUrl = feedUrl,
+    rssRefreshCapability = rssRefreshCapability,
+    rssCatalogStale = rssCatalogStale,
+    rssHasNewEpisodes = rssHasNewEpisodes,
+    linkedPodcastIndexId = linkedPodcastIndexId,
+)
+
 fun mapRegionForBriefing(region: String): String {
     return when (region.lowercase().trim()) {
         "us" -> "us"
@@ -48,6 +86,11 @@ data class SearchResult(
     val correctedQuery: String? = null
 )
 
+private data class PodcastIndexScopedInputs(
+    val history: List<cx.aswin.boxcast.core.network.model.HistoryItem>,
+    val subscriptionIds: List<String>,
+)
+
 /**
  * Repository for podcast data via BoxCast API (Cloudflare Worker → Podcast Index)
  */
@@ -58,6 +101,7 @@ class PodcastRepository(
     private val ioDispatcher: kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
 ) {
     val api: BoxLoreApi = NetworkModule.createBoxLoreApi(baseUrl, context)
+    private val rssRepository = RssPodcastRepository.getInstance(context)
 
     suspend fun getTrendingPodcasts(country: String = "us", limit: Int = 50, category: String? = null, offset: Int = 0): List<Podcast> = withContext(Dispatchers.IO) {
         // Fallback or non-streaming implementation
@@ -235,7 +279,8 @@ class PodcastRepository(
                         imageUrl = (feed.artwork ?: feed.image).toHttps(),
                         description = feed.description,
                         genre = resolvePrimaryGenre(feed.categories),
-                        medium = feed.medium
+                        medium = feed.medium,
+                        feedUrl = feed.url,
                     )
                 }
                 SearchResult(podcasts, null)
@@ -265,54 +310,106 @@ class PodcastRepository(
     }
 
     suspend fun searchEpisodes(feedId: String, query: String): List<Episode> = withContext(Dispatchers.IO) {
-        try {
-            val resolvedId = if (feedId.startsWith("url:") || feedId.startsWith("guid:") || feedId.startsWith("itunes:")) {
-                getPodcastDetails(feedId)?.id ?: feedId
-            } else {
-                feedId
-            }
-            // Use Proxy-side search (Server fetches 1000 items and filters)
-            val response = api.searchEpisodes(publicKey, resolvedId, query).execute()
-            if (response.isSuccessful && response.body() != null) {
-                response.body()!!.items.mapNotNull { mapToEpisode(it) }
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
+        if (feedId.startsWith("rss:")) {
+            return@withContext searchRssEpisodes(feedId, query)
+        }
+        searchNetworkEpisodes(feedId, query)
+    }
+
+    private suspend fun searchRssEpisodes(feedId: String, query: String): List<Episode> = try {
+        rssRepository.searchEpisodes(feedId, query)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        android.util.Log.e("PodcastRepository", "RSS searchEpisodes failed for $feedId", e)
+        emptyList()
+    }
+
+    private suspend fun searchNetworkEpisodes(feedId: String, query: String): List<Episode> = try {
+        val resolvedId = resolvePodcastIndexFeedId(feedId)
+        val response = api.searchEpisodes(publicKey, resolvedId, query).execute()
+        if (response.isSuccessful && response.body() != null) {
+            response.body()!!.items.mapNotNull { mapToEpisode(it) }
+        } else {
             emptyList()
         }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyList()
     }
 
     suspend fun getEpisodes(feedId: String): List<Episode> = withContext(Dispatchers.IO) {
-        try {
-            val resolvedId = if (feedId.startsWith("url:") || feedId.startsWith("guid:") || feedId.startsWith("itunes:")) {
-                getPodcastDetails(feedId)?.id ?: feedId
-            } else {
-                feedId
-            }
-            // Use paginated endpoint with high limit to get "all" (max 1000 per proxy)
-            // This avoids the parsing issue with EpisodesResponse vs EpisodesPaginatedResponse
-            val response = api.getEpisodesPaginated(publicKey, resolvedId, limit = 1000).execute()
-            if (response.isSuccessful && response.body() != null) {
-                response.body()!!.items.mapNotNull { mapToEpisode(it) }
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
+        if (feedId.startsWith("rss:")) {
+            return@withContext getAllRssEpisodes(feedId)
+        }
+        getAllNetworkEpisodes(feedId)
+    }
+
+    private suspend fun getAllRssEpisodes(feedId: String): List<Episode> = try {
+        rssRepository.getAllEpisodes(feedId)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        android.util.Log.e("PodcastRepository", "RSS getAllEpisodes failed for $feedId", e)
+        emptyList()
+    }
+
+    private suspend fun getAllNetworkEpisodes(feedId: String): List<Episode> = try {
+        val resolvedId = resolvePodcastIndexFeedId(feedId)
+        // Use paginated endpoint with high limit to get "all" (max 1000 per proxy)
+        // This avoids the parsing issue with EpisodesResponse vs EpisodesPaginatedResponse
+        val response = api.getEpisodesPaginated(publicKey, resolvedId, limit = 1000).execute()
+        if (response.isSuccessful && response.body() != null) {
+            response.body()!!.items.mapNotNull { mapToEpisode(it) }
+        } else {
             emptyList()
         }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        emptyList()
     }
 
     suspend fun getEpisode(episodeId: String): Episode? = withContext(Dispatchers.IO) {
-        try {
-            val response = api.getEpisode(publicKey, episodeId).execute()
-            if (response.isSuccessful && response.body() != null) {
-                response.body()!!.episode?.let { mapToEpisode(it) }
-            } else {
-                null
-            }
-        } catch (e: Exception) {
+        if (episodeId.toLongOrNull()?.let { it < 0L } == true) {
+            return@withContext getRssEpisode(episodeId)
+        }
+        getNetworkEpisode(episodeId)
+    }
+
+    private suspend fun getRssEpisode(episodeId: String): Episode? = try {
+        rssRepository.getEpisode(episodeId)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        android.util.Log.e("PodcastRepository", "RSS getEpisode failed for $episodeId", e)
+        null
+    }
+
+    private suspend fun getNetworkEpisode(episodeId: String): Episode? = try {
+        val response = api.getEpisode(publicKey, episodeId).execute()
+        if (response.isSuccessful && response.body() != null) {
+            response.body()!!.episode?.let { mapToEpisode(it) }
+        } else {
             null
+        }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
+    }
+
+    /** Resolves url:/guid:/itunes: identifiers to a Podcast Index feed id when needed. */
+    private suspend fun resolvePodcastIndexFeedId(feedId: String): String {
+        return if (
+            feedId.startsWith(FEED_PREFIX_URL) ||
+            feedId.startsWith(FEED_PREFIX_GUID) ||
+            feedId.startsWith(FEED_PREFIX_ITUNES)
+        ) {
+            getPodcastDetails(feedId)?.id ?: feedId
+        } else {
+            feedId
         }
     }
 
@@ -339,20 +436,47 @@ class PodcastRepository(
         offset: Int = 0,
         sort: String = "newest"
     ): EpisodePage = withContext(Dispatchers.IO) {
-        val resolvedId = if (feedId.startsWith("url:") || feedId.startsWith("guid:") || feedId.startsWith("itunes:")) {
-            getPodcastDetails(feedId)?.id ?: feedId
-        } else {
-            feedId
+        if (feedId.startsWith("rss:")) {
+            return@withContext getRssEpisodesPaginated(feedId, limit, offset, sort)
         }
+        getNetworkEpisodesPaginated(feedId, limit, offset, sort)
+    }
+
+    private suspend fun getRssEpisodesPaginated(
+        feedId: String,
+        limit: Int,
+        offset: Int,
+        sort: String,
+    ): EpisodePage = try {
+        val episodes = rssRepository.getEpisodes(feedId, limit, offset, sort)
+        val total = rssRepository.episodeCount(feedId)
+        EpisodePage(
+            episodes = episodes,
+            hasMore = offset + episodes.size < total,
+        )
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        android.util.Log.e("PodcastRepository", "RSS getEpisodesPaginated failed for $feedId", e)
+        EpisodePage(emptyList(), false)
+    }
+
+    private suspend fun getNetworkEpisodesPaginated(
+        feedId: String,
+        limit: Int,
+        offset: Int,
+        sort: String,
+    ): EpisodePage {
+        val resolvedId = resolvePodcastIndexFeedId(feedId)
         val cacheKey = "$resolvedId|$limit|$offset|$sort"
         val cached = episodesCache[cacheKey]
         val now = System.currentTimeMillis()
         if (cached != null && now - cached.second < 300_000L) { // 5-minute cache
             android.util.Log.d("PodcastRepository", "Cache HIT for getEpisodesPaginated: $cacheKey")
-            return@withContext cached.first
+            return cached.first
         }
         android.util.Log.d("PodcastRepository", "Cache MISS for getEpisodesPaginated: $cacheKey. Fetching from network.")
-        try {
+        return try {
             val response = api.getEpisodesPaginated(publicKey, resolvedId, limit, offset, sort).execute()
             if (response.isSuccessful && response.body() != null) {
                 val page = EpisodePage(
@@ -364,61 +488,84 @@ class PodcastRepository(
             } else {
                 EpisodePage(emptyList(), false)
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             EpisodePage(emptyList(), false)
         }
     }
 
     suspend fun getPodcastDetails(feedId: String): Podcast? = withContext(Dispatchers.IO) {
-        try {
-            val response = if (feedId.startsWith("url:")) {
-                val encodedUrl = feedId.substringAfter("url:")
-                val decodedUrl = java.net.URLDecoder.decode(encodedUrl, "UTF-8")
-                api.getPodcast(publicKey = publicKey, feedUrl = decodedUrl).execute()
-            } else if (feedId.startsWith("guid:")) {
-                val guid = feedId.substringAfter("guid:")
-                api.getPodcast(publicKey = publicKey, feedGuid = guid).execute()
-            } else if (feedId.startsWith("itunes:")) {
-                val itunesId = feedId.substringAfter("itunes:")
-                api.getPodcast(publicKey = publicKey, itunesId = itunesId).execute()
-            } else {
-                api.getPodcast(publicKey = publicKey, feedId = feedId).execute()
-            }
-            if (response.isSuccessful && response.body() != null) {
-                val feed = response.body()!!.feed ?: return@withContext null
-                Podcast(
-                    id = feed.id.toString(),
-                    title = feed.title,
-                    artist = feed.author ?: "Unknown",
-                    imageUrl = (feed.artwork ?: feed.image).toHttps(),
-                    type = feed.type ?: "episodic",
-                    description = feed.description,
-                    genre = resolvePrimaryGenre(feed.categories),
-                    // Podcast 2.0
-                    fundingUrl = feed.funding?.url,
-                    fundingMessage = feed.funding?.message,
-                    podcastGuid = feed.podcastGuid,
-                    medium = feed.medium,
-                    ownerName = feed.ownerName,
-                    hasValue = feed.value != null,
-                    updateFrequency = feed.updateFrequency,
-                    location = feed.location,
-                    license = feed.license,
-                    isLocked = feed.locked == 1
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
+        if (feedId.startsWith("rss:")) {
+            return@withContext getRssPodcastDetails(feedId)
         }
+        getNetworkPodcastDetails(feedId)
+    }
+
+    private suspend fun getRssPodcastDetails(feedId: String): Podcast? = try {
+        rssRepository.getPodcast(feedId)?.toPodcast()
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        android.util.Log.e("PodcastRepository", "RSS getPodcastDetails failed for $feedId", e)
+        null
+    }
+
+    /** Picks the right lookup parameter (feed URL/guid/iTunes id/id) and executes the request. */
+    private fun executeGetPodcastRequest(feedId: String): retrofit2.Response<cx.aswin.boxcast.core.network.model.PodcastResponse> {
+        return when {
+            feedId.startsWith(FEED_PREFIX_URL) -> {
+                val decodedUrl = java.net.URLDecoder.decode(feedId.substringAfter(FEED_PREFIX_URL), "UTF-8")
+                api.getPodcast(publicKey = publicKey, feedUrl = decodedUrl).execute()
+            }
+            feedId.startsWith(FEED_PREFIX_GUID) -> {
+                api.getPodcast(publicKey = publicKey, feedGuid = feedId.substringAfter(FEED_PREFIX_GUID)).execute()
+            }
+            feedId.startsWith(FEED_PREFIX_ITUNES) -> {
+                api.getPodcast(publicKey = publicKey, itunesId = feedId.substringAfter(FEED_PREFIX_ITUNES)).execute()
+            }
+            else -> api.getPodcast(publicKey = publicKey, feedId = feedId).execute()
+        }
+    }
+
+    private fun mapPodcastResponseFeed(feed: cx.aswin.boxcast.core.network.model.PodcastFeed): Podcast = Podcast(
+        id = feed.id.toString(),
+        title = feed.title,
+        artist = feed.author ?: "Unknown",
+        imageUrl = (feed.artwork ?: feed.image).toHttps(),
+        type = feed.type ?: "episodic",
+        description = feed.description,
+        genre = resolvePrimaryGenre(feed.categories),
+        // Podcast 2.0
+        fundingUrl = feed.funding?.url,
+        fundingMessage = feed.funding?.message,
+        podcastGuid = feed.podcastGuid,
+        medium = feed.medium,
+        ownerName = feed.ownerName,
+        hasValue = feed.value != null,
+        updateFrequency = feed.updateFrequency,
+        location = feed.location,
+        license = feed.license,
+        isLocked = feed.locked == 1,
+        feedUrl = feed.url,
+    )
+
+    private suspend fun getNetworkPodcastDetails(feedId: String): Podcast? = try {
+        val response = executeGetPodcastRequest(feedId)
+        val feed = if (response.isSuccessful) response.body()?.feed else null
+        feed?.let { mapPodcastResponseFeed(it) }
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        null
     }
 
     suspend fun syncSubscriptions(feedIds: List<String>): Map<String, Episode> = withContext(Dispatchers.IO) {
         try {
-            if (feedIds.isEmpty()) return@withContext emptyMap()
+            val podcastIndexIds = feedIds.filterNot { it.startsWith("rss:") }
+            if (podcastIndexIds.isEmpty()) return@withContext emptyMap()
             
-            val request = cx.aswin.boxcast.core.network.model.SyncRequest(feedIds)
+            val request = cx.aswin.boxcast.core.network.model.SyncRequest(podcastIndexIds)
             val response = api.syncSubscriptions(publicKey, request).execute()
             
             if (response.isSuccessful && response.body() != null) {
@@ -436,6 +583,23 @@ class PodcastRepository(
         }
     }
 
+    /**
+     * The recommendations/bootstrap endpoints only understand Podcast Index-sourced history
+     * and subscriptions, so both callers need to strip RSS entries the same way before
+     * building a request — shared here to avoid two copies of the same filter drifting apart.
+     */
+    private fun filterToPodcastIndexScope(
+        history: List<cx.aswin.boxcast.core.network.model.HistoryItem>,
+        subscribedPodcastIds: List<String>,
+    ): PodcastIndexScopedInputs {
+        val podcastIndexHistory = history.filter { item ->
+            item.podcastId?.startsWith("rss:") != true &&
+                item.episodeId?.toLongOrNull()?.let { it > 0L } != false
+        }
+        val podcastIndexSubscriptionIds = subscribedPodcastIds.filterNot { it.startsWith("rss:") }
+        return PodcastIndexScopedInputs(podcastIndexHistory, podcastIndexSubscriptionIds)
+    }
+
     suspend fun getPersonalizedRecommendations(
         history: List<cx.aswin.boxcast.core.network.model.HistoryItem>,
         interests: List<String> = emptyList(),
@@ -443,16 +607,22 @@ class PodcastRepository(
         subscribedPodcastIds: List<String> = emptyList(),
         subscribedGenres: List<String> = emptyList()
     ): List<Episode> = withContext(Dispatchers.IO) {
+        val (podcastIndexHistory, podcastIndexSubscriptionIds) =
+            filterToPodcastIndexScope(history, subscribedPodcastIds)
+        if (podcastIndexHistory.isEmpty() && interests.isEmpty() && podcastIndexSubscriptionIds.isEmpty()) {
+            // Nothing Podcast Index-scoped to base recommendations on — skip the network call.
+            return@withContext emptyList()
+        }
         val cacheKey = buildString {
             append(country ?: "")
             append("|")
             append(interests.sorted().joinToString(","))
             append("|")
-            append(subscribedPodcastIds.sorted().joinToString(","))
+            append(podcastIndexSubscriptionIds.sorted().joinToString(","))
             append("|")
             append(subscribedGenres.sorted().joinToString(","))
             append("|")
-            append(history.joinToString(",") { "${it.episodeId}:${it.progressMs}" })
+            append(podcastIndexHistory.joinToString(",") { "${it.episodeId}:${it.progressMs}" })
         }
         
         val now = System.currentTimeMillis()
@@ -465,10 +635,10 @@ class PodcastRepository(
 
         try {
             val request = cx.aswin.boxcast.core.network.model.RecommendationsRequest(
-                history = history,
+                history = podcastIndexHistory,
                 interests = interests,
                 country = country,
-                subscribedPodcastIds = subscribedPodcastIds,
+                subscribedPodcastIds = podcastIndexSubscriptionIds,
                 subscribedGenres = subscribedGenres
             )
             val response = api.getPersonalizedRecommendations(publicKey, getOrCreateDeviceUuid(), request).execute()
@@ -536,8 +706,9 @@ class PodcastRepository(
     ): List<Episode> = withContext(Dispatchers.IO) {
         try {
             val request = cx.aswin.boxcast.core.network.model.SimilarEpisodesRequest(
-                id = episodeId,
-                podcastId = podcastId,
+                id = episodeId.takeUnless { it.toLongOrNull()?.let { value -> value < 0L } == true }
+                    ?: "0",
+                podcastId = podcastId.takeUnless { it.startsWith("rss:") } ?: "0",
                 title = title,
                 description = description,
                 podcastTitle = podcastTitle,
@@ -623,18 +794,27 @@ class PodcastRepository(
 
     suspend fun getPodcastMeta(feedId: String): cx.aswin.boxcast.core.network.model.PodcastMetaResponse? = withContext(Dispatchers.IO) {
         try {
-            val response = if (feedId.startsWith("url:")) {
-                val encodedUrl = feedId.substringAfter("url:")
-                val decodedUrl = java.net.URLDecoder.decode(encodedUrl, "UTF-8")
-                api.getPodcastMeta(publicKey = publicKey, feedUrl = decodedUrl).execute()
-            } else if (feedId.startsWith("guid:")) {
-                val guid = feedId.substringAfter("guid:")
-                api.getPodcastMeta(publicKey = publicKey, feedGuid = guid).execute()
-            } else if (feedId.startsWith("itunes:")) {
-                val itunesId = feedId.substringAfter("itunes:")
-                api.getPodcastMeta(publicKey = publicKey, itunesId = itunesId).execute()
-            } else {
-                api.getPodcastMeta(publicKey = publicKey, feedId = feedId).execute()
+            val response = when {
+                feedId.startsWith(FEED_PREFIX_URL) -> {
+                    val decodedUrl = java.net.URLDecoder.decode(
+                        feedId.substringAfter(FEED_PREFIX_URL),
+                        "UTF-8",
+                    )
+                    api.getPodcastMeta(publicKey = publicKey, feedUrl = decodedUrl).execute()
+                }
+                feedId.startsWith(FEED_PREFIX_GUID) -> {
+                    api.getPodcastMeta(
+                        publicKey = publicKey,
+                        feedGuid = feedId.substringAfter(FEED_PREFIX_GUID),
+                    ).execute()
+                }
+                feedId.startsWith(FEED_PREFIX_ITUNES) -> {
+                    api.getPodcastMeta(
+                        publicKey = publicKey,
+                        itunesId = feedId.substringAfter(FEED_PREFIX_ITUNES),
+                    ).execute()
+                }
+                else -> api.getPodcastMeta(publicKey = publicKey, feedId = feedId).execute()
             }
             if (response.isSuccessful) response.body() else null
         } catch (e: Exception) {
@@ -707,12 +887,18 @@ class PodcastRepository(
         subscribedGenres: List<String> = emptyList()
     ): HomeBootstrapData = withContext(Dispatchers.IO) {
         try {
-            val recsReq = if (history.isNotEmpty() || interests.isNotEmpty() || subscribedPodcastIds.isNotEmpty()) {
+            val (podcastIndexHistory, podcastIndexSubscriptionIds) =
+                filterToPodcastIndexScope(history, subscribedPodcastIds)
+            val recsReq = if (
+                podcastIndexHistory.isNotEmpty() ||
+                interests.isNotEmpty() ||
+                podcastIndexSubscriptionIds.isNotEmpty()
+            ) {
                 cx.aswin.boxcast.core.network.model.RecommendationsRequest(
-                    history = history,
+                    history = podcastIndexHistory,
                     interests = interests,
                     country = country,
-                    subscribedPodcastIds = subscribedPodcastIds,
+                    subscribedPodcastIds = podcastIndexSubscriptionIds,
                     subscribedGenres = subscribedGenres
                 )
             } else {
@@ -809,6 +995,10 @@ class PodcastRepository(
     }
 
     companion object {
+        private const val FEED_PREFIX_URL = "url:"
+        private const val FEED_PREFIX_GUID = "guid:"
+        private const val FEED_PREFIX_ITUNES = "itunes:"
+
         private val episodesCache = java.util.concurrent.ConcurrentHashMap<String, Pair<EpisodePage, Long>>()
         private val recommendationsCache = java.util.concurrent.ConcurrentHashMap<String, Pair<List<Episode>, Long>>()
         private val becauseYouLikeCache = java.util.concurrent.ConcurrentHashMap<String, Pair<BecauseYouLikeData, Long>>()

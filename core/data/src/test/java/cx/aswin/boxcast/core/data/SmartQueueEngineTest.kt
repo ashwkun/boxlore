@@ -37,6 +37,7 @@ class SmartQueueEngineTest {
         var recommendations: List<Episode> = emptyList()
         var similarEpisodes: List<Episode> = emptyList()
         var trendingPodcasts: List<Podcast> = emptyList()
+        val queueCandidateFailureIds = mutableSetOf<String>()
 
         // Spies
         var recommendationsCalls = 0
@@ -47,10 +48,21 @@ class SmartQueueEngineTest {
         var similarCalls = 0
         var lastSimilarCountry: String? = null
         var feedFetches = mutableListOf<String>()
+        var queueCandidateRequests = mutableListOf<Pair<String, Int>>()
 
         override suspend fun getEpisodes(podcastId: String): List<Episode> {
             feedFetches.add(podcastId)
             return episodesByPodcast[podcastId] ?: emptyList()
+        }
+
+        override suspend fun getQueueCandidates(podcastId: String, limit: Int): List<Episode> {
+            queueCandidateRequests += podcastId to limit
+            if (podcastId in queueCandidateFailureIds) {
+                error("Broken feed: $podcastId")
+            }
+            return episodesByPodcast[podcastId].orEmpty()
+                .sortedByDescending { it.publishedDate }
+                .take(limit)
         }
 
         override suspend fun getPodcastDetails(podcastId: String): Podcast? = podcastDetails[podcastId]
@@ -370,6 +382,85 @@ class SmartQueueEngineTest {
 
         val subs = batch.filter { it.source == SmartQueueEngine.SOURCE_SUBSCRIPTION }
         assertTrue(subs.none { it.podcast.id == "sub1" })
+    }
+
+    @Test
+    fun `RSS subscription candidates are bounded and negative IDs remain playable`() = runTest {
+        val sources = FakeSources()
+        sources.episodesByPodcast["pod1"] = listOf(episode(1))
+        sources.subscriptions = listOf(podcast("rss:feed"))
+        sources.episodesByPodcast["rss:feed"] = (1L..2_000L).map { index ->
+            episode(
+                id = -index,
+                podcastId = "rss:feed",
+                publishedDate = index,
+            )
+        }
+
+        val batch = engine(sources).getNextEpisodes(currentItem(1), podcast("pod1", type = "serial"))
+
+        assertEquals(
+            listOf("rss:feed" to DefaultSmartQueueEngine.SUBSCRIPTION_CANDIDATE_LIMIT),
+            sources.queueCandidateRequests,
+        )
+        assertTrue(batch.any { it.episode.id < 0L })
+    }
+
+    @Test
+    fun `cached latest episode with blank audioUrl is skipped in favor of queue candidates`() = runTest {
+        val sources = FakeSources()
+        sources.episodesByPodcast["pod1"] = listOf(episode(1))
+        val malformedCached = episode(301, "sub1").copy(audioUrl = "")
+        sources.subscriptions = listOf(podcast("sub1", latestEpisode = malformedCached))
+        sources.episodesByPodcast["sub1"] = listOf(episode(302, "sub1"))
+
+        val batch = engine(sources).getNextEpisodes(currentItem(1), podcast("pod1", type = "serial"))
+
+        val subs = batch.filter { it.source == SmartQueueEngine.SOURCE_SUBSCRIPTION }
+        assertTrue(
+            "malformed cached episode (blank audioUrl) must never be suggested",
+            subs.none { it.episode.id == 301L },
+        )
+        assertTrue(
+            "getQueueCandidates must be invoked as a fallback when the cache is unusable",
+            sources.queueCandidateRequests.any { it.first == "sub1" },
+        )
+        assertTrue(subs.any { it.episode.id == 302L })
+    }
+
+    @Test
+    fun `cached latest episode with a non-numeric id is skipped in favor of queue candidates`() = runTest {
+        val sources = FakeSources()
+        sources.episodesByPodcast["pod1"] = listOf(episode(1))
+        val malformedCached = episode(401, "sub1").copy(id = "not-a-number")
+        sources.subscriptions = listOf(podcast("sub1", latestEpisode = malformedCached))
+        sources.episodesByPodcast["sub1"] = listOf(episode(402, "sub1"))
+
+        val batch = engine(sources).getNextEpisodes(currentItem(1), podcast("pod1", type = "serial"))
+
+        val subs = batch.filter { it.source == SmartQueueEngine.SOURCE_SUBSCRIPTION }
+        assertTrue(
+            "malformed cached episode (non-numeric id) must never be suggested",
+            subs.none { it.episode.id.toString() == "not-a-number" },
+        )
+        assertTrue(
+            "getQueueCandidates must be invoked as a fallback when the cache is unusable",
+            sources.queueCandidateRequests.any { it.first == "sub1" },
+        )
+        assertTrue(subs.any { it.episode.id == 402L })
+    }
+
+    @Test
+    fun `one failing RSS subscription does not abort other queue fallbacks`() = runTest {
+        val sources = FakeSources()
+        sources.episodesByPodcast["pod1"] = listOf(episode(1))
+        sources.subscriptions = listOf(podcast("rss:broken"), podcast("subGood"))
+        sources.queueCandidateFailureIds += "rss:broken"
+        sources.episodesByPodcast["subGood"] = listOf(episode(601, "subGood"))
+
+        val batch = engine(sources).getNextEpisodes(currentItem(1), podcast("pod1", type = "serial"))
+
+        assertTrue(batch.any { it.podcast.id == "subGood" })
     }
 
     // ── Skip memory ─────────────────────────────────────────────────────────

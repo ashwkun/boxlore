@@ -292,5 +292,93 @@ class DownloadRepository(
                 SimpleCache(cacheDir, evictor, dbProvider).also { streamCache = it }
             }
         }
+
+        /**
+         * Media3's [Cache] has no key-rename API, so linking a Podcast Index download to its
+         * RSS counterpart (a different episodeId) would otherwise orphan the already-downloaded
+         * bytes under the old cache key. This copies the cached spans and content-length
+         * metadata over to [newEpisodeId], frees the old resource, and best-effort re-registers
+         * the download under the new id in Media3's own index so playback and the offline
+         * library keep serving the cached asset instead of silently falling back to network.
+         *
+         * Safe to call for downloads that are not fully cached — it is then a no-op.
+         */
+        fun relinkDownloadCache(context: Context, oldEpisodeId: String, newEpisodeId: String) {
+            if (oldEpisodeId == newEpisodeId) return
+            val cache = getDownloadCache(context)
+            // Tracked separately from content length: ContentMetadata.getContentLength() can
+            // legitimately be LENGTH_UNSET even after the spans were copied successfully.
+            val movedSuccessfully = runCatching {
+                val spans = cache.getCachedSpans(oldEpisodeId)
+                if (spans.isEmpty()) return@runCatching false
+                spans.filter { it.isCached }.forEach { span ->
+                    copyCachedSpanToNewKey(cache, span, newEpisodeId)
+                }
+                val contentLength = androidx.media3.datasource.cache.ContentMetadata
+                    .getContentLength(cache.getContentMetadata(oldEpisodeId))
+                if (contentLength > 0) {
+                    cache.applyContentMetadataMutations(
+                        newEpisodeId,
+                        androidx.media3.datasource.cache.ContentMetadataMutations.setContentLength(
+                            androidx.media3.datasource.cache.ContentMetadataMutations(),
+                            contentLength,
+                        ),
+                    )
+                }
+                true
+            }.onFailure {
+                Log.w("DownloadRepo", "Failed to move cached bytes from $oldEpisodeId to $newEpisodeId", it)
+            }.getOrDefault(false)
+
+            if (!movedSuccessfully) return
+            // Re-key the Media3 download index first, and only drop the old cache resource once
+            // that succeeds, so a failure here never leaves the new key without an index entry.
+            relinkDownloadIndexEntry(context, oldEpisodeId, newEpisodeId)
+            runCatching { cache.removeResource(oldEpisodeId) }
+                .onFailure { Log.w("DownloadRepo", "Failed to release old cache resource $oldEpisodeId", it) }
+        }
+
+        /**
+         * Copies one cached [span] to [newEpisodeId], acquiring the write hole via
+         * [Cache.startReadWrite] first as required by [Cache]'s locking contract — writing
+         * through [Cache.startFile] without that lock can race with another active writer for
+         * the same key/offset/length.
+         */
+        private fun copyCachedSpanToNewKey(
+            cache: Cache,
+            span: androidx.media3.datasource.cache.CacheSpan,
+            newEpisodeId: String,
+        ) {
+            val destSpan = cache.startReadWrite(newEpisodeId, span.position, span.length)
+            if (destSpan.isCached) return // already present at the destination key/offset
+            try {
+                val newFile = cache.startFile(newEpisodeId, span.position, span.length)
+                span.file?.copyTo(newFile, overwrite = true)
+                cache.commitFile(newFile, span.length)
+            } finally {
+                cache.releaseHoleSpan(destSpan)
+            }
+        }
+
+        /** Best-effort: re-registers the Media3 download index entry under the new id. */
+        private fun relinkDownloadIndexEntry(context: Context, oldEpisodeId: String, newEpisodeId: String) {
+            runCatching {
+                val manager = getDownloadManager(context)
+                val existing = manager.downloadIndex.getDownload(oldEpisodeId) ?: return@runCatching
+                val newRequest = DownloadRequest.Builder(newEpisodeId, existing.request.uri)
+                    .setCustomCacheKey(newEpisodeId)
+                    .apply { existing.request.mimeType?.let(::setMimeType) }
+                    .setData(existing.request.data)
+                    .build()
+                manager.addDownload(newRequest)
+                manager.removeDownload(oldEpisodeId)
+            }.onFailure {
+                Log.w(
+                    "DownloadRepo",
+                    "Failed to re-key Media3 download index from $oldEpisodeId to $newEpisodeId",
+                    it,
+                )
+            }
+        }
     }
 }

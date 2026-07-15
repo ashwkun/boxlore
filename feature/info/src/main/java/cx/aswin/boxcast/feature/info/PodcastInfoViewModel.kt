@@ -7,8 +7,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 
 import cx.aswin.boxcast.core.data.PodcastRepository
+import cx.aswin.boxcast.core.data.toPodcast
 import cx.aswin.boxcast.core.model.Episode
 import cx.aswin.boxcast.core.model.Podcast
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +36,7 @@ sealed interface PodcastInfoUiState {
         val episodes: List<Episode>,
         val isSubscribed: Boolean,
         val isLoadingMore: Boolean = false,
+        val isRssRefreshing: Boolean = false,
         val hasMoreEpisodes: Boolean = true,
         val currentSort: EpisodeSort = EpisodeSort.NEWEST,
         val searchQuery: String = "",
@@ -64,6 +67,8 @@ class PodcastInfoViewModel(
     )
     private val database = cx.aswin.boxcast.core.data.database.BoxLoreDatabase.getDatabase(application)
     private val subscriptionRepository = cx.aswin.boxcast.core.data.SubscriptionRepository(database.podcastDao())
+    private val rssRepository =
+        cx.aswin.boxcast.core.data.RssPodcastRepository.getInstance(application)
 
     private val _uiState = MutableStateFlow<PodcastInfoUiState>(PodcastInfoUiState.Loading)
 
@@ -255,6 +260,7 @@ class PodcastInfoViewModel(
     }
 
     companion object {
+        private const val TAG = "PodcastInfoViewModel"
         private const val PAGE_SIZE = 20
         private const val SEARCH_DEBOUNCE_MS = 500L
     }
@@ -268,9 +274,18 @@ class PodcastInfoViewModel(
         _currentPodcastIdFlow.value = podcastId
         currentOffset = 0
         viewModelScope.launch {
-            val localPodcastEntity = database.podcastDao().getPodcast(podcastId)
-            val isSubscribed = subscriptionRepository.isSubscribed(podcastId)
-            var currentPodcast = localPodcastEntity?.let { mapEntityToPodcast(it) }
+            val linkedRssEntity = database.podcastDao()
+                .getRssPodcastLinkedTo(podcastId)
+                ?.takeIf { it.isSubscribed }
+            val effectivePodcastId = linkedRssEntity?.podcastId ?: podcastId
+            if (effectivePodcastId != podcastId) {
+                currentPodcastId = effectivePodcastId
+                _currentPodcastIdFlow.value = effectivePodcastId
+            }
+            val localPodcastEntity =
+                linkedRssEntity ?: database.podcastDao().getPodcast(effectivePodcastId)
+            val isSubscribed = subscriptionRepository.isSubscribed(effectivePodcastId)
+            var currentPodcast = localPodcastEntity?.let { it.toPodcast() }
 
             if (currentPodcast != null) {
                 if (wasSubscribedAtStart == null) {
@@ -288,6 +303,7 @@ class PodcastInfoViewModel(
                         podcast.latestEpisode?.id?.let { episodeId ->
                             launch {
                                 userPrefs.setLastSeenEpisodeId(podcast.id, episodeId)
+                                subscriptionRepository.clearRssNewEpisodesFlag(podcast.id)
                             }
                         }
                     }
@@ -301,8 +317,27 @@ class PodcastInfoViewModel(
                 val initialSort = resolveInitialSort(localPodcastEntity?.preferredSort, initialType)
                 val limit = if (initialSort == EpisodeSort.OLDEST) 200 else PAGE_SIZE
                 val sortParam = if (initialSort == EpisodeSort.OLDEST) "oldest" else "newest"
+
+                if (currentPodcast?.isRss == true) {
+                    val cachedPage =
+                        repository.getEpisodesPaginated(effectivePodcastId, limit, 0, sortParam)
+                    currentOffset = cachedPage.episodes.size
+                    _uiState.value = PodcastInfoUiState.Success(
+                        podcast = currentPodcast,
+                        episodes = cachedPage.episodes,
+                        isSubscribed = isSubscribed,
+                        hasMoreEpisodes = cachedPage.hasMore,
+                        currentSort = initialSort,
+                        isLoadingMore = true,
+                    )
+                    // Conditional: cheap HEAD check for validator-capable feeds, interval-gated
+                    // otherwise, so opening a show doesn't re-download unchanged feeds. Pull-to-
+                    // refresh calls the forced refreshCatalog path instead.
+                    rssRepository.refreshCatalogIfNeeded(effectivePodcastId)
+                }
                 
-                val (apiPodcast, page) = fetchPodcastAndEpisodes(podcastId, limit, sortParam)
+                val (apiPodcast, page) =
+                    fetchPodcastAndEpisodes(effectivePodcastId, limit, sortParam)
 
                 if (apiPodcast != null) {
                     val apiPodcastWithFallback = enrichPodcastWithFallback(apiPodcast, currentPodcast, localPodcastEntity, page, sortParam)
@@ -330,52 +365,44 @@ class PodcastInfoViewModel(
                         apiPodcastWithFallback.latestEpisode?.id?.let { episodeId ->
                             launch {
                                 userPrefs.setLastSeenEpisodeId(apiPodcastWithFallback.id, episodeId)
+                                subscriptionRepository.clearRssNewEpisodesFlag(apiPodcastWithFallback.id)
                             }
                         }
                     }
 
-                    launch {
-                        fetchAndApplyPodcastMeta(podcastId, apiPodcast.id, isSubscribed, localPodcastEntity)
+                    if (!apiPodcastWithFallback.isRss) {
+                        launch {
+                            fetchAndApplyPodcastMeta(
+                                effectivePodcastId,
+                                apiPodcast.id,
+                                isSubscribed,
+                                localPodcastEntity,
+                            )
+                        }
                     }
                 } else {
                     if (currentPodcast == null) {
-                        trackScreenViewed(podcastId, null)
+                        trackScreenViewed(effectivePodcastId, null)
                         _uiState.value = PodcastInfoUiState.Error
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                Log.e(TAG, "Failed to load podcast $effectivePodcastId", e)
                 if (currentPodcast == null) {
-                    trackScreenViewed(podcastId, null)
+                    trackScreenViewed(effectivePodcastId, null)
                     _uiState.value = PodcastInfoUiState.Error
+                } else {
+                    // We already showed a Success state (with isLoadingMore = true) further up;
+                    // make sure a failed refresh doesn't leave it stuck loading forever.
+                    val latestState = _uiState.value as? PodcastInfoUiState.Success
+                    if (latestState != null) {
+                        _uiState.value = latestState.copy(isLoadingMore = false, isRssRefreshing = false)
+                    }
                 }
             }
         }
-    }
-
-    private fun mapEntityToPodcast(entity: cx.aswin.boxcast.core.data.database.PodcastEntity): Podcast {
-        return Podcast(
-            id = entity.podcastId,
-            title = entity.title,
-            artist = entity.author,
-            imageUrl = entity.imageUrl,
-            fallbackImageUrl = entity.latestEpisode?.imageUrl ?: "",
-            description = entity.description,
-            genre = entity.genre ?: "Podcast",
-            type = entity.type,
-            latestEpisode = entity.latestEpisode,
-            subscribedAt = entity.subscribedAt,
-            podcastGuid = entity.podcastGuid,
-            fundingUrl = entity.fundingUrl,
-            fundingMessage = entity.fundingMessage,
-            medium = entity.medium,
-            hasValue = entity.hasValue,
-            updateFrequency = entity.updateFrequency,
-            location = entity.location,
-            license = entity.license,
-            isLocked = entity.isLocked,
-            notificationsEnabled = entity.notificationsEnabled,
-            autoDownloadEnabled = entity.autoDownloadEnabled
-        )
     }
 
     private fun resolveInitialSort(preferredSort: String?, initialType: String): EpisodeSort {
@@ -522,6 +549,39 @@ class PodcastInfoViewModel(
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uiState.value = currentState.copy(isLoadingMore = false)
+            }
+        }
+    }
+
+    fun refreshRssFeed() {
+        val currentState = _uiState.value as? PodcastInfoUiState.Success ?: return
+        if (!currentState.podcast.isRss || currentState.isRssRefreshing) return
+
+        _uiState.value = currentState.copy(isLoadingMore = true, isRssRefreshing = true)
+        viewModelScope.launch {
+            try {
+                rssRepository.refreshCatalog(currentPodcastId)
+                val latestState = _uiState.value as? PodcastInfoUiState.Success ?: return@launch
+                val limit = if (latestState.currentSort == EpisodeSort.OLDEST) 200 else PAGE_SIZE
+                val sortParam =
+                    if (latestState.currentSort == EpisodeSort.OLDEST) "oldest" else "newest"
+                val podcast = repository.getPodcastDetails(currentPodcastId) ?: latestState.podcast
+                val page =
+                    repository.getEpisodesPaginated(currentPodcastId, limit, 0, sortParam)
+                currentOffset = page.episodes.size
+                _uiState.value = latestState.copy(
+                    podcast = podcast,
+                    episodes = page.episodes,
+                    isLoadingMore = false,
+                    isRssRefreshing = false,
+                    hasMoreEpisodes = page.hasMore,
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.printStackTrace()
+                val latestState = _uiState.value as? PodcastInfoUiState.Success ?: return@launch
+                _uiState.value = latestState.copy(isLoadingMore = false, isRssRefreshing = false)
             }
         }
     }

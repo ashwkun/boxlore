@@ -2,7 +2,6 @@ package cx.aswin.boxcast.feature.player.v2
 
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.exponentialDecay
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,6 +43,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
@@ -52,6 +52,7 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cx.aswin.boxcast.core.data.PlaybackRepository
 import cx.aswin.boxcast.core.data.UserPreferencesRepository
+import cx.aswin.boxcast.core.designsystem.theme.ExpressiveMotion
 import cx.aswin.boxcast.core.designsystem.theme.LocalEffectiveDarkTheme
 import cx.aswin.boxcast.feature.player.v2.logic.calculatePlayerSheetGeometry
 import kotlin.coroutines.cancellation.CancellationException
@@ -64,6 +65,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 enum class PlayerSheetValue { Collapsed, Expanded }
+
+/**
+ * Fling velocity distance shared by [AnchoredDraggableState.velocityThreshold] and
+ * [resolvePlayerSheetSettleTarget]'s "decisive fling" check, so both agree on what counts
+ * as a deliberate swipe regardless of screen density.
+ */
+private val PlayerSheetDecisiveFlingDistance = 180.dp
 
 data class PlayerSheetLayout(
     val collapsedTargetY: Float,
@@ -126,11 +134,10 @@ fun PlayerSheetScaffold(
         AnchoredDraggableState(
             initialValue = PlayerSheetValue.Collapsed,
             positionalThreshold = { distance: Float -> distance * 0.5f },
-            velocityThreshold = { with(density) { 180.dp.toPx() } },
-            snapAnimationSpec = spring(
-                dampingRatio = 1f,
-                stiffness = 75f
-            ),
+            velocityThreshold = { with(density) { PlayerSheetDecisiveFlingDistance.toPx() } },
+            // Soft expressive settle — gesture gates below keep mini controls tappable
+            // while this runs (don't stiffen the spring to "fix" dead taps).
+            snapAnimationSpec = ExpressiveMotion.SpatialLargeSpring,
             decayAnimationSpec = exponentialDecay()
         )
     }
@@ -144,7 +151,7 @@ fun PlayerSheetScaffold(
         sheetState = sheetState,
         collapsedTargetY = layout.collapsedTargetY
     )
-    val sheetNestedScrollConnection = rememberPlayerSheetNestedScrollConnection(sheetState)
+    val sheetNestedScrollConnection = rememberPlayerSheetNestedScrollConnection(sheetState, density)
     PlayerSheetSurface(
         geometry = geometry,
         content = PlayerSheetContentState(
@@ -268,7 +275,8 @@ private fun requestSheetExpansion(
     sheetOffset: Float,
     scope: kotlinx.coroutines.CoroutineScope
 ) {
-    if (sheetState.isAnimationRunning || sheetOffset <= 0.5f) return
+    // Allow interrupting an in-flight soft settle so taps aren't ignored for ~1–2s.
+    if (sheetOffset <= 0.5f) return
     scope.launch { sheetState.animateTo(PlayerSheetValue.Expanded) }
 }
 
@@ -278,7 +286,7 @@ private fun requestSheetCollapse(
     collapsedTargetY: Float,
     scope: kotlinx.coroutines.CoroutineScope
 ) {
-    if (sheetState.isAnimationRunning || sheetOffset >= collapsedTargetY - 0.5f) return
+    if (sheetOffset >= collapsedTargetY - 0.5f) return
     scope.launch { sheetState.animateTo(PlayerSheetValue.Collapsed) }
 }
 
@@ -316,10 +324,14 @@ private fun PlayerSheetSurface(
                 .anchoredDraggable(
                     state = sheetState,
                     orientation = Orientation.Vertical,
-                    enabled = !content.isFullscreenVideo
+                    enabled = !content.isFullscreenVideo,
+                    // Never steal taps while settling: default true-during-animation
+                    // ate mini controls for ~1–2s. Touch-slop still allows swipe-up
+                    // expand from the collapsed mini player.
+                    startDragImmediately = false,
                 )
                 .clickable(
-                    enabled = sheetState.currentValue != PlayerSheetValue.Expanded &&
+                    enabled = geometry.expansionFraction < 0.5f &&
                         !content.isFullscreenVideo,
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -565,7 +577,7 @@ private fun PlayerSheetExternalExpansion(
     expandTrigger: Long
 ) {
     LaunchedEffect(expandTrigger) {
-        if (expandTrigger > 0L && !sheetState.isAnimationRunning) {
+        if (expandTrigger > 0L) {
             sheetState.animateTo(PlayerSheetValue.Expanded)
         }
     }
@@ -595,8 +607,9 @@ private fun PlayerSheetPredictiveBack(
 
 @Composable
 private fun rememberPlayerSheetNestedScrollConnection(
-    sheetState: AnchoredDraggableState<PlayerSheetValue>
-): NestedScrollConnection = remember(sheetState) {
+    sheetState: AnchoredDraggableState<PlayerSheetValue>,
+    density: Density
+): NestedScrollConnection = remember(sheetState, density) {
     object : NestedScrollConnection {
         override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
             return consumePlayerSheetPreScroll(sheetState, available)
@@ -611,11 +624,11 @@ private fun rememberPlayerSheetNestedScrollConnection(
         }
 
         override suspend fun onPreFling(available: Velocity): Velocity {
-            return settlePlayerSheetPreFling(sheetState, available)
+            return settlePlayerSheetPreFling(sheetState, available, density)
         }
 
         override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-            return settlePlayerSheetPostFling(sheetState, available)
+            return settlePlayerSheetPostFling(sheetState, available, density)
         }
     }
 }
@@ -643,18 +656,49 @@ private fun consumePlayerSheetPostScroll(
 
 private suspend fun settlePlayerSheetPreFling(
     sheetState: AnchoredDraggableState<PlayerSheetValue>,
-    available: Velocity
+    available: Velocity,
+    density: Density
 ): Velocity {
     if (available.y >= 0 || sheetState.requireOffset() <= 0f) return Velocity.Zero
-    sheetState.settle(available.y)
+    // animateTo (not settle-with-velocity): fling kick + underdamped spring overshoots
+    // past the mini anchor, then the visual clamp makes the rebound look like a
+    // disconnected bounce against travel direction.
+    sheetState.animateTo(resolvePlayerSheetSettleTarget(sheetState, available.y, density))
     return available
 }
 
 private suspend fun settlePlayerSheetPostFling(
     sheetState: AnchoredDraggableState<PlayerSheetValue>,
-    available: Velocity
+    available: Velocity,
+    density: Density
 ): Velocity {
-    if (available.y == 0f || sheetState.isAnimationRunning) return Velocity.Zero
-    sheetState.settle(available.y)
+    // Always snap to an anchor after nested-scroll user input — including
+    // zero-velocity releases from slow taps/drags. Skipping settle left the sheet
+    // mid-anchor with currentValue still Expanded while UI already looked collapsed.
+    if (sheetState.isAnimationRunning) return Velocity.Zero
+    sheetState.animateTo(resolvePlayerSheetSettleTarget(sheetState, available.y, density))
     return available
+}
+
+/**
+ * Pick the settle anchor from fling direction when decisive, otherwise nearest.
+ * Motion itself is critically damped [ExpressiveMotion.SpatialLargeSpring] via animateTo.
+ */
+private fun resolvePlayerSheetSettleTarget(
+    sheetState: AnchoredDraggableState<PlayerSheetValue>,
+    velocityY: Float,
+    density: Density
+): PlayerSheetValue {
+    // Decisive fling — same density-scaled distance as AnchoredDraggableState's velocityThreshold,
+    // so a "decisive" swipe means the same thing in both places on every screen density.
+    val decisiveFling = with(density) { PlayerSheetDecisiveFlingDistance.toPx() }
+    when {
+        velocityY > decisiveFling -> return PlayerSheetValue.Collapsed
+        velocityY < -decisiveFling -> return PlayerSheetValue.Expanded
+    }
+    val offset = sheetState.requireOffset()
+    val collapsed = sheetState.anchors.positionOf(PlayerSheetValue.Collapsed)
+    val expanded = sheetState.anchors.positionOf(PlayerSheetValue.Expanded)
+    val midpoint = (collapsed + expanded) * 0.5f
+    return if (offset >= midpoint) PlayerSheetValue.Collapsed else PlayerSheetValue.Expanded
 }

@@ -8,40 +8,12 @@ import cx.aswin.boxcast.core.data.database.BoxLoreDatabase
 import cx.aswin.boxcast.core.data.database.DownloadedEpisodeEntity
 import cx.aswin.boxcast.core.data.database.PodcastEntity
 import cx.aswin.boxcast.core.model.Episode
-import cx.aswin.boxcast.core.model.Podcast
 import kotlinx.coroutines.flow.first
 
 class AutoDownloadWorker(
     appContext: Context,
     params: WorkerParameters
 ) : CoroutineWorker(appContext, params) {
-
-    private fun PodcastEntity.toPodcast(): Podcast {
-        return Podcast(
-            id = this.podcastId,
-            title = this.title,
-            artist = this.author ?: "",
-            imageUrl = this.imageUrl ?: "",
-            fallbackImageUrl = this.latestEpisode?.imageUrl ?: "",
-            description = this.description,
-            genre = this.genre ?: "Podcast",
-            type = this.type,
-            latestEpisode = this.latestEpisode,
-            subscribedAt = this.subscribedAt,
-            podcastGuid = this.podcastGuid,
-            fundingUrl = this.fundingUrl,
-            fundingMessage = this.fundingMessage,
-            medium = this.medium,
-            hasValue = this.hasValue,
-            updateFrequency = this.updateFrequency,
-            location = this.location,
-            license = this.license,
-            isLocked = this.isLocked,
-            preferredSort = this.preferredSort,
-            notificationsEnabled = this.notificationsEnabled,
-            autoDownloadEnabled = this.autoDownloadEnabled
-        )
-    }
 
     override suspend fun doWork(): Result {
         val episodeId = inputData.getString(KEY_EPISODE_ID) ?: run {
@@ -62,6 +34,10 @@ class AutoDownloadWorker(
         val podcastEntity = database.podcastDao().getPodcast(podcastId)
         if (podcastEntity == null) {
             Log.w("BoxLore_BackgroundTrace", "[Worker] Podcast $podcastId not found in local database. Skipping auto-download.")
+            return Result.success()
+        }
+        if (podcastEntity.isRss) {
+            Log.i("BoxLore_BackgroundTrace", "[Worker] RSS podcasts do not support release-triggered auto-downloads.")
             return Result.success()
         }
         
