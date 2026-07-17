@@ -91,7 +91,20 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Article
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Devices
+import androidx.compose.material.icons.rounded.DirectionsCar
+import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.HistoryEdu
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.Science
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.SentimentVerySatisfied
+import androidx.compose.material.icons.rounded.SportsSoccer
 import androidx.compose.material.icons.rounded.DriveFolderUpload
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MusicNote
@@ -110,7 +123,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.FilledTonalIconButton
-import cx.aswin.boxcast.core.designsystem.theme.SectionHeaderFontFamily
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.FlowRow
@@ -121,6 +133,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 
 import cx.aswin.boxcast.feature.home.components.HeroCarousel
+import cx.aswin.boxcast.feature.home.components.HomeChildSectionHeader
+import cx.aswin.boxcast.feature.home.components.HomeChildHeaderTone
+import cx.aswin.boxcast.feature.home.components.HomeTopLevelSectionHeader
 import cx.aswin.boxcast.feature.home.components.CuratedEpisodeCard
 import cx.aswin.boxcast.feature.home.components.PodcastCard
 import cx.aswin.boxcast.feature.home.components.TopControlBar
@@ -871,47 +886,16 @@ private fun PodcastFeed(
         // Curated For You Main Header + Sections
         if (hasBecauseYouLike || hasRecommendations) {
             item(span = StaggeredGridItemSpan.FullLine, key = "curated_header", contentType = "section_header") {
-                // Header
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.AutoAwesome,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = "Curated For You",
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontFamily = SectionHeaderFontFamily,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    FilledTonalIconButton(
-                        onClick = {
-                            onNavigateToExplore?.invoke(null, "home_for_you_see_all", "foryou")
-                        },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.ChevronRight,
-                            contentDescription = "See All",
-                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+                HomeTopLevelSectionHeader(
+                    title = "Curated For You",
+                    icon = Icons.Rounded.AutoAwesome,
+                    seeAllIcon = Icons.Rounded.ChevronRight,
+                    seeAllContentDescription = "See all curated recommendations",
+                    onSeeAllClick = {
+                        onNavigateToExplore?.invoke(null, "home_for_you_see_all", "foryou")
+                    },
+                    modifier = Modifier.padding(top = 4.dp),
+                )
             }
 
             // "Because You Like" Section
@@ -931,7 +915,9 @@ private fun PodcastFeed(
                             onPodcastClick(podcast, "home_because_you_like", null, null)
                         },
                         onChangePodcastClick = onChangePodcastClick,
-                        modifier = Modifier.padding(bottom = if (hasRecommendations) 16.dp else 12.dp)
+                        modifier = Modifier.padding(
+                            bottom = 16.dp,
+                        ),
                     )
                 }
             }
@@ -962,14 +948,16 @@ private fun PodcastFeed(
                 onSeeAllClick = {
                     onNavigateToExplore?.invoke(null, "home_discovery_greeting", "foryou")
                 },
+                modifier = Modifier.padding(top = 16.dp),
             )
         }
 
-        adaptiveSections.list.forEach { section ->
+        adaptiveSections.list.forEachIndexed { index, section ->
             adaptiveSectionItem(
                 section = section,
                 gridState = gridState,
                 showHeader = true,
+                isLastInGroup = index == adaptiveSections.list.lastIndex,
                 onAdaptiveSectionVisible = onAdaptiveSectionVisible,
                 onPodcastClick = onPodcastClick,
                 onEpisodeClick = onEpisodeClick,
@@ -1036,6 +1024,7 @@ private fun PodcastFeed(
 private fun DiscoveryGreetingHeader(
     greeting: DiscoveryGreeting,
     onSeeAllClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val icon = when (greeting.daypart) {
         ContentDaypart.MORNING,
@@ -1044,56 +1033,22 @@ private fun DiscoveryGreetingHeader(
         ContentDaypart.EVENING -> Icons.Rounded.WbTwilight
         ContentDaypart.LATE_NIGHT -> Icons.Rounded.NightsStay
     }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp),
-            )
-            Column {
-                Text(
-                    text = greeting.title,
-                    style = MaterialTheme.typography.headlineSmall.copy(
-                        fontFamily = SectionHeaderFontFamily,
-                        fontWeight = FontWeight.Bold,
-                    ),
-                )
-                Text(
-                    text = greeting.subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        FilledTonalIconButton(
-            onClick = onSeeAllClick,
-            modifier = Modifier.size(32.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.ChevronRight,
-                contentDescription = "See all discoveries",
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
+    HomeTopLevelSectionHeader(
+        title = greeting.title,
+        subtitle = greeting.subtitle,
+        icon = icon,
+        seeAllIcon = Icons.Rounded.ChevronRight,
+        seeAllContentDescription = "See all discoveries",
+        onSeeAllClick = onSeeAllClick,
+        modifier = modifier,
+    )
 }
 
 private fun LazyStaggeredGridScope.adaptiveSectionItem(
     section: ContentSection,
     gridState: LazyStaggeredGridState,
     showHeader: Boolean,
+    isLastInGroup: Boolean,
     onAdaptiveSectionVisible: (ContentSection, Set<String>) -> Unit,
     onPodcastClick: (Podcast, String, String?, Int?) -> Unit,
     onEpisodeClick: ((Episode, Podcast, String?) -> Unit)?,
@@ -1107,6 +1062,7 @@ private fun LazyStaggeredGridScope.adaptiveSectionItem(
             section = section,
             gridState = gridState,
             showHeader = showHeader,
+            isLastInGroup = isLastInGroup,
             onAdaptiveSectionVisible = onAdaptiveSectionVisible,
             onPodcastClick = onPodcastClick,
             onEpisodeClick = onEpisodeClick,
@@ -1119,6 +1075,7 @@ private fun AdaptiveSectionContent(
     section: ContentSection,
     gridState: LazyStaggeredGridState,
     showHeader: Boolean,
+    isLastInGroup: Boolean,
     onAdaptiveSectionVisible: (ContentSection, Set<String>) -> Unit,
     onPodcastClick: (Podcast, String, String?, Int?) -> Unit,
     onEpisodeClick: ((Episode, Podcast, String?) -> Unit)?,
@@ -1131,8 +1088,8 @@ private fun AdaptiveSectionContent(
         onAdaptiveSectionVisible = onAdaptiveSectionVisible,
     )
     Column(
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.padding(bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(bottom = if (isLastInGroup) 20.dp else 12.dp),
     ) {
         if (showHeader) {
             AdaptiveSectionHeader(section)
@@ -1187,22 +1144,30 @@ private fun AdaptiveSectionVisibilityEffect(
 
 @Composable
 private fun AdaptiveSectionHeader(section: ContentSection) {
-    Column {
-        Text(
-            text = section.intent.title,
-            style = MaterialTheme.typography.headlineSmall.copy(
-                fontFamily = SectionHeaderFontFamily,
-                fontWeight = FontWeight.Bold,
-            ),
-        )
-        section.intent.subtitle?.let { subtitle ->
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
+    HomeChildSectionHeader(
+        title = section.intent.title,
+        subtitle = section.intent.subtitle,
+        icon = section.intent.icon.toHomeSectionIcon(),
+        tone = HomeChildHeaderTone.TERTIARY,
+    )
+}
+
+private fun String?.toHomeSectionIcon(): ImageVector = when (this?.lowercase()) {
+    "news" -> Icons.Rounded.Article
+    "bolt" -> Icons.Rounded.Bolt
+    "commute" -> Icons.Rounded.DirectionsCar
+    "devices" -> Icons.Rounded.Devices
+    "neurology" -> Icons.Rounded.Psychology
+    "science" -> Icons.Rounded.Science
+    "sentiment_very_satisfied" -> Icons.Rounded.SentimentVerySatisfied
+    "sports" -> Icons.Rounded.SportsSoccer
+    "history_edu" -> Icons.Rounded.HistoryEdu
+    "record_voice_over" -> Icons.Rounded.RecordVoiceOver
+    "movie" -> Icons.Rounded.Movie
+    "moon" -> Icons.Rounded.NightsStay
+    "mystery" -> Icons.Rounded.Search
+    "explore" -> Icons.Rounded.Explore
+    else -> Icons.Rounded.School
 }
 
 @Composable

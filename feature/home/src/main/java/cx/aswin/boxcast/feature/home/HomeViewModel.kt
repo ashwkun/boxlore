@@ -14,6 +14,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import cx.aswin.boxcast.core.data.MixtapeEngine
+import cx.aswin.boxcast.core.data.PersonalizedContentSectionInputs
 import cx.aswin.boxcast.core.data.PodcastRepository
 import cx.aswin.boxcast.core.data.HomeBootstrapData
 import cx.aswin.boxcast.core.data.toScorable
@@ -24,8 +25,10 @@ import cx.aswin.boxcast.core.data.content.ContentDaypart
 import cx.aswin.boxcast.core.data.content.ContentOrchestrator
 import cx.aswin.boxcast.core.data.content.ContentSection
 import cx.aswin.boxcast.core.data.content.ContentSectionsDaypartResolver
+import cx.aswin.boxcast.core.data.content.RecentSectionIntentStore
 import cx.aswin.boxcast.core.data.content.ServerGroupedSectionProvider
 import cx.aswin.boxcast.core.data.content.ServerIntentCandidateProvider
+import cx.aswin.boxcast.core.data.ranking.AdaptiveRankingRepository
 import cx.aswin.boxcast.core.data.ranking.AdaptiveCandidateScorer
 import cx.aswin.boxcast.core.data.ranking.CandidateSource
 import cx.aswin.boxcast.core.data.ranking.EpisodeRankingInput
@@ -202,6 +205,8 @@ private data class AdaptiveContentTrigger(
     val region: String,
     val daypart: ContentDaypart,
     val sectionDaypart: String,
+    val date: java.time.LocalDate,
+    val timezoneOffsetMinutes: Int,
     val subscriptionIds: Set<String>,
     val latestEpisodeId: String?,
     val latestPodcastId: String?,
@@ -211,6 +216,8 @@ private data class AdaptiveContentTrigger(
 private data class HomeClockContext(
     val daypart: ContentDaypart,
     val sectionDaypart: String,
+    val date: java.time.LocalDate,
+    val timezoneOffsetMinutes: Int,
 )
 
 @Suppress("kotlin:S6310")
@@ -224,6 +231,7 @@ class HomeViewModel(
     
     val podcastRepository = PodcastRepository(baseUrl = apiBaseUrl, publicKey = publicKey, context = application)
     private val database = cx.aswin.boxcast.core.data.database.BoxLoreDatabase.getDatabase(application)
+    private val adaptiveRankingRepository = AdaptiveRankingRepository.getInstance(application)
     private val adaptiveScorer = AdaptiveCandidateScorer.getInstance(application)
     private val rankingFeedback = RankingFeedbackRepository.getInstance(application)
     private val subscriptionRepository = cx.aswin.boxcast.core.data.SubscriptionRepository(database.podcastDao())
@@ -279,13 +287,18 @@ class HomeViewModel(
     private val _adaptiveSections = MutableStateFlow<List<ContentSection>>(emptyList())
     private val adaptiveContentSessionId = java.util.UUID.randomUUID().toString()
     private val exposedAdaptiveCandidates = mutableSetOf<String>()
+    private val exposedAdaptiveSectionIntents = mutableSetOf<String>()
+    private val recentSectionIntentStore = RecentSectionIntentStore(application)
     private val contentContextEngine = ContentContextEngine()
     private val clockContextFlow: StateFlow<HomeClockContext> = callbackFlow {
         fun currentClockContext(): HomeClockContext {
-            val localMinuteOfDay = java.time.LocalTime.now().let { it.hour * 60 + it.minute }
+            val now = java.time.ZonedDateTime.now()
+            val localMinuteOfDay = now.toLocalTime().let { it.hour * 60 + it.minute }
             return HomeClockContext(
                 daypart = contentContextEngine.currentDaypart(),
                 sectionDaypart = ContentSectionsDaypartResolver.resolve(localMinuteOfDay),
+                date = now.toLocalDate(),
+                timezoneOffsetMinutes = now.offset.totalSeconds / 60,
             )
         }
         val receiver = object : BroadcastReceiver() {
@@ -312,10 +325,13 @@ class HomeViewModel(
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.Eagerly,
-            initialValue = java.time.LocalTime.now().let { time ->
+            initialValue = java.time.ZonedDateTime.now().let { now ->
+                val time = now.toLocalTime()
                 HomeClockContext(
                     daypart = contentContextEngine.currentDaypart(),
                     sectionDaypart = ContentSectionsDaypartResolver.resolve(time.hour * 60 + time.minute),
+                    date = now.toLocalDate(),
+                    timezoneOffsetMinutes = now.offset.totalSeconds / 60,
                 )
             },
         )
@@ -904,10 +920,24 @@ class HomeViewModel(
     init {
         observeSelectedPodcast()
         manageFilterSelectionOnSubscriptionChange()
+        observeDiscoveryGreeting()
         loadData()
         loadAdaptiveContent()
         startBackgroundSync()
         eagerlyLoadNewSubscriptions()
+    }
+
+    private fun observeDiscoveryGreeting() {
+        viewModelScope.launch {
+            clockContextFlow
+                .map { clock -> clock.daypart to clock.date }
+                .distinctUntilChanged()
+                .collect { (daypart, date) ->
+                    _uiState.update { state ->
+                        state.copy(discoveryGreeting = discoveryGreetingFor(daypart, date))
+                    }
+                }
+        }
     }
 
     private suspend fun loadPersonalizedDiscoverySections(
@@ -921,17 +951,22 @@ class HomeViewModel(
         val interests = preferences.getStringSet("user_genres", emptySet()).orEmpty().toList()
         val history = playbackRepository.getHistoryForRecommendations(30)
         val subscriptions = subscriptionRepository.subscribedPodcasts.first()
+        val learnedGenreAffinities = adaptiveRankingRepository.genreAffinities()
         return podcastRepository.getPersonalizedContentSections(
             contentContext = context,
             catalog = catalog,
-            history = history,
-            interests = interests,
-            subscribedPodcastIds = subscriptions.map(Podcast::id),
-            subscribedGenres = subscriptions.mapNotNull(Podcast::genre).distinct(),
-            languages = listOf(
-                java.util.Locale.getDefault().language,
-                "en",
-            ).distinct(),
+            inputs = PersonalizedContentSectionInputs(
+                history = history,
+                interests = interests,
+                subscribedPodcastIds = subscriptions.map(Podcast::id),
+                subscribedGenres = subscriptions.mapNotNull(Podcast::genre).distinct(),
+                learnedGenreAffinities = learnedGenreAffinities,
+                recentSectionIds = recentSectionIntentStore.recentIds(),
+                languages = listOf(
+                    java.util.Locale.getDefault().language,
+                    "en",
+                ).distinct(),
+            ),
         )
     }
 
@@ -948,6 +983,8 @@ class HomeViewModel(
                     region = region,
                     daypart = clockContext.daypart,
                     sectionDaypart = clockContext.sectionDaypart,
+                    date = clockContext.date,
+                    timezoneOffsetMinutes = clockContext.timezoneOffsetMinutes,
                     subscriptionIds = subscriptions.map(Podcast::id).toSet(),
                     latestEpisodeId = latestHistory?.episodeId,
                     latestPodcastId = latestHistory?.podcastId,
@@ -992,12 +1029,18 @@ class HomeViewModel(
         section: ContentSection,
         visibleCandidateIds: Set<String>,
     ) {
+        val shouldRecordSectionIntent = synchronized(exposedAdaptiveSectionIntents) {
+            exposedAdaptiveSectionIntents.add(section.intent.id)
+        }
         val newlyVisible = section.items.filter { candidate ->
             candidate.id in visibleCandidateIds &&
                 exposedAdaptiveCandidates.add("${section.stableId}:${candidate.id}")
         }
-        if (newlyVisible.isEmpty()) return
-        viewModelScope.launch {
+        if (!shouldRecordSectionIntent && newlyVisible.isEmpty()) return
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            if (shouldRecordSectionIntent) {
+                recentSectionIntentStore.recordVisible(section.intent.id)
+            }
             newlyVisible.forEach { candidate ->
                 rankingFeedback.recordExposure(
                     RankingExposure(
@@ -1722,7 +1765,10 @@ class HomeViewModel(
                             completedEpisodeCount = completedCount,
                             subscribedPodcasts = sortedSubs,
                             selectedCategory = _selectedCategory.value,
-                            discoveryGreeting = discoveryGreetingFor(daypart),
+                            discoveryGreeting = discoveryGreetingFor(
+                                daypart = daypart,
+                                date = clockContextFlow.value.date,
+                            ),
                             discoverPodcasts = discover,
                             recommendations = rankedRecommendations,
                             isLoading = initialLoading,

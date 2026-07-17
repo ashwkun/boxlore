@@ -19,6 +19,7 @@ class ServerGroupedSectionProvider(
 internal fun ContentSectionsV1Response.toGroupedContentSections(
     catalog: ContentCatalogSnapshot?,
     seenPodcastIds: Set<String>,
+    subscribedPodcastIds: Set<String> = emptySet(),
 ): GroupedContentSections? {
     val responseCatalogVersion = catalogVersion ?: return null
     val responseDaypart = resolvedDaypart?.takeIf(String::isNotBlank) ?: return null
@@ -71,7 +72,7 @@ internal fun ContentSectionsV1Response.toGroupedContentSections(
             )
         }
         val candidates = section.items.map { item ->
-            item.toContentCandidate(intent.id, seenPodcastIds)
+            item.toContentCandidate(intent.id, seenPodcastIds, subscribedPodcastIds)
         }
         GroupedContentSection(intent = intent, items = candidates)
     }
@@ -89,6 +90,7 @@ internal fun ContentSectionsV1Response.toGroupedContentSections(
 private fun ContentSectionEpisodeDto.toContentCandidate(
     intentId: String,
     seenPodcastIds: Set<String>,
+    subscribedPodcastIds: Set<String>,
 ): ContentCandidate {
     val podcastId = feedId.toString()
     val episode = Episode(
@@ -119,7 +121,7 @@ private fun ContentSectionEpisodeDto.toContentCandidate(
         description = null,
         genre = genre.ifBlank { "Podcast" },
         latestEpisode = episode,
-        subscribedAt = if (podcastId in seenPodcastIds) 1L else 0L,
+        subscribedAt = if (podcastId in subscribedPodcastIds) 1L else 0L,
     )
     return ContentCandidate(
         id = episode.id,

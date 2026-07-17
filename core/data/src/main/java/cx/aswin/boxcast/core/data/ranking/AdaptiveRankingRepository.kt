@@ -5,6 +5,7 @@ import cx.aswin.boxcast.core.data.ranking.database.AdaptiveModelEntity
 import cx.aswin.boxcast.core.data.ranking.database.AdaptiveRankingDatabase
 import cx.aswin.boxcast.core.data.ranking.database.PreferenceFacetEntity
 import cx.aswin.boxcast.core.data.ranking.database.RankingExposureEntity
+import cx.aswin.boxcast.core.model.PodcastGenres
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
@@ -197,6 +198,29 @@ class AdaptiveRankingRepository private constructor(
         }
     }
 
+    /**
+     * Returns only a bounded, decayed genre summary suitable for personalization requests.
+     * Stored facet evidence and the underlying behavioral timeline never leave this repository.
+     */
+    suspend fun genreAffinities(
+        now: Long = System.currentTimeMillis(),
+    ): Map<String, Double> {
+        val aggregate = mutableMapOf<String, Double>()
+        dao.getFacetsByType(PreferenceFacetType.GENRE.name).forEach { entity ->
+            val genre = PodcastGenres.canonicalize(entity.facetKey) ?: return@forEach
+            val affinity = entity.toFacet().affinity(now)
+            if (!affinity.isFinite()) return@forEach
+            aggregate[genre] = (
+                aggregate.getOrDefault(genre, 0.0) + affinity
+                ).coerceIn(-1.0, 1.0)
+        }
+        return PodcastGenres.all.mapNotNull { genre ->
+            aggregate[genre]
+                ?.takeIf { kotlin.math.abs(it) >= MIN_EXPORTED_GENRE_AFFINITY }
+                ?.let { genre to it }
+        }.toMap()
+    }
+
     suspend fun updateFacet(
         type: PreferenceFacetType,
         key: String,
@@ -324,6 +348,7 @@ class AdaptiveRankingRepository private constructor(
         private const val MAX_EXPOSURES = 1_000
         private const val EXPOSURE_PRUNE_INTERVAL = 25L
         private const val EXPOSURE_RETENTION_MILLIS = 30L * 24L * 60L * 60L * 1_000L
+        private const val MIN_EXPORTED_GENRE_AFFINITY = 0.01
 
         @Volatile
         private var instance: AdaptiveRankingRepository? = null

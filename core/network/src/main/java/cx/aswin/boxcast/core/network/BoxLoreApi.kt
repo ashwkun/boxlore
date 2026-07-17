@@ -164,11 +164,11 @@ interface BoxLoreApi {
     ): retrofit2.Call<ContentCatalogResponse>
 
     @POST("content/sections/v1")
-    fun getContentSectionsV1(
+    suspend fun getContentSectionsV1(
         @Header("X-App-Key") publicKey: String,
         @Header("X-Device-UUID") deviceUuid: String,
         @Body request: ContentSectionsV1Request,
-    ): retrofit2.Call<ContentSectionsV1Response>
+    ): ContentSectionsV1Response
 
     @POST("recommendations/because-you-like")
     fun getBecauseYouLikeRecommendations(

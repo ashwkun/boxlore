@@ -191,7 +191,7 @@ data class ContentFallbackIntentDto(
 
 @Serializable
 data class ContentSectionsV1Request(
-    val contractVersion: Int = 1,
+    val contractVersion: Int,
     val surface: String,
     val localMinuteOfDay: Int,
     val daypart: String? = null,
@@ -203,6 +203,25 @@ data class ContentSectionsV1Request(
     val excludedPodcastIds: List<Long> = emptyList(),
     val excludedEpisodeIds: List<Long> = emptyList(),
     val candidateBudget: Int = 120,
+    val tasteSignals: List<ContentTasteSignalDto> = emptyList(),
+    val recentSectionIds: List<String> = emptyList(),
+    val durationPreference: ContentDurationPreferenceDto? = null,
+    val historyMaturity: Int? = null,
+    val noveltyPreference: Double? = null,
+    val localDate: String? = null,
+    val timezoneOffsetMinutes: Int? = null,
+)
+
+@Serializable
+data class ContentTasteSignalDto(
+    val genre: String,
+    val weight: Double,
+)
+
+@Serializable
+data class ContentDurationPreferenceDto(
+    val minimumMinutes: Int,
+    val maximumMinutes: Int,
 )
 
 @Serializable

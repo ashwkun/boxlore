@@ -27,6 +27,7 @@ class GroupedContentSectionsTest {
     @Test
     fun `sections request sends local minute without broad Android daypart`() {
         val request = ContentSectionsV1Request(
+            contractVersion = 1,
             surface = "home",
             localMinuteOfDay = 500,
             country = "us",
@@ -118,8 +119,47 @@ class GroupedContentSectionsTest {
         assertEquals("late_night", ContentSectionsDaypartResolver.resolve(1_320))
         assertEquals("late_night", ContentSectionsDaypartResolver.resolve(0))
         assertEquals(
-            "content_sections_v1:3:us:commute",
-            contentSectionsCacheKey(3, "US", 500),
+            "content_sections_v1e:3:2026-07-17:us:home:commute:000000000000000000000000",
+            contentSectionsCacheKey(
+                catalogVersion = 3,
+                country = "US",
+                surface = "home",
+                localMinuteOfDay = 500,
+                localDate = "2026-07-17",
+                profileFingerprint = "0".repeat(24),
+            ),
+        )
+    }
+
+    @Test
+    fun `cache fingerprint separates profile rotation and local day`() {
+        val base = ContentSectionsV1Request(
+            contractVersion = 1,
+            surface = "home",
+            localMinuteOfDay = 500,
+            country = "us",
+            interests = listOf("Technology"),
+            recentSectionIds = listOf("technology-morning-brief"),
+            noveltyPreference = 0.5,
+            localDate = "2026-07-17",
+            timezoneOffsetMinutes = 330,
+        )
+        val baseFingerprint = contentSectionsProfileFingerprint(base)
+        val changedProfile = contentSectionsProfileFingerprint(
+            base.copy(noveltyPreference = 0.8),
+        )
+        val changedRotation = contentSectionsProfileFingerprint(
+            base.copy(recentSectionIds = listOf("science-morning-deep-dive")),
+        )
+        val nextDayRequest = base.copy(localDate = "2026-07-18")
+        val nextDayFingerprint = contentSectionsProfileFingerprint(nextDayRequest)
+
+        assertTrue(baseFingerprint != changedProfile)
+        assertTrue(baseFingerprint != changedRotation)
+        assertTrue(baseFingerprint != nextDayFingerprint)
+        assertTrue(
+            contentSectionsCacheKey(3, "us", "home", 500, "2026-07-17", baseFingerprint) !=
+                contentSectionsCacheKey(3, "us", "home", 500, "2026-07-18", nextDayFingerprint),
         )
     }
 

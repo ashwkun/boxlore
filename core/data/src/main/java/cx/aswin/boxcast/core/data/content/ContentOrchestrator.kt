@@ -201,15 +201,13 @@ private fun ContentCandidate.meetsConstraints(
     nowMillis: Long,
 ): Boolean {
     val effectiveSemanticScore = semanticScore ?: episode?.semanticScore
-    val missingServerSemanticScore =
-        effectiveSemanticScore == null &&
-            source == cx.aswin.boxcast.core.data.ranking.CandidateSource.SERVER_RECOMMENDATION
-    val belowMinimumSemanticScore =
-        effectiveSemanticScore?.let { it < intent.quality.minimumSemanticScore } == true
-    if (
+    val missingRequiredServerScore =
         intent.quality.minimumSemanticScore > 0.0 &&
-        (missingServerSemanticScore || belowMinimumSemanticScore)
-    ) {
+            effectiveSemanticScore == null &&
+            source == cx.aswin.boxcast.core.data.ranking.CandidateSource.SERVER_RECOMMENDATION
+    val belowMinimumScore =
+        (effectiveSemanticScore ?: retrievalScore) < intent.quality.minimumSemanticScore
+    if (missingRequiredServerScore || belowMinimumScore) {
         return false
     }
     val constrainedEpisode = episode
@@ -244,10 +242,18 @@ class ContentOrchestrator(
         now: Long = System.currentTimeMillis(),
     ): ContentSlate {
         val (catalogVersion, intents) = intentResolver.resolve(catalog, context)
-        val cacheKey = cacheKey(context, catalogVersion, intents, now)
-        if (!forceRefresh) sessionCache[cacheKey]?.let { return it }
+        val fallbackCacheKey = cacheKey(context, catalogVersion, intents, now)
         val groupedSections = loadGroupedSections(context)
         if (groupedSections != null) {
+            val groupedCacheKey = cacheKey(
+                context = context,
+                catalogVersion = groupedSections.catalogVersion,
+                intents = groupedSections.sections.map(GroupedContentSection::intent),
+                now = now,
+            )
+            if (!forceRefresh) {
+                sessionCache[groupedCacheKey]?.let { return it }
+            }
             val rankedGroups = supervisorScope {
                 groupedSections.sections.map { section ->
                     async {
@@ -268,9 +274,12 @@ class ContentOrchestrator(
                 preserveSectionOrder = true,
             )
             if (groupedSlate.sections.isNotEmpty()) {
-                sessionCache[cacheKey] = groupedSlate
+                sessionCache[groupedCacheKey] = groupedSlate
                 return groupedSlate
             }
+        }
+        if (!forceRefresh) {
+            sessionCache[fallbackCacheKey]?.let { return it }
         }
         val rankedByIntent = supervisorScope {
             intents.map { intent ->
@@ -283,7 +292,7 @@ class ContentOrchestrator(
             rankedByIntent = rankedByIntent,
             exposureBudget = exposureBudget,
             now = now,
-        ).also { sessionCache[cacheKey] = it }
+        ).also { sessionCache[fallbackCacheKey] = it }
     }
 
     private suspend fun rankIntent(

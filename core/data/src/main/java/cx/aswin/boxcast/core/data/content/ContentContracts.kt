@@ -45,7 +45,7 @@ data class ContentDiversityConstraints(
 ) {
     init {
         require(maximumItemsPerShow > 0)
-        require(minimumDistinctShows > 0)
+        require(minimumDistinctShows >= 0)
     }
 }
 
@@ -116,7 +116,7 @@ data class ContentIntent(
         require(minimumItems >= 0)
         require(maximumItems >= minimumItems)
         require(freshnessDays == null || freshnessDays > 0)
-        require(diversity.minimumDistinctShows <= maximumItems.coerceAtLeast(1))
+        require(diversity.minimumDistinctShows <= maximumItems)
     }
 
     fun isEligible(context: ContentContext): Boolean {
