@@ -97,9 +97,10 @@ Search episodes by <em>meaning</em>, not exact keywords.<br/>
 <em>"stories about startup failure"</em> → relevant episodes, not title matches.
 </td>
 <td align="center" width="50%" valign="top">
-<h3>For You</h3>
-Personalized picks on Home and Explore from your listening, genres, and subs.<br/>
-<strong>Because You Like</strong> rows tied to a favorite show.
+<h3>Personalization engine</h3>
+On-device learning that re-ranks Home rails, Explore, queue, and downloads as you listen — taste stays on your phone.<br/>
+Themed <strong>discovery rails</strong> under the daypart greeting, plus <strong>Because You Like</strong> and For You picks.<br/>
+<a href="docs/recommendation-system.md">Read more →</a>
 </td>
 </tr>
 <tr>
