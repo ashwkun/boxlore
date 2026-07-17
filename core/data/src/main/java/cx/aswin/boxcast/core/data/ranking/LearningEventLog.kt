@@ -40,14 +40,22 @@ object LearningEventLog {
      * the tool on never leaves signal history lingering in memory.
      */
     fun configure(enabled: Boolean) {
-        this.enabled = enabled
-        if (!enabled) clear()
+        synchronized(lock) {
+            this.enabled = enabled
+            if (!enabled) {
+                buffer.clear()
+                _events.value = emptyList()
+            }
+        }
     }
 
     fun record(build: (id: Long, timestamp: Long) -> LearningEvent) {
+        // Fast path when disabled; re-check under the lock so configure(false) cannot race
+        // a pending append and leave identifiers in memory after opt-out.
         if (!enabled) return
-        val event = build(idSource.incrementAndGet(), System.currentTimeMillis())
         synchronized(lock) {
+            if (!enabled) return
+            val event = build(idSource.incrementAndGet(), System.currentTimeMillis())
             buffer.addFirst(event)
             while (buffer.size > MAX_EVENTS) buffer.removeLast()
             _events.value = buffer.toList()
@@ -199,8 +207,8 @@ sealed interface LearningEvent {
                     append(it)
                 }
                 exposureAgeMillis?.let {
-                    append(" · ")
-                    append(relativeAge(it))
+                    append(" · after ")
+                    append(formatDuration(it))
                 }
             }
         } else {
@@ -264,6 +272,17 @@ sealed interface LearningEvent {
                 minutes < 60 -> "${minutes}m ago"
                 minutes < 24 * 60 -> "${minutes / 60}h ago"
                 else -> "${minutes / (24 * 60)}d ago"
+            }
+        }
+
+        /** Formats a latency/duration (not event recency). */
+        internal fun formatDuration(durationMillis: Long): String {
+            val minutes = durationMillis / 60_000L
+            return when {
+                minutes < 1 -> "<1m"
+                minutes < 60 -> "${minutes}m"
+                minutes < 24 * 60 -> "${minutes / 60}h"
+                else -> "${minutes / (24 * 60)}d"
             }
         }
     }

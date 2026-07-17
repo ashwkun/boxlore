@@ -199,16 +199,23 @@ class AdaptiveRankingRepository private constructor(
             )
         }.getOrNull() ?: return false
         return objectiveLock(objective).withLock {
-            val changed = dao.resolveExposure(
-                exposureId = exposureId,
-                resolvedAt = resolvedAt,
-                reward = reward.coerceIn(-1.0, 1.0),
-                listenSeconds = listenSeconds.coerceAtLeast(0),
+            data class ResolveResult(
+                val previous: AdaptiveModelState,
+                val updated: AdaptiveModelState,
             )
-            if (changed == 0) return@withLock false
-            val previous = loadState(objective)
-            val updated = model.update(features, reward, previous)
-            dao.upsertModel(updated.toEntity(objective, resolvedAt))
+            val result = database.withTransaction {
+                val changed = dao.resolveExposure(
+                    exposureId = exposureId,
+                    resolvedAt = resolvedAt,
+                    reward = reward.coerceIn(-1.0, 1.0),
+                    listenSeconds = listenSeconds.coerceAtLeast(0),
+                )
+                if (changed == 0) return@withTransaction null
+                val previous = loadState(objective)
+                val updated = model.update(features, reward, previous)
+                dao.upsertModel(updated.toEntity(objective, resolvedAt))
+                ResolveResult(previous, updated)
+            } ?: return@withLock false
             LearningEventLog.record { id, ts ->
                 LearningEvent.ExposureResolved(
                     id = id,
@@ -220,10 +227,10 @@ class AdaptiveRankingRepository private constructor(
                     source = exposure.source,
                     exposureAgeMillis = (resolvedAt - exposure.shownAt).coerceAtLeast(0),
                     reward = reward.coerceIn(-1.0, 1.0),
-                    updateCountBefore = previous.updateCount,
-                    updateCountAfter = updated.updateCount,
-                    blendBefore = model.learnedBlend(previous.updateCount),
-                    blendAfter = model.learnedBlend(updated.updateCount),
+                    updateCountBefore = result.previous.updateCount,
+                    updateCountAfter = result.updated.updateCount,
+                    blendBefore = model.learnedBlend(result.previous.updateCount),
+                    blendAfter = model.learnedBlend(result.updated.updateCount),
                 )
             }
             true
@@ -365,16 +372,20 @@ class AdaptiveRankingRepository private constructor(
             val byKey = genres.associateBy { it.facetKey }
             val mergedCanonical = linkedMapOf<String, BayesianPreferenceFacet>()
             val deleteKeys = mutableListOf<String>()
+            var aliasMerges = 0
+            var placeholderDrops = 0
 
             for (entity in genres) {
                 val canonical = PodcastGenres.canonicalize(entity.facetKey)
                 if (canonical == null) {
                     deleteKeys += entity.facetKey
+                    placeholderDrops++
                     continue
                 }
                 if (canonical == entity.facetKey) continue
 
                 deleteKeys += entity.facetKey
+                aliasMerges++
                 val base = mergedCanonical[canonical]
                     ?: byKey[canonical]?.toFacet()
                     ?: BayesianPreferenceFacet(updatedAt = entity.updatedAt)
@@ -399,8 +410,8 @@ class AdaptiveRankingRepository private constructor(
             for (key in deleteKeys) {
                 dao.deleteFacet(PreferenceFacetType.GENRE.name, key)
             }
-            mergedCount = mergedCanonical.size
-            removedCount = deleteKeys.size
+            mergedCount = aliasMerges
+            removedCount = placeholderDrops
         }
         recordGenreFacetPruned(mergedCount, removedCount)
     }

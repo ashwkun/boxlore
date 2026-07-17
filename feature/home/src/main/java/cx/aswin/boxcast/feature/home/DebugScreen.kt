@@ -41,7 +41,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -55,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cx.aswin.boxcast.core.data.PlaybackRepository
 import cx.aswin.boxcast.core.data.database.ListeningHistoryEntity
@@ -95,15 +95,15 @@ fun DebugScreen(
         }
     )
 
-    val playerState by playbackRepository.playerState.collectAsState()
-    val skipSleepWindow by viewModel.skipSleepWindow.collectAsState()
-    val learnerSnapshot by viewModel.learnerSnapshot.collectAsState()
-    val learnerLoading by viewModel.learnerLoading.collectAsState()
-    val learningEvents by viewModel.learningEvents.collectAsState()
-    val logEnabled by viewModel.logEnabled.collectAsState()
-    val shadowDiagnostics by viewModel.shadowDiagnostics.collectAsState()
-    val history by viewModel.history.collectAsState(initial = emptyList())
-    val podcasts by viewModel.podcasts.collectAsState(initial = emptyList())
+    val playerState by playbackRepository.playerState.collectAsStateWithLifecycle()
+    val skipSleepWindow by viewModel.skipSleepWindow.collectAsStateWithLifecycle()
+    val learnerSnapshot by viewModel.learnerSnapshot.collectAsStateWithLifecycle()
+    val learnerLoading by viewModel.learnerLoading.collectAsStateWithLifecycle()
+    val learningEvents by viewModel.learningEvents.collectAsStateWithLifecycle()
+    val logEnabled by viewModel.logEnabled.collectAsStateWithLifecycle()
+    val shadowDiagnostics by viewModel.shadowDiagnostics.collectAsStateWithLifecycle()
+    val history by viewModel.history.collectAsStateWithLifecycle(initialValue = emptyList())
+    val podcasts by viewModel.podcasts.collectAsStateWithLifecycle(initialValue = emptyList())
 
     // Re-derive the night-window status periodically so the readout stays live while open.
     var nowTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -171,7 +171,7 @@ fun DebugScreen(
                 beyondViewportPageCount = 1,
             ) { page ->
                 when (tabs[page]) {
-                    DebugTab.Learner -> DebugTabScrollPane {
+                    DebugTab.Learner -> {
                         AdaptiveLearnerDebugSection(
                             snapshot = learnerSnapshot,
                             events = learningEvents,
@@ -180,6 +180,9 @@ fun DebugScreen(
                             shadowDiagnostics = shadowDiagnostics,
                             loading = learnerLoading,
                             onRefresh = viewModel::refreshLearnerSnapshot,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 220.dp),
                         )
                     }
 

@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,6 +38,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -84,11 +87,15 @@ internal fun AdaptiveLearnerDebugSection(
     shadowDiagnostics: List<RankingShadowSnapshot>,
     loading: Boolean,
     onRefresh: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var paneIndex by remember { mutableIntStateOf(0) }
     val panes = remember { LearnerPane.entries }
 
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
         LearnerHeader(snapshot = snapshot, loading = loading, onRefresh = onRefresh)
         LogToggleCard(enabled = logEnabled, eventCount = events.size, onToggle = onSetLogEnabled)
 
@@ -114,6 +121,9 @@ internal fun AdaptiveLearnerDebugSection(
 
         AnimatedContent(
             targetState = panes[paneIndex],
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
             transitionSpec = {
                 fadeIn(tween(180, easing = FastOutSlowInEasing)) togetherWith fadeOut(tween(120))
             },
@@ -236,39 +246,51 @@ private const val MAX_FEED_ROWS = 120
 
 @Composable
 private fun SignalsPane(events: List<LearningEvent>, logEnabled: Boolean) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        if (!logEnabled) {
-            InfoCard(
-                title = "Signal logging is off",
-                body = "Toggle it on above to record every action, reward, taste shift and model update in real time — and exactly how each one moved the engine.",
-            )
-            return@Column
-        }
-        if (events.isEmpty()) {
-            InfoCard(
-                title = "No signals yet",
-                body = "Scroll the Home rails, then play, like, skip, subscribe or queue something. Each signal and its effect on the model appears here instantly.",
-            )
-            return@Column
-        }
-
-        SessionCounters(events = events)
-
-        Text(
-            text = "Live feed · newest first",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    if (!logEnabled) {
+        InfoCard(
+            title = "Signal logging is off",
+            body = "Toggle it on above to record every action, reward, taste shift and model update in real time — and exactly how each one moved the engine.",
         )
-        val now = System.currentTimeMillis()
-        events.take(MAX_FEED_ROWS).forEach { event ->
+        return
+    }
+    if (events.isEmpty()) {
+        InfoCard(
+            title = "No signals yet",
+            body = "Scroll the Home rails, then play, like, skip, subscribe or queue something. Each signal and its effect on the model appears here instantly.",
+        )
+        return
+    }
+
+    val now = System.currentTimeMillis()
+    val feed = remember(events) { events.take(MAX_FEED_ROWS) }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item(key = "session_counters") {
+            SessionCounters(events = events)
+        }
+        item(key = "feed_label") {
+            Text(
+                text = "Live feed · newest first",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        items(
+            items = feed,
+            key = { it.id },
+        ) { event ->
             EventRow(event = event, now = now)
         }
         if (events.size > MAX_FEED_ROWS) {
-            Text(
-                text = "Showing newest $MAX_FEED_ROWS of ${events.size} buffered events.",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            item(key = "feed_overflow") {
+                Text(
+                    text = "Showing newest $MAX_FEED_ROWS of ${events.size} buffered events.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -376,17 +398,25 @@ private fun TastePane(snapshot: LearnerInspectorSnapshot?) {
         return
     }
     val byType = remember(snapshot.facets) { snapshot.facets.groupBy { it.type } }
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        FacetGroupCard("Genres", byType[PreferenceFacetType.GENRE].orEmpty())
-        FacetGroupCard("Shows", byType[PreferenceFacetType.SHOW].orEmpty())
-        FacetGroupCard("Sources", byType[PreferenceFacetType.SOURCE].orEmpty())
-        val other = snapshot.facets.filter {
+    val genres = byType[PreferenceFacetType.GENRE].orEmpty()
+    val shows = byType[PreferenceFacetType.SHOW].orEmpty()
+    val sources = byType[PreferenceFacetType.SOURCE].orEmpty()
+    val other = remember(snapshot.facets) {
+        snapshot.facets.filter {
             it.type != PreferenceFacetType.GENRE &&
                 it.type != PreferenceFacetType.SHOW &&
                 it.type != PreferenceFacetType.SOURCE
         }
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item(key = "genres") { FacetGroupCard("Genres", genres) }
+        item(key = "shows") { FacetGroupCard("Shows", shows) }
+        item(key = "sources") { FacetGroupCard("Sources", sources) }
         if (other.isNotEmpty()) {
-            FacetGroupCard("Context", other)
+            item(key = "context") { FacetGroupCard("Context", other) }
         }
     }
 }
@@ -405,11 +435,13 @@ private fun FacetGroupCard(title: String, facets: List<LearnerFacetDebug>) {
         val ordered = remember(facets) { facets.sortedByDescending { abs(it.affinity) } }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             ordered.forEach { facet ->
-                AffinityRow(
-                    label = facet.key,
-                    affinity = facet.affinity,
-                    evidence = "+${format1(facet.positiveEvidence)} / -${format1(facet.negativeEvidence)}",
-                )
+                key(facet.type, facet.key) {
+                    AffinityRow(
+                        label = facet.key,
+                        affinity = facet.affinity,
+                        evidence = "+${format1(facet.positiveEvidence)} / -${format1(facet.negativeEvidence)}",
+                    )
+                }
             }
         }
     }
@@ -486,31 +518,37 @@ private fun ModelPane(snapshot: LearnerInspectorSnapshot?, shadow: List<RankingS
         return
     }
     val shadowByObjective = remember(shadow) { shadow.associateBy { it.objective } }
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        SectionCard(title = "Objectives", subtitle = "per-goal bandit state · adaptive vs prior reordering") {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                snapshot.objectives.forEach { obj ->
-                    ObjectiveRow(obj = obj, shadow = shadowByObjective[obj.objective])
+    val weights = remember(snapshot.featureWeights) {
+        snapshot.featureWeights
+            .filter { it.slot != FeatureSlot.INTERCEPT }
+            .sortedByDescending { abs(it.weight) }
+    }
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item(key = "objectives") {
+            SectionCard(title = "Objectives", subtitle = "per-goal bandit state · adaptive vs prior reordering") {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    snapshot.objectives.forEach { obj ->
+                        ObjectiveRow(obj = obj, shadow = shadowByObjective[obj.objective])
+                    }
                 }
             }
         }
-
-        val weights = remember(snapshot.featureWeights) {
-            snapshot.featureWeights
-                .filter { it.slot != FeatureSlot.INTERCEPT }
-                .sortedByDescending { abs(it.weight) }
-        }
-        SectionCard(title = "Feature weights", subtitle = "Discovery \u03b8 · what the ranker currently leans on") {
-            if (weights.all { it.weight == 0.0 }) {
-                Text(
-                    "No learned weights yet.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            } else {
-                val maxAbs = weights.maxOfOrNull { abs(it.weight) }?.coerceAtLeast(1e-6) ?: 1.0
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    weights.forEach { weight -> FeatureWeightRow(weight = weight, maxAbs = maxAbs) }
+        item(key = "feature_weights") {
+            SectionCard(title = "Feature weights", subtitle = "Discovery \u03b8 · what the ranker currently leans on") {
+                if (weights.all { it.weight == 0.0 }) {
+                    Text(
+                        "No learned weights yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    val maxAbs = weights.maxOfOrNull { abs(it.weight) }?.coerceAtLeast(1e-6) ?: 1.0
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        weights.forEach { weight -> FeatureWeightRow(weight = weight, maxAbs = maxAbs) }
+                    }
                 }
             }
         }

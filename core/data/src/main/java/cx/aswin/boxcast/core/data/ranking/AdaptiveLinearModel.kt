@@ -55,8 +55,7 @@ class AdaptiveLinearModel(
         } else {
             0.0
         }
-        val blend = (state.updateCount.toDouble() / explorationThreshold)
-            .coerceIn(0.0, 1.0) * maximumLearnedBlend
+        val blend = learnedBlend(state.updateCount)
         val boundedPrior = priorScore.coerceIn(-1.0, 1.0)
         val final = ((1.0 - blend) * boundedPrior + blend * learned + uncertainty)
             .coerceIn(-1.0, 1.0)
