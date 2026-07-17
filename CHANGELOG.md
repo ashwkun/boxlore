@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Recommendation-driven discovery sections on Home replace time‑of‑day rails; Adaptive Learner debug inspector with genre‑affinity graphs (excluding placeholder Podcast); Bounded aggregate summaries (genre affinity, duration, maturity, novelty, recent‑section) sent for personalization; Stale‑while‑revalidate caching for discovery rails with skeleton placeholders ([#882](https://github.com/ashwkun/boxlore/pull/882)) <!-- impact:user-impact-high+backend-change -->
+### Changed
+- Visual hierarchy and spacing adjustments for top‑level, child, and nested section headers; daypart rotation enabled via ordering and short‑lived retention of recently visible sections; network loading logic now preserves in‑flight section loads and prevents data clearing on empty refresh; Gradle wrapper upgraded and R8 compatibility enabled for release builds ([#882](https://github.com/ashwkun/boxlore/pull/882)) <!-- impact:user-impact-high+backend-change -->
+### Fixed
+- Placeholder `Podcast` genre excluded from on‑device learner calculations; blank gaps under greeting eliminated by painting cached rails immediately ([#882](https://github.com/ashwkun/boxlore/pull/882)) <!-- impact:user-impact-high+backend-change -->
 ## [v0.0.9] - 2026-07-16
 
 ### Added
