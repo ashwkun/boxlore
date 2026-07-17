@@ -19,6 +19,45 @@ pluginManagement {
 plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "0.8.0"
 }
+
+/**
+ * Patched versions forced onto the Gradle plugin / buildscript classpath.
+ * Keep in sync with open Dependabot Maven alerts attributed to settings.gradle.kts.
+ * Build-time only — these do not ship in the APK.
+ */
+val securityPinnedClasspath =
+    run {
+        val netty = "4.1.136.Final"
+        arrayOf(
+            "io.netty:netty-common:$netty",
+            "io.netty:netty-buffer:$netty",
+            "io.netty:netty-transport:$netty",
+            "io.netty:netty-resolver:$netty",
+            "io.netty:netty-codec:$netty",
+            "io.netty:netty-codec-http:$netty",
+            "io.netty:netty-codec-http2:$netty",
+            "io.netty:netty-codec-socks:$netty",
+            "io.netty:netty-handler:$netty",
+            "io.netty:netty-handler-proxy:$netty",
+            "io.netty:netty-transport-native-unix-common:$netty",
+            "org.bouncycastle:bcprov-jdk18on:1.84",
+            "org.bouncycastle:bcpkix-jdk18on:1.84",
+            "org.bouncycastle:bcutil-jdk18on:1.84",
+            "org.apache.commons:commons-compress:1.26.2",
+            "org.bitbucket.b_c:jose4j:0.9.6",
+            "org.jdom:jdom2:2.0.6.1",
+            "com.google.protobuf:protobuf-java:3.25.5",
+            "com.google.protobuf:protobuf-kotlin:3.25.5",
+        )
+    }
+
+// AGP pulls older Netty / BouncyCastle / etc. Pin patched transitives without a major AGP bump.
+gradle.beforeProject {
+    buildscript.configurations.findByName("classpath")?.resolutionStrategy {
+        force(*securityPinnedClasspath)
+    }
+}
+
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
@@ -43,4 +82,3 @@ include(":feature:explore")
 include(":feature:library")
 include(":feature:onboarding")
 include(":feature:briefing")
-
