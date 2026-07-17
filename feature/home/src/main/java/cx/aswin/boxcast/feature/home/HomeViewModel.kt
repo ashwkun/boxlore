@@ -157,6 +157,7 @@ data class HomeUiState(
     val isBecauseYouLikeLoading: Boolean = false,
     val isRecommendationsFallback: Boolean = true,
     val adaptiveSections: List<ContentSection> = emptyList(),
+    val isAdaptiveSectionsLoading: Boolean = false,
 )
 
 private data class SelectedPodcastSignal(
@@ -208,9 +209,8 @@ private data class AdaptiveContentTrigger(
     val date: java.time.LocalDate,
     val timezoneOffsetMinutes: Int,
     val subscriptionIds: Set<String>,
-    val latestEpisodeId: String?,
-    val latestPodcastId: String?,
-    val historyMaturity: Int,
+    /** Coarse bucket so per-episode history writes do not cancel in-flight section loads. */
+    val historyMaturityBucket: Int,
 )
 
 private data class HomeClockContext(
@@ -285,6 +285,9 @@ class HomeViewModel(
     private val _isBecauseYouLikeLoading = MutableStateFlow(false)
     private val _isRecommendationsFallback = MutableStateFlow(true)
     private val _adaptiveSections = MutableStateFlow<List<ContentSection>>(emptyList())
+    private val _isAdaptiveSectionsLoading = MutableStateFlow(true)
+    @Volatile
+    private var preferCachedAdaptiveSections: Boolean = false
     private val adaptiveContentSessionId = java.util.UUID.randomUUID().toString()
     private val exposedAdaptiveCandidates = mutableSetOf<String>()
     private val exposedAdaptiveSectionIntents = mutableSetOf<String>()
@@ -967,6 +970,7 @@ class HomeViewModel(
                     "en",
                 ).distinct(),
             ),
+            preferCache = preferCachedAdaptiveSections,
         )
     }
 
@@ -978,7 +982,6 @@ class HomeViewModel(
                 subscriptionRepository.subscribedPodcasts,
                 playbackRepository.getAllHistory(),
             ) { region, clockContext, subscriptions, history ->
-                val latestHistory = history.maxByOrNull(ListeningHistoryEntity::lastPlayedAt)
                 AdaptiveContentTrigger(
                     region = region,
                     daypart = clockContext.daypart,
@@ -986,12 +989,12 @@ class HomeViewModel(
                     date = clockContext.date,
                     timezoneOffsetMinutes = clockContext.timezoneOffsetMinutes,
                     subscriptionIds = subscriptions.map(Podcast::id).toSet(),
-                    latestEpisodeId = latestHistory?.episodeId,
-                    latestPodcastId = latestHistory?.podcastId,
-                    historyMaturity = history.size,
+                    historyMaturityBucket = adaptiveHistoryMaturityBucket(history.size),
                 )
             }.distinctUntilChanged().collectLatest { trigger ->
                 try {
+                    val history = playbackRepository.getAllHistory().first()
+                    val latestHistory = history.maxByOrNull(ListeningHistoryEntity::lastPlayedAt)
                     val context = contentContextEngine.create(
                         ContentContextInput(
                             surface = RankingSurface.HOME,
@@ -999,22 +1002,65 @@ class HomeViewModel(
                             isDriving = false,
                             isOnline = true,
                             availableMinutes = null,
-                            currentEpisodeId = trigger.latestEpisodeId,
-                            currentPodcastId = trigger.latestPodcastId,
-                            historyMaturity = trigger.historyMaturity,
+                            currentEpisodeId = latestHistory?.episodeId,
+                            currentPodcastId = latestHistory?.podcastId,
+                            historyMaturity = history.size,
                             subscriptionCount = trigger.subscriptionIds.size,
                             sessionId = adaptiveContentSessionId,
                         ),
                     ).copy(daypart = trigger.daypart)
-                    val slate = contentOrchestrator.compose(
+                    val catalog = podcastRepository.getContentCatalog()
+                    if (_adaptiveSections.value.isEmpty()) {
+                        _isAdaptiveSectionsLoading.value = true
+                        _uiState.update { it.copy(isAdaptiveSectionsLoading = true) }
+                    }
+
+                    // Paint disk/session slate immediately, then refresh over the network.
+                    preferCachedAdaptiveSections = true
+                    try {
+                        val staleSlate = contentOrchestrator.compose(
+                            context = context,
+                            catalog = catalog,
+                            forceRefresh = false,
+                            allowUngroupedFallback = false,
+                        )
+                        if (staleSlate.sections.isNotEmpty()) {
+                            applyAdaptiveSections(
+                                sections = staleSlate.sections,
+                                loading = false,
+                            )
+                        }
+                    } finally {
+                        preferCachedAdaptiveSections = false
+                    }
+
+                    val freshSlate = contentOrchestrator.compose(
                         context = context,
-                        catalog = podcastRepository.getContentCatalog(),
+                        catalog = catalog,
                         forceRefresh = true,
+                        allowUngroupedFallback = false,
                     )
-                    _adaptiveSections.value = slate.sections
+                    if (freshSlate.sections.isNotEmpty()) {
+                        applyAdaptiveSections(
+                            sections = freshSlate.sections,
+                            loading = false,
+                        )
+                    } else {
+                        // Keep any stale rails; only clear the skeleton if still empty.
+                        _isAdaptiveSectionsLoading.value = false
+                        _uiState.update { it.copy(isAdaptiveSectionsLoading = false) }
+                        if (_adaptiveSections.value.isEmpty()) {
+                            android.util.Log.w(
+                                "HomeViewModel",
+                                "Adaptive content refresh returned no sections",
+                            )
+                        }
+                    }
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
+                    _isAdaptiveSectionsLoading.value = false
+                    _uiState.update { it.copy(isAdaptiveSectionsLoading = false) }
                     android.util.Log.w(
                         "HomeViewModel",
                         "Adaptive content composition failed",
@@ -1023,6 +1069,28 @@ class HomeViewModel(
                 }
             }
         }
+    }
+
+    private fun applyAdaptiveSections(
+        sections: List<ContentSection>,
+        loading: Boolean,
+    ) {
+        _adaptiveSections.value = sections
+        _isAdaptiveSectionsLoading.value = loading
+        _uiState.update {
+            it.copy(
+                adaptiveSections = sections,
+                isAdaptiveSectionsLoading = loading,
+            )
+        }
+    }
+
+    private fun adaptiveHistoryMaturityBucket(historyCount: Int): Int = when {
+        historyCount <= 0 -> 0
+        historyCount < 5 -> 1
+        historyCount < 15 -> 2
+        historyCount < 30 -> 3
+        else -> 4
     }
 
     fun trackAdaptiveSectionVisible(
@@ -1789,6 +1857,7 @@ class HomeViewModel(
                             isBecauseYouLikeLoading = wrapper.isBecauseYouLikeLoading,
                             isRecommendationsFallback = wrapper.isRecommendationsFallback,
                             adaptiveSections = wrapper.adaptiveSections,
+                            isAdaptiveSectionsLoading = _isAdaptiveSectionsLoading.value,
                         )
                     }
                 }

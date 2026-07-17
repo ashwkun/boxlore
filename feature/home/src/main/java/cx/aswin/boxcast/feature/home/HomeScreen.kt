@@ -416,6 +416,7 @@ private fun HomeScreenFeedContent(
         subscribedItems = StablePodcastList(uiState.subscribedPodcasts),
         discoveryGreeting = uiState.discoveryGreeting,
         adaptiveSections = StableContentSectionList(uiState.adaptiveSections),
+        isAdaptiveSectionsLoading = uiState.isAdaptiveSectionsLoading,
         onAdaptiveSectionVisible = callbacks.onAdaptiveSectionVisible,
         briefing = uiState.briefing,
         briefingChapters = uiState.briefingChapters,
@@ -601,7 +602,8 @@ private fun PodcastFeed(
     latestItems: StablePodcastList,
     subscribedItems: StablePodcastList,
     discoveryGreeting: DiscoveryGreeting,
-    adaptiveSections: StableContentSectionList,
+        adaptiveSections: StableContentSectionList,
+    isAdaptiveSectionsLoading: Boolean = false,
     onAdaptiveSectionVisible: (ContentSection, Set<String>) -> Unit,
     gridItems: StablePodcastList,
     selectedCategory: String?,
@@ -950,6 +952,16 @@ private fun PodcastFeed(
                 },
                 modifier = Modifier.padding(top = 16.dp),
             )
+        }
+
+        if (isAdaptiveSectionsLoading && adaptiveSections.list.isEmpty()) {
+            item(
+                span = StaggeredGridItemSpan.FullLine,
+                key = "adaptive_sections_skeleton",
+                contentType = "adaptive_sections_skeleton",
+            ) {
+                cx.aswin.boxcast.feature.home.components.AdaptiveRailsSkeleton()
+            }
         }
 
         adaptiveSections.list.forEachIndexed { index, section ->

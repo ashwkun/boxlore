@@ -62,14 +62,34 @@ internal fun contentSectionsCacheKey(
     localDate: String,
     profileFingerprint: String,
 ): String {
+    require(profileFingerprint.matches(PROFILE_FINGERPRINT_PATTERN))
+    return contentSectionsStaleCachePrefix(
+        catalogVersion = catalogVersion,
+        country = country,
+        surface = surface,
+        resolvedDaypart = resolvedDaypart,
+        localDate = localDate,
+    ) + profileFingerprint
+}
+
+/**
+ * Slot-scoped prefix used for stale-while-revalidate reads.
+ * Ignores profile fingerprint so a prior slate can paint before a fresh network round-trip.
+ */
+internal fun contentSectionsStaleCachePrefix(
+    catalogVersion: Int,
+    country: String,
+    surface: String,
+    resolvedDaypart: String,
+    localDate: String,
+): String {
     val normalizedCountry = country.lowercase().takeIf { it.length in 2..3 } ?: "us"
     val normalizedSurface = surface.lowercase()
     require(normalizedSurface in setOf("home", "explore", "auto"))
     require(localDate.matches(LOCAL_DATE_PATTERN))
-    require(profileFingerprint.matches(PROFILE_FINGERPRINT_PATTERN))
     return "content_sections_v1e:" +
         "$catalogVersion:$localDate:$normalizedCountry:$normalizedSurface:" +
-        "$resolvedDaypart:$profileFingerprint"
+        "$resolvedDaypart:"
 }
 
 internal fun contentSectionsProfileFingerprint(

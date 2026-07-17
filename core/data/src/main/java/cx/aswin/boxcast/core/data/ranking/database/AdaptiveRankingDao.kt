@@ -41,6 +41,14 @@ interface AdaptiveRankingDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertFacets(facets: List<PreferenceFacetEntity>)
 
+    @Query(
+        """
+        DELETE FROM preference_facets
+        WHERE facetType = :facetType AND facetKey = :facetKey
+        """,
+    )
+    suspend fun deleteFacet(facetType: String, facetKey: String)
+
     @Query("SELECT * FROM ranking_exposures WHERE exposureId = :exposureId LIMIT 1")
     suspend fun getExposure(exposureId: String): RankingExposureEntity?
 

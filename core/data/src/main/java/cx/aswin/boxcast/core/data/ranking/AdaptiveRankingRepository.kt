@@ -32,6 +32,41 @@ data class RankingDebugSnapshot(
     val featureSchemaVersion: Int,
 )
 
+data class LearnerFacetDebug(
+    val type: PreferenceFacetType,
+    val key: String,
+    val affinity: Double,
+    val positiveEvidence: Double,
+    val negativeEvidence: Double,
+)
+
+data class LearnerExposureDebug(
+    val episodeId: String,
+    val podcastId: String,
+    val objective: String,
+    val source: String,
+    val reward: Double?,
+    val listenSeconds: Long,
+    val shownAt: Long,
+    val resolved: Boolean,
+)
+
+data class LearnerFeatureWeightDebug(
+    val slot: FeatureSlot,
+    val weight: Double,
+)
+
+data class LearnerInspectorSnapshot(
+    val objectives: List<RankingDebugSnapshot>,
+    val telemetry: List<RankingAggregateTelemetry>,
+    val facets: List<LearnerFacetDebug>,
+    val recentExposures: List<LearnerExposureDebug>,
+    val featureWeights: List<LearnerFeatureWeightDebug>,
+    val pendingExposureCount: Int,
+    val resolvedExposureCount: Int,
+    val capturedAt: Long,
+)
+
 data class RankingAggregateTelemetry(
     val objective: String,
     val rankerVersion: Int,
@@ -227,7 +262,11 @@ class AdaptiveRankingRepository private constructor(
         reward: Double,
         now: Long = System.currentTimeMillis(),
     ) {
-        val normalizedKey = key.normalizedFacetKey()
+        // Placeholder genres like "Podcast" are missing-category defaults, not taste.
+        val normalizedKey = when (type) {
+            PreferenceFacetType.GENRE -> PodcastGenres.canonicalize(key) ?: return
+            else -> key.normalizedFacetKey()
+        }
         if (normalizedKey.isEmpty()) return
         val existing = dao.getFacet(type.name, normalizedKey)?.toFacet()
             ?: BayesianPreferenceFacet(updatedAt = now)
@@ -241,6 +280,18 @@ class AdaptiveRankingRepository private constructor(
                 updatedAt = updated.updatedAt,
             ),
         )
+    }
+
+    /**
+     * Drops non-canonical genre facets (e.g. the "Podcast" placeholder) so they cannot
+     * keep weighting the local bandit after older builds wrote them.
+     */
+    suspend fun pruneNonCanonicalGenreFacets() {
+        dao.getFacetsByType(PreferenceFacetType.GENRE.name).forEach { entity ->
+            if (PodcastGenres.canonicalize(entity.facetKey) == null) {
+                dao.deleteFacet(entity.facetType, entity.facetKey)
+            }
+        }
     }
 
     suspend fun debugSnapshot(objective: RankingObjective): RankingDebugSnapshot {
@@ -258,6 +309,68 @@ class AdaptiveRankingRepository private constructor(
             explorationEnabled = score.explorationBonus > 0.0 ||
                 (objective.allowsExploration && state.updateCount >= 50),
             featureSchemaVersion = state.featureSchemaVersion,
+        )
+    }
+
+    /**
+     * Rich local-only snapshot for the debug inspector. Never leave the device.
+     */
+    suspend fun learnerInspectorSnapshot(
+        now: Long = System.currentTimeMillis(),
+    ): LearnerInspectorSnapshot {
+        pruneNonCanonicalGenreFacets()
+        val objectives = RankingObjective.entries.map { debugSnapshot(it) }
+        val telemetry = aggregateTelemetry()
+        val facets = dao.getAllFacets().mapNotNull { entity ->
+            val type = runCatching { PreferenceFacetType.valueOf(entity.facetType) }.getOrNull()
+                ?: return@mapNotNull null
+            val facet = entity.toFacet()
+            LearnerFacetDebug(
+                type = type,
+                key = entity.facetKey,
+                affinity = facet.affinity(now),
+                positiveEvidence = facet.positiveEvidence,
+                negativeEvidence = facet.negativeEvidence,
+            )
+        }.sortedWith(
+            compareByDescending<LearnerFacetDebug> { kotlin.math.abs(it.affinity) }
+                .thenBy { it.type.name }
+                .thenBy { it.key },
+        )
+        val exposures = dao.getAllExposures()
+        val recentExposures = exposures
+            .sortedByDescending(RankingExposureEntity::shownAt)
+            .take(24)
+            .map { exposure ->
+                LearnerExposureDebug(
+                    episodeId = exposure.episodeId,
+                    podcastId = exposure.podcastId,
+                    objective = exposure.objective,
+                    source = exposure.source,
+                    reward = exposure.reward,
+                    listenSeconds = exposure.listenSeconds,
+                    shownAt = exposure.shownAt,
+                    resolved = exposure.resolvedAt != null,
+                )
+            }
+        val discoveryState = loadState(RankingObjective.DISCOVERY)
+        val theta = multiply(
+            discoveryState.inverseCovariance,
+            discoveryState.rewardVector,
+            discoveryState.dimension,
+        )
+        val featureWeights = FeatureSlot.entries.map { slot ->
+            LearnerFeatureWeightDebug(slot = slot, weight = theta[slot.ordinal])
+        }
+        return LearnerInspectorSnapshot(
+            objectives = objectives,
+            telemetry = telemetry,
+            facets = facets,
+            recentExposures = recentExposures,
+            featureWeights = featureWeights,
+            pendingExposureCount = exposures.count { it.resolvedAt == null },
+            resolvedExposureCount = exposures.count { it.resolvedAt != null },
+            capturedAt = now,
         )
     }
 

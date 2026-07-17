@@ -239,10 +239,16 @@ class ContentOrchestrator(
         context: ContentContext,
         catalog: ContentCatalogSnapshot?,
         forceRefresh: Boolean = false,
+        allowUngroupedFallback: Boolean = true,
         now: Long = System.currentTimeMillis(),
     ): ContentSlate {
         val (catalogVersion, intents) = intentResolver.resolve(catalog, context)
         val fallbackCacheKey = cacheKey(context, catalogVersion, intents, now)
+        if (!forceRefresh) {
+            sessionCache[fallbackCacheKey]
+                ?.takeIf { it.sections.isNotEmpty() }
+                ?.let { return it }
+        }
         val groupedSections = loadGroupedSections(context)
         if (groupedSections != null) {
             val groupedCacheKey = cacheKey(
@@ -252,7 +258,9 @@ class ContentOrchestrator(
                 now = now,
             )
             if (!forceRefresh) {
-                sessionCache[groupedCacheKey]?.let { return it }
+                sessionCache[groupedCacheKey]
+                    ?.takeIf { it.sections.isNotEmpty() }
+                    ?.let { return it }
             }
             val rankedGroups = supervisorScope {
                 groupedSections.sections.map { section ->
@@ -278,8 +286,19 @@ class ContentOrchestrator(
                 return groupedSlate
             }
         }
+        if (!allowUngroupedFallback) {
+            return ContentSlate(
+                surface = context.surface,
+                sessionId = context.sessionId,
+                sections = emptyList(),
+                generatedAt = now,
+                catalogVersion = catalogVersion,
+            )
+        }
         if (!forceRefresh) {
-            sessionCache[fallbackCacheKey]?.let { return it }
+            sessionCache[fallbackCacheKey]
+                ?.takeIf { it.sections.isNotEmpty() }
+                ?.let { return it }
         }
         val rankedByIntent = supervisorScope {
             intents.map { intent ->
@@ -292,7 +311,11 @@ class ContentOrchestrator(
             rankedByIntent = rankedByIntent,
             exposureBudget = exposureBudget,
             now = now,
-        ).also { sessionCache[fallbackCacheKey] = it }
+        ).also { slate ->
+            if (slate.sections.isNotEmpty()) {
+                sessionCache[fallbackCacheKey] = slate
+            }
+        }
     }
 
     private suspend fun rankIntent(

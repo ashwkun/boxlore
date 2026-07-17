@@ -3,10 +3,12 @@ package cx.aswin.boxcast.core.data
 import cx.aswin.boxcast.core.data.database.PodcastEntity
 import cx.aswin.boxcast.core.data.content.ContentCatalogSnapshot
 import cx.aswin.boxcast.core.data.content.ContentContext
+import cx.aswin.boxcast.core.data.content.ContentSectionsDaypartResolver
 import cx.aswin.boxcast.core.data.content.GroupedContentSections
 import cx.aswin.boxcast.core.data.content.buildContentSignalProfile
 import cx.aswin.boxcast.core.data.content.contentSectionsCacheKey
 import cx.aswin.boxcast.core.data.content.contentSectionsProfileFingerprint
+import cx.aswin.boxcast.core.data.content.contentSectionsStaleCachePrefix
 import cx.aswin.boxcast.core.data.content.toGroupedContentSections
 import cx.aswin.boxcast.core.data.ranking.RankingSurface
 import cx.aswin.boxcast.core.model.Episode
@@ -683,6 +685,7 @@ class PodcastRepository(
         contentContext: ContentContext,
         catalog: ContentCatalogSnapshot,
         inputs: PersonalizedContentSectionInputs,
+        preferCache: Boolean = false,
     ): GroupedContentSections? = withContext(ioDispatcher) {
         val expectedCatalogVersion = catalog.catalogVersion.toIntOrNull() ?: return@withContext null
         val country = contentContext.region.lowercase().takeIf { it.length in 2..3 } ?: "us"
@@ -788,8 +791,17 @@ class PodcastRepository(
             catalog = catalog,
             seenPodcastIds = seenPodcastIdStrings,
             subscribedPodcastIds = subscribedPodcastIdStrings,
+        ) ?: readStaleCachedContentSections(
+            catalogVersion = expectedCatalogVersion,
+            country = country,
+            surface = surface,
+            localMinuteOfDay = contentContext.localMinuteOfDay,
+            localDate = localDate,
+            catalog = catalog,
+            seenPodcastIds = seenPodcastIdStrings,
+            subscribedPodcastIds = subscribedPodcastIdStrings,
         )
-        if (!contentContext.isOnline) return@withContext cached
+        if (preferCache || !contentContext.isOnline) return@withContext cached
         try {
             val body = api.getContentSectionsV1(
                 publicKey = publicKey,
@@ -802,6 +814,7 @@ class PodcastRepository(
                 subscribedPodcastIds = subscribedPodcastIdStrings,
             )
             if (mapped != null) {
+                val payload = Gson().toJson(body)
                 val responseKey = contentSectionsCacheKey(
                     catalogVersion = requireNotNull(body.catalogVersion),
                     country = country,
@@ -810,9 +823,11 @@ class PodcastRepository(
                     localDate = localDate,
                     profileFingerprint = profileFingerprint,
                 )
-                contentSectionsPreferences.edit()
-                    .putString(responseKey, Gson().toJson(body))
-                    .apply()
+                val editor = contentSectionsPreferences.edit().putString(cacheKey, payload)
+                if (responseKey != cacheKey) {
+                    editor.putString(responseKey, payload)
+                }
+                editor.apply()
             }
             mapped ?: cached
         } catch (error: kotlinx.coroutines.CancellationException) {
@@ -843,6 +858,36 @@ class PodcastRepository(
             Gson().fromJson(json, ContentSectionsV1Response::class.java)
                 .toGroupedContentSections(catalog, seenPodcastIds, subscribedPodcastIds)
         }.getOrNull()
+    }
+
+    private fun readStaleCachedContentSections(
+        catalogVersion: Int,
+        country: String,
+        surface: String,
+        localMinuteOfDay: Int,
+        localDate: String,
+        catalog: ContentCatalogSnapshot,
+        seenPodcastIds: Set<String>,
+        subscribedPodcastIds: Set<String>,
+    ): GroupedContentSections? {
+        val prefix = contentSectionsStaleCachePrefix(
+            catalogVersion = catalogVersion,
+            country = country,
+            surface = surface,
+            resolvedDaypart = ContentSectionsDaypartResolver.resolve(localMinuteOfDay),
+            localDate = localDate,
+        )
+        val staleKey = contentSectionsPreferences.all.keys
+            .asSequence()
+            .filterIsInstance<String>()
+            .firstOrNull { it.startsWith(prefix) }
+            ?: return null
+        return readCachedContentSections(
+            cacheKey = staleKey,
+            catalog = catalog,
+            seenPodcastIds = seenPodcastIds,
+            subscribedPodcastIds = subscribedPodcastIds,
+        )
     }
 
     suspend fun getPersonalizedRecommendations(
