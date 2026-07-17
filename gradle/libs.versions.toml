@@ -4,6 +4,10 @@ kotlin = "2.4.0"
 coreKtx = "1.15.0"
 junit = "4.13.2"
 junitVersion = "1.1.5"
+junitJupiter = "5.11.4"
+turbine = "1.2.0"
+robolectric = "4.14.1"
+kover = "0.9.1"
 espressoCore = "3.5.1"
 lifecycleRuntimeKtx = "2.8.7"
 activityCompose = "1.13.0"
@@ -32,7 +36,14 @@ posthog-android = { group = "com.posthog", name = "posthog-android", version.ref
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version = "1.2.0" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+junit-jupiter = { group = "org.junit.jupiter", name = "junit-jupiter", version.ref = "junitJupiter" }
+junit-jupiter-api = { group = "org.junit.jupiter", name = "junit-jupiter-api", version.ref = "junitJupiter" }
+junit-jupiter-engine = { group = "org.junit.jupiter", name = "junit-jupiter-engine", version.ref = "junitJupiter" }
+junit-vintage-engine = { group = "org.junit.vintage", name = "junit-vintage-engine", version.ref = "junitJupiter" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
+turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
+okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version = "4.12.0" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
@@ -99,3 +110,4 @@ ksp = { id = "com.google.devtools.ksp", version = "2.3.10" }
 googleServices = { id = "com.google.gms.google-services", version.ref = "google-services" }
 firebaseCrashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase-crashlytics-plugin" }
 kotlinCompose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

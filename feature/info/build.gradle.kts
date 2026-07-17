@@ -52,4 +52,6 @@ dependencies {
     implementation(libs.posthog.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.vintage.engine)
 }

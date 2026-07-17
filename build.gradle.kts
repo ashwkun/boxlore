@@ -7,5 +7,6 @@ plugins {
     alias(libs.plugins.googleServices) apply false
     alias(libs.plugins.firebaseCrashlytics) apply false
     alias(libs.plugins.kotlinCompose) apply false
+    alias(libs.plugins.kover) apply false
 }
 

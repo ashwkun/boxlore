@@ -85,7 +85,12 @@ dependencies {
     // WorkManager
     implementation(libs.androidx.work.runtime)
 
-    // Testing
+    // Testing (JUnit 5 + vintage for migration; no MockK)
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.vintage.engine)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.robolectric)
 }
