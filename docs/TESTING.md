@@ -5,6 +5,7 @@
 | Layer | Command / location | Catches |
 | :--- | :--- | :--- |
 | JVM unit | `./gradlew testDebugUnitTest` | Logic / state bugs |
+| Coverage | `./gradlew :koverVerifyMerged` | Soft line-coverage gate |
 | Compose UI | `androidTest` (P24) | Dead controls, nav wiring |
 | Maestro | device flows (P25) | Real-device glitches |
 | Screenshots | optional (P26) | Visual regressions |
@@ -13,10 +14,28 @@
 
 - **JUnit 5** (+ Vintage during migration leftovers)
 - **Turbine**, **MockWebServer**, **Robolectric**
-- **Kover** plugin available (thresholds in harden phase)
+- **Kover** (merged reports for `:core:data`, `:core:domain`, `:feature:home`)
 - Shared fixtures: `:core:testing` (`TestFixtures`, `MainDispatcherExtension`)
 - **No MockK / Hilt**
 - Compose **androidTest** uses **JUnit4** + `AndroidJUnitRunner` (androidx.test)
+
+## Coverage (Kover)
+
+Plugin applied on the root project plus `:core:data`, `:core:domain`, and `:feature:home`. Those modules contribute a shared Kover report variant `merged` (maps to each module’s `debug` unit tests). Root merges them and enforces a **modest** line-coverage floor (8%).
+
+```bash
+# Unit tests only (CI default)
+./gradlew testDebugUnitTest
+
+# Coverage verify (runs merged-module debug unit tests, then checks the gate)
+./gradlew :koverVerifyMerged
+
+# HTML / XML reports (merged variant at root)
+./gradlew :koverHtmlReportMerged
+./gradlew :koverXmlReportMerged
+```
+
+Reports land under `build/reports/kover/` (root). Raising the threshold should wait until more suites land — do not set an aggressive gate that flakes CI.
 
 ## Compose UI tests (P24)
 

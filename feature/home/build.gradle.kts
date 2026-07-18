@@ -6,6 +6,14 @@ plugins {
     alias(libs.plugins.kover)
 }
 
+kover {
+    currentProject {
+        createVariant("merged") {
+            add("debug")
+        }
+    }
+}
+
 android {
     namespace = "cx.aswin.boxlore.feature.home"
     // compileSdk 36: androidTest pulls activity-compose / core 1.18 AAR metadata
