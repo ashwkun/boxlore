@@ -1,0 +1,33 @@
+appId: cx.aswin.boxlore
+---
+- launchApp
+- tapOn:
+    text: ".*(Accept|Allow|Continue|Skip|Not now).*"
+    optional: true
+# Open Settings from the home top bar (testTag or accessibility label).
+- tapOn:
+    id: "home_settings_button"
+    optional: true
+- tapOn:
+    text: "Settings"
+    optional: true
+- extendedWaitUntil:
+    visible: "Settings"
+    timeout: 10000
+    optional: true
+# Navigate Library → Add RSS when the hub is reachable.
+- tapOn:
+    text: "Library"
+    optional: true
+- tapOn:
+    text: ".*Add podcast by RSS.*"
+    optional: true
+- assertVisible:
+    text: "Add RSS feed"
+    optional: true
+- assertVisible:
+    id: "settings_add_rss_url"
+    optional: true
+- tapOn:
+    id: "settings_add_rss_cancel"
+    optional: true

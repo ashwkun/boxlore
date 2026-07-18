@@ -1,12 +1,16 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.kotlinCompose)
 }
 
 android {
-    namespace = "cx.aswin.boxcast.feature.library"
-    compileSdk = 35
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+    namespace = "cx.aswin.boxlore.feature.library"
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 31
@@ -42,6 +46,8 @@ dependencies {
 
     implementation(projects.core.model)
     implementation(projects.core.data)
+    implementation(projects.core.downloads)
+    implementation(projects.core.playback)
     implementation(projects.core.designsystem)
     
     // Feature Dependencies (for Navigation if needed, though mostly callbacks)
@@ -64,7 +70,12 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.coil.compose)
 
+    testImplementation(projects.core.testing)
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.turbine)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

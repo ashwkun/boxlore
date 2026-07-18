@@ -1,0 +1,18 @@
+appId: cx.aswin.boxlore
+---
+- launchApp
+- tapOn:
+    text: ".*(Accept|Allow|Continue|Skip|Not now).*"
+    optional: true
+# Lightweight visibility smoke after cold start.
+- extendedWaitUntil:
+    visible:
+      id: "home_settings_button"
+    timeout: 20000
+    optional: true
+- assertVisible:
+    id: "home_settings_button"
+    optional: true
+- assertVisible:
+    text: ".*(Home|Library|Explore|Settings).*"
+    optional: true

@@ -1,12 +1,16 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.kotlinCompose)
 }
 
 android {
-    namespace = "cx.aswin.boxcast.feature.player"
-    compileSdk = 35
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+    namespace = "cx.aswin.boxlore.feature.player"
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 31
@@ -29,6 +33,8 @@ android {
 dependencies {
     implementation(projects.core.model)
     implementation(projects.core.data)
+    implementation(projects.core.downloads)
+    implementation(projects.core.playback)
     implementation(projects.core.network)
     implementation(projects.core.designsystem)
     
@@ -57,6 +63,11 @@ dependencies {
     implementation(libs.smooth.corner.rect)
     implementation(libs.reorderable)
 
+    testImplementation(projects.core.testing)
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
 }

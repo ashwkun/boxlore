@@ -1,13 +1,12 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.kotlinCompose)
 }
 
 android {
-    namespace = "cx.aswin.boxcast.feature.onboarding"
-    compileSdk = 35
+    namespace = "cx.aswin.boxlore.feature.onboarding"
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 31

@@ -1,16 +1,26 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.kotlinCompose)
+    alias(libs.plugins.kover)
+}
+
+kover {
+    currentProject {
+        createVariant("merged") {
+            add("debug")
+        }
+    }
 }
 
 android {
-    namespace = "cx.aswin.boxcast.feature.home"
-    compileSdk = 35
+    namespace = "cx.aswin.boxlore.feature.home"
+    // compileSdk 36: androidTest pulls activity-compose / core 1.18 AAR metadata
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 31
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures {
         compose = true
@@ -25,11 +35,26 @@ android {
             jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
         }
     }
+
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+
+    packaging {
+        resources {
+            // okhttp-coroutines + jspecify both ship this OSGi manifest path
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+    }
 }
 
 dependencies {
     implementation(projects.core.model)
     implementation(projects.core.data)
+    implementation(projects.core.downloads)
+    implementation(projects.core.playback)
     implementation(projects.core.network)
     implementation(projects.core.designsystem)
     
@@ -53,4 +78,19 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.exoplayer.hls)
     implementation(libs.androidx.media3.session)
+
+    testImplementation(projects.core.testing)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.androidx.lifecycle.runtime.ktx)
+
+    // P24 Compose UI tests (JUnit4 + AndroidJUnitRunner; CI via android-instrumented-tests.yml)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.activity.compose)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }

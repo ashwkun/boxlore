@@ -1,0 +1,22 @@
+{
+  "status": "true",
+  "episode": {
+    "id": 7777,
+    "title": "Episode One",
+    "description": "First episode",
+    "enclosureUrl": "https://example.com/one.mp3",
+    "enclosureLength": 12345678,
+    "enclosureType": "audio/mpeg",
+    "duration": 2400,
+    "datePublished": 1721000000,
+    "image": "https://example.com/one.jpg",
+    "feedImage": "https://example.com/feed.jpg",
+    "feedId": 920666,
+    "feedTitle": "The Daily",
+    "season": 1,
+    "episode": 1,
+    "episodeType": "full",
+    "genre": "News",
+    "language": "en"
+  }
+}

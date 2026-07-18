@@ -1,12 +1,16 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.kotlinSerialization)
 }
 
 android {
-    namespace = "cx.aswin.boxcast.core.network"
-    compileSdk = 35
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+    namespace = "cx.aswin.boxlore.core.network"
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 31
@@ -36,5 +40,11 @@ dependencies {
     implementation("androidx.annotation:annotation:1.7.1")
     implementation(libs.gson)
     implementation(libs.kotlinx.coroutines.android)
+    testImplementation(projects.core.testing)
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.googleServices)
     alias(libs.plugins.firebaseCrashlytics)
@@ -10,7 +9,12 @@ plugins {
 }
 
 android {
-    namespace = "cx.aswin.boxcast"
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+    namespace = "cx.aswin.boxlore"
     compileSdk = 36
 
     // Load local.properties globally for the android block
@@ -92,6 +96,8 @@ dependencies {
     // Core Modules
     implementation(projects.core.designsystem)
     implementation(projects.core.data)
+    implementation(projects.core.downloads)
+    implementation(projects.core.playback)
     implementation(projects.core.model)
     implementation(projects.core.network)
     implementation(projects.feature.home)
@@ -155,7 +161,14 @@ dependencies {
     implementation("com.google.android.play:app-update-ktx:2.1.0")
 
     // Tests
+    testImplementation(projects.core.testing)
     testImplementation(libs.junit)
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.vintage.engine)
+    testRuntimeOnly(libs.junit.platform.launcher)
+    testImplementation(libs.turbine)
+    testImplementation(libs.okhttp.mockwebserver)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

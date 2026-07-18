@@ -1,12 +1,11 @@
 plugins {
     alias(libs.plugins.androidLibrary)
-    alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.kotlinCompose)
 }
 
 android {
-    namespace = "cx.aswin.boxcast.core.designsystem"
-    compileSdk = 35
+    namespace = "cx.aswin.boxlore.core.designsystem"
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 31
@@ -48,4 +47,5 @@ dependencies {
     implementation(libs.smooth.corner.rect)
     api(libs.coil.compose) // OptimizedImage composable uses Coil
     implementation(libs.posthog.android)
+    implementation(libs.kotlinx.coroutines.android)
 }
