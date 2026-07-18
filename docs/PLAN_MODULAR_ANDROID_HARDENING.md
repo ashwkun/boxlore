@@ -1,6 +1,6 @@
 # Boxlore — Modular Android Hardening & Automation Plan
 
-**Status:** In progress (A0–A5 + B0–B1 landed; B2 started; A6+ next)  
+**Status:** In progress (A0–A7 + B0–B1 landed; B2 started; B3+ / A8 optional next)  
 **Branch context:** Builds on `cursor/full-refactor-tests-3b38` / PR #898  
 **Audience:** Implementers continuing architecture, DI, tests, and module docs
 
