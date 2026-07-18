@@ -29,11 +29,15 @@ object PushTargetRouteAllowlist {
         "library/",
     )
 
+    private val appOrWebSchemes = listOf("http://", "https://", "boxlore://", "boxcast://")
+
+    fun isAppOrWebUri(route: String): Boolean =
+        appOrWebSchemes.any { route.startsWith(it) }
+
     fun isAllowed(route: String): Boolean {
         val trimmed = route.trim()
         if (trimmed.isEmpty()) return false
-        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return true
-        if (trimmed.startsWith("boxlore://") || trimmed.startsWith("boxcast://")) return true
+        if (isAppOrWebUri(trimmed)) return true
         if (trimmed in exactRoutes) return true
         return prefixRoutes.any { trimmed.startsWith(it) }
     }

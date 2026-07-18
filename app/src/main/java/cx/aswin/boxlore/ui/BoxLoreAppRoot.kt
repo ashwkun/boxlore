@@ -105,9 +105,7 @@ fun BoxLoreAppRoot(
         val rawTarget = intent.getStringExtra("target_route")
         val allowed = cx.aswin.boxlore.navigation.PushTargetRouteAllowlist.sanitize(rawTarget)
         if (allowed != null) {
-            if (allowed.startsWith("boxlore://") || allowed.startsWith("boxcast://") ||
-                allowed.startsWith("http://") || allowed.startsWith("https://")
-            ) {
+            if (cx.aswin.boxlore.navigation.PushTargetRouteAllowlist.isAppOrWebUri(allowed)) {
                 val deepLinkIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
                     data = android.net.Uri.parse(allowed)
                 }

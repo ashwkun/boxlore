@@ -362,12 +362,8 @@ class BoxLoreFcmService : FirebaseMessagingService() {
     }
 
     private fun createPushIntent(route: String?): Intent {
-        val isUriRoute = route != null && (
-            route.startsWith("http://") ||
-                route.startsWith("https://") ||
-                route.startsWith("boxlore://") ||
-                route.startsWith("boxcast://")
-            )
+        val isUriRoute = route != null &&
+            cx.aswin.boxlore.navigation.PushTargetRouteAllowlist.isAppOrWebUri(route)
         return if (isUriRoute) {
             Intent(Intent.ACTION_VIEW, Uri.parse(route)).apply {
                 setClass(this@BoxLoreFcmService, MainActivity::class.java)
