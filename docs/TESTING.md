@@ -19,6 +19,7 @@ Module-local test notes live in each folder `README.md` (see [`MODULE_README_TEM
 - **Turbine**, **MockWebServer**, **Robolectric**
 - **Kover** (merged reports for `:core:data`, `:core:domain`, `:feature:home`)
 - Shared fixtures: `:core:testing` (`TestFixtures`, `MainDispatcherExtension`)
+- **B1 network contracts:** MockWebServer tests in `:core:network` (`BoxLoreApiContractTest`) — run `./gradlew :core:network:testDebugUnitTest`
 - **No MockK / Hilt**
 - Compose **androidTest** uses **JUnit4** + `AndroidJUnitRunner` (androidx.test)
 

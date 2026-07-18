@@ -516,12 +516,14 @@ Rename slim leftover `:core:data` → `:core:catalog` (or document `:core:data` 
 
 **Docs:** `docs/TESTING.md` CI table; module READMEs that participate in Kover.
 
-#### B1 — Network contracts
+#### B1 — Network contracts ✅
 
 - Real MockWebServer tests for `BoxLoreApi` critical endpoints / DTO decoding (`:core:network`).
 - Content-sections / bootstrap fixtures as needed by catalog.
 
 **README:** `core/network/README.md` Testing notes with commands.
+
+**Status:** done — `BoxLoreApiContractTest` + fixtures under `core/network/src/test`.
 
 #### B2 — Hard VM & catalog tests
 

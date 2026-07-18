@@ -33,7 +33,12 @@ Forbidden reverse edges: network ↛ `:core:data`, `:core:database`, features, o
 ## Testing notes
 
 - JVM tests for request serialization (e.g. content sections) under `src/test`
+- MockWebServer contract tests for critical `BoxLoreApi` endpoints / DTO decoding (`BoxLoreApiContractTest`) — fixtures in `src/test/resources/fixtures/`
 - Prefer MockWebServer over hitting the live backend
+
+```bash
+./gradlew :core:network:testDebugUnitTest
+```
 
 ## See also
 

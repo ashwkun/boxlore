@@ -64,8 +64,8 @@ object NetworkModule {
     }.build()
 
     /**
-     * BoxCast API via Cloudflare Worker proxy
-     * Base URL injected from BuildConfig at runtime
+     * BoxCast API via Cloudflare Worker proxy.
+     * Base URL injected from BuildConfig at runtime.
      */
     fun createBoxLoreApi(baseUrl: String, context: android.content.Context): BoxLoreApi {
         val cacheSize = 50L * 1024L * 1024L // 50 MiB
@@ -76,9 +76,17 @@ object NetworkModule {
             .cache(cache)
             .build()
 
+        return createBoxLoreApi(baseUrl, cacheClient)
+    }
+
+    /**
+     * Builds [BoxLoreApi] against an arbitrary [OkHttpClient].
+     * Used by production (cached client) and JVM tests (MockWebServer, no disk cache).
+     */
+    fun createBoxLoreApi(baseUrl: String, client: OkHttpClient): BoxLoreApi {
         return Retrofit.Builder()
             .baseUrl(baseUrl)
-            .client(cacheClient)
+            .client(client)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
             .create(BoxLoreApi::class.java)
