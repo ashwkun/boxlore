@@ -52,11 +52,13 @@ Compile instrumentation sources (no emulator required):
 ./gradlew :feature:home:compileDebugAndroidTestKotlin
 ```
 
-Run on a connected device/emulator (local only; not wired into CI):
+Run on a connected device/emulator:
 
 ```bash
 ./gradlew :feature:home:connectedDebugAndroidTest
 ```
+
+CI runs the same task via `android-instrumented-tests.yml` (API 34 emulator + KVM).
 
 ## Maestro smoke (P25)
 
@@ -74,8 +76,12 @@ No Roborazzi/Papyrus plugin is required for the current scaffolding.
 
 ## CI
 
-GitHub Actions workflow `unit-tests.yml` runs `testDebugUnitTest` on PRs and pushes to feature branches.
-androidTest / Maestro / screenshots stay **local** unless explicitly added later.
+| Workflow | What it runs |
+| :--- | :--- |
+| `unit-tests.yml` | `./gradlew testDebugUnitTest` (JVM) |
+| `android-instrumented-tests.yml` | `:feature:home:connectedDebugAndroidTest` on an API 34 emulator |
+
+Maestro / screenshots stay **local** (need a full app install / manual capture).
 
 Protected inputs:
 - `app/google-services.json` is **gitignored** and must never be committed.

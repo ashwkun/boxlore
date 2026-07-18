@@ -79,7 +79,7 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.androidx.lifecycle.runtime.ktx)
 
-    // P24 Compose UI tests (JUnit4 + AndroidJUnitRunner; local/device only)
+    // P24 Compose UI tests (JUnit4 + AndroidJUnitRunner; CI via android-instrumented-tests.yml)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     androidTestImplementation(libs.androidx.junit)
