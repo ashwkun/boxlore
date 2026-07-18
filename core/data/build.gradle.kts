@@ -64,6 +64,11 @@ dependencies {
     api(projects.core.database)
     api(projects.core.prefs)
     implementation(libs.androidx.core.ktx)
+    // RSS layer: RssFeedClient, RssPodcastRepository, RssIdGenerator, RssSourceMatcher,
+    // DownloadCacheRelinker port — api-exported so features/app that depend on :core:data
+    // see all RSS types without adding a direct :core:rss dependency.
+    api(projects.core.rss)
+
     implementation(libs.retrofit)
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.guava)
@@ -72,8 +77,7 @@ dependencies {
     // JSON Streaming
     implementation(libs.gson)
     implementation(libs.okhttp)
-    implementation(libs.rss.parser)
-    // Firebase (database and messaging)
+    // Firebase (database and messaging — SubscriptionRepository uses firebase.database + messaging)
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.database)
     implementation(libs.firebase.messaging)

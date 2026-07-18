@@ -2,71 +2,95 @@
 
 ## Purpose
 
-Data layer for repositories and RSS. Implements ports from `:core:domain` (re-exported via `api`). Main Room DB lives in `:core:database` (re-exported via `api`). Prefs live in `:core:prefs` (re-exported via `api`). Analytics helpers (`AnalyticsHelper`, `PendingEntryPoint`, `PlayerSessionAggregator`) live in `:core:analytics` (re-exported via `api`). Adaptive ranking engine lives in `:core:ranking` (re-exported via `api`). Playback/queue/Media3 services live in `:core:playback` (same Java packages under `cx.aswin.boxlore.core.data.*`). Download/worker stack lives in `:core:downloads`.
+**Catalog and orchestration layer.** Owns the Podcast Index catalog (`PodcastRepository`), subscriptions, smart queue logic, content sections, cross-promo, engagement, backup/restore, and the shared-deps composition bridge for workers and Media3 services. It is **not** a junk drawer — every type here is a catalog, subscription, or orchestration concern.
 
-Owns the **shared-deps entry API** for workers (`SharedAppDependencies` / `SharedAppDependenciesHolder`) so background work does not rebuild parallel repository graphs. Download-owned types (`DownloadRepository`, `SmartDownloadManager`) live in `:core:downloads` to avoid a data↔downloads cycle.
+Extracted subsystems now live in dedicated modules (all re-exported via `api` so existing import paths continue to compile without callers adding a direct dependency):
+
+| Subsystem | Module |
+| :--- | :--- |
+| RSS feed fetch / parse / IDs / `RssPodcastRepository` | `:core:rss` |
+| Adaptive ranking / LinUCB / feedback loop | `:core:ranking` |
+| Analytics façade (`AnalyticsHelper`, `Analytics`) | `:core:analytics` |
+| Download worker stack | `:core:downloads` |
+| Playback / queue / Media3 services | `:core:playback` |
+| DataStore + SharedPrefs | `:core:prefs` |
+| Main Room database | `:core:database` |
 
 ## Public API
 
-- Repositories: `PodcastRepository` (ctor-injected `RssPodcastRepository`), `SubscriptionRepository`, `RssPodcastRepository`
-- Prefs (from `:core:prefs`, via `api`): `UserPreferencesRepository`, `BoxcastPrefs`
-- Domain ports (from `:core:domain`, via `api`): `RssSubscriptionPort`, `RankingResetPort`, `PodcastCatalogPort`, `HistoryRecommendationSource`, `RssSubscriptionResult`
-- Data-only port: `ports.ListeningHistoryBackupPort`
-- Shared helpers: `QueueMath`, `QueueSkipMemory`, `SmartQueueEngine` / `SmartQueueSources`, `PlaybackSkipBounds`
-- Ranking (from `:core:ranking`, re-exported via `api`): `AdaptiveCandidateScorer`, `RankingFeedbackRepository`, `AdaptiveRankingRepository` — **production code must not call `getInstance`**; only `AppContainer` installs via `getInstance`
-- Composition bridge:
-  - `SharedAppDependencies` — interface of Application-scoped instances workers/services need (DB, podcast/subscription/prefs, RSS, ranking, history source). Download-owned types live in `:core:downloads`.
+- **Catalog:** `PodcastRepository` (Podcast Index HTTP + RSS delegate via `RssPodcastRepository`), `SubscriptionRepository`, `ChapterRepository`, `TranscriptRepository`
+- **Smart queue helpers:** `QueueMath`, `QueueSkipMemory`, `SmartQueueEngine` / `SmartQueueSources`, `MixtapeEngine`
+- **Content sections:** `content/ContentOrchestrator`, `content/GroupedContentSectionProvider`, `content/ContentContextEngine`
+- **Backup/restore:** `backup/LibraryBackupManager` — JSON + OPML export/import, ranking backup, RSS re-import
+- **Shared-deps bridge:**
+  - `SharedAppDependencies` — interface of Application-scoped instances (DB, repositories, ranking, RSS, history source) consumed by workers/services via `SharedAppDependenciesHolder`
   - `SharedAppDependenciesHolder` — `@Volatile` install + `require()` (throws if unset)
-- Port: `ports.DownloadCacheRelinker` — fun interface injected into `RssPodcastRepository` to relink Media3 cache keys when RSS episode IDs change, without a data→downloads compile edge.
-- Backup: `backup.LibraryBackupManager` — ranking/RSS via ctor (defaults from holder)
+- **Re-exported (api) subsystems:** all types from `:core:rss`, `:core:analytics`, `:core:ranking`, `:core:domain`, `:core:database`, `:core:prefs`
+- **Data-only ports:** `ports.ListeningHistoryBackupPort`, `ports.SmartDownloadSyncPort`
 
-Playback types (`PlaybackRepository`, `QueueManager`, `QueueRepository`, `BoxLorePlaybackService`, …) are in `:core:playback`. Download types (`DownloadRepository`, `SmartDownloadManager`, workers) are in `:core:downloads`.
-
-**Must not** depend on `:core:designsystem`, `:core:playback`, or `:core:downloads`.
+> `ports.DownloadCacheRelinker` moved to `:core:rss` (same package `cx.aswin.boxlore.core.data.ports`; re-exported transitively through the `api(core:rss)` chain).
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/core/data/
-  SharedAppDependencies.kt   # interface + holder (download types in :core:downloads; ranking types in :core:ranking)
-  content/ privacy/ backup/ crosspromo/
-  ports/                     # DownloadCacheRelinker fun interface
-  # analytics/ moved to :core:analytics (same package, re-exported via api)
-  # ranking/ moved to :core:ranking (same package, re-exported via api)
+  PodcastRepository.kt           # Podcast Index HTTP catalog + RSS delegate
+  SubscriptionRepository.kt      # subscribe/unsubscribe, FCM topic management
+  ChapterRepository.kt
+  TranscriptRepository.kt
+  EpisodeMapper.kt
+  SharedAppDependencies.kt       # interface + holder for workers/services
+  SmartQueueEngine.kt
+  SmartQueueSources.kt
+  QueueMath.kt
+  QueueSkipMemory.kt
+  MixtapeEngine.kt
+  EngagementPromptCoordinator.kt
+  InstallReferrerManager.kt
+  content/                       # Personalised home sections (candidates, signals, cache policy)
+  crosspromo/                    # Cross-promotion detection / resolution
+  backup/                        # LibraryBackupManager (JSON + OPML)
+  privacy/                       # ConsentManager
+  ports/                         # SmartDownloadSyncPort, ListeningHistoryBackupPort
 ```
-
-Main Room sources: `:core:database` → `cx.aswin.boxlore.core.data.database`.
-Feature-facing ports: `:core:domain` → `cx.aswin.boxlore.core.domain.ports`.
 
 ## Dependencies
 
-- → `:core:analytics` (api — re-exports all analytics types transitively)
-- → `:core:ranking` (api — re-exports AdaptiveCandidateScorer / RankingFeedbackRepository / AdaptiveRankingRepository transitively)
-- → `:core:domain` (api), `:core:prefs` (api), `:core:model`, `:core:network`, `:core:database` (api)
-- DataStore (privacy consent still here), Firebase Messaging pieces as needed; Room runtime via `:core:database` (ksp removed — ranking DB lives in `:core:ranking`)
-- Forbidden: → `:core:playback`, → `:core:designsystem`, → `:core:downloads`
+- → `:core:rss` (`api` — re-exports all RSS types: `RssFeedClient`, `RssPodcastRepository`, `RssIdGenerator`, `RssSourceMatcher`, `DownloadCacheRelinker`, …)
+- → `:core:analytics` (`api` — re-exports analytics façade)
+- → `:core:ranking` (`api` — re-exports `AdaptiveCandidateScorer`, `RankingFeedbackRepository`, `AdaptiveRankingRepository`)
+- → `:core:domain` (`api`), `:core:prefs` (`api`), `:core:database` (`api`)
+- → `:core:model`, `:core:network` (internal)
+- → Firebase (database + messaging — `SubscriptionRepository` uses both)
+- → Retrofit, OkHttp, Gson, DataStore (internal)
+
+Forbidden: `:core:data` **must not** depend on `:core:playback`, `:core:designsystem`, or `:core:downloads`.
 
 ## Threading / lifecycle
 
-- Repositories are Application-scoped when obtained from the holder/container
-- Workers run on WorkManager executors; they must not construct a second Podcast/ranking/RSS graph
-- Room `BoxLoreDatabase.getDatabase` may still be used where a DB-only path is intentional; prefer `deps.database` from the holder in workers
+- Repositories are Application-scoped when obtained from `SharedAppDependenciesHolder` / `AppContainer`.
+- Workers must not construct a second Podcast/ranking/RSS graph — obtain instances from the holder.
 
 ## Persistence & identity
 
 | Stable | Why |
 | :--- | :--- |
-| Worker FQCNs (moved to `:core:downloads`; package unchanged `cx.aswin.boxlore.core.data`) | Persisted WorkManager requests |
 | DataStore `user_preferences` / SharedPrefs `boxcast_prefs` (owned by `:core:prefs`) | Existing installs |
-| Main Room DB filename + ranking Room under `ranking/database/` | User data |
-| `rss:` podcast IDs | Catalog identity |
+| Main Room DB filename (owned by `:core:database`) | User data |
+| `rss:` podcast IDs and negative episode IDs (owned by `:core:rss`) | Catalog identity |
 
 ## Testing notes
 
-- JVM tests under `src/test` (queue math, RSS, content, smart queue, **`SharedAppDependenciesHolderTest`**; ranking tests live in `:core:ranking`)
-- `SharedAppDependenciesHolder.require()` throws when unset (pure unit test; resets holder in `@AfterEach`)
-- Playback skip policy tests live in `:core:playback`
-- Download holder tests live in `:core:downloads`
+JVM unit tests under `src/test` cover catalog logic, content orchestration, queue math, smart queue, and the composition holder:
+
+- `QueueMathTest`, `QueueSkipMemoryTest` — pure math
+- `SmartQueueEngineTest` — recommendation ordering
+- `content/ContentOrchestratorTest`, `content/ContentSignalEnrichmentTest`, `content/GroupedContentSectionsTest`, `content/RecentSectionIntentStoreTest`
+- `crosspromo/CrossPromotionDetectorTest`
+- `TranscriptRepositoryTest`
+- `SharedAppDependenciesHolderTest` — `require()` throws when unset
+
+RSS-specific tests (`RssIdGeneratorTest`, `RssSourceMatcherTest`) now live in `:core:rss`.
 
 ```bash
 ./gradlew :core:data:testDebugUnitTest
@@ -74,15 +98,14 @@ Feature-facing ports: `:core:domain` → `cx.aswin.boxlore.core.domain.ports`.
 
 ## CI relevance
 
-Exercised by the unit-test CI job (`testDebugUnitTest` / project suite). Instrumented coverage of workers is local/later.
+Exercised by the unit-test CI job. Kover `merged` variant is added to the project-level coverage report.
 
 ## See also
 
 - Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- [`docs/TESTING.md`](../../docs/TESTING.md)
-- [`docs/PLAN_MODULAR_ANDROID_HARDENING.md`](../../docs/PLAN_MODULAR_ANDROID_HARDENING.md) (Phase A1, A3, A5)
+- [`:core:rss` README](../rss/README.md) — RSS feed client, ID generation, `RssPodcastRepository`
 - [`:core:ranking` README](../ranking/README.md)
 - [`:core:downloads` README](../downloads/README.md)
 - [`:core:domain` README](../domain/README.md)
 - [`:core:playback` README](../playback/README.md)
-- [`:app` README](../../app/README.md)
+- [`docs/PLAN_MODULAR_ANDROID_HARDENING.md`](../../docs/PLAN_MODULAR_ANDROID_HARDENING.md) (Phase A6a)
