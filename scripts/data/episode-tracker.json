@@ -1,5 +1,5 @@
 {
-  "lastRun": "2026-07-18T06:04:23.712Z",
+  "lastRun": "2026-07-18T08:19:26.723Z",
   "podcasts": {
     "2123": {
       "lastEpisodeId": "567722198",
@@ -55,6 +55,11 @@
       "lastEpisodeId": "386077022",
       "lastEpisodeTitle": "Special announcement - a new podcast",
       "lastCheckedAt": 1782585870863
+    },
+    "570903": {
+      "lastEpisodeId": "57722644068",
+      "lastEpisodeTitle": "Evil Animals, Series 3: Vultures",
+      "lastCheckedAt": 1784362768992
     },
     "577105": {
       "lastEpisodeId": "57209328529",
@@ -175,6 +180,11 @@
       "lastEpisodeId": "57462063795",
       "lastEpisodeTitle": "Philips Hue: The smart home’s light bulb moment",
       "lastCheckedAt": 1783960636894
+    },
+    "7634730": {
+      "lastEpisodeId": "57728019851",
+      "lastEpisodeTitle": "Video Nasties, Mary Whitehouse and Censorship (Part 1)",
+      "lastCheckedAt": 1784362772237
     },
     "7837137": {
       "lastEpisodeId": "57534534228",
