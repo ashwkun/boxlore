@@ -362,15 +362,25 @@ class BoxLoreFcmService : FirebaseMessagingService() {
     }
 
     private fun createPushIntent(route: String?): Intent {
-        return if (route != null && route.startsWith("http")) {
+        val isUriRoute = route != null && (
+            route.startsWith("http://") ||
+                route.startsWith("https://") ||
+                route.startsWith("boxlore://") ||
+                route.startsWith("boxcast://")
+            )
+        return if (isUriRoute) {
             Intent(Intent.ACTION_VIEW, Uri.parse(route)).apply {
+                setClass(this@BoxLoreFcmService, MainActivity::class.java)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 putExtra("from_push", true)
             }
         } else {
             Intent(this, MainActivity::class.java).apply {
-                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
                 putExtra("from_push", true)
-                if (route != null) {
+                if (route != null &&
+                    cx.aswin.boxlore.navigation.PushTargetRouteAllowlist.isAllowed(route)
+                ) {
                     putExtra("target_route", route)
                 }
             }

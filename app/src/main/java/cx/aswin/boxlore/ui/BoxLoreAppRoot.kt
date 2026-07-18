@@ -96,10 +96,32 @@ fun BoxLoreAppRoot(
 
     val currentWarmIntent = warmStartIntent.value
     LaunchedEffect(currentWarmIntent) {
-        if (currentWarmIntent != null && currentWarmIntent.data != null) {
-            navController.handleDeepLink(currentWarmIntent)
+        val intent = currentWarmIntent ?: return@LaunchedEffect
+        if (intent.data != null) {
+            navController.handleDeepLink(intent)
             warmStartIntent.value = null
+            return@LaunchedEffect
         }
+        val rawTarget = intent.getStringExtra("target_route")
+        val allowed = cx.aswin.boxlore.navigation.PushTargetRouteAllowlist.sanitize(rawTarget)
+        if (allowed != null) {
+            if (allowed.startsWith("boxlore://") || allowed.startsWith("boxcast://") ||
+                allowed.startsWith("http://") || allowed.startsWith("https://")
+            ) {
+                val deepLinkIntent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                    data = android.net.Uri.parse(allowed)
+                }
+                navController.handleDeepLink(deepLinkIntent)
+            } else {
+                runCatching { navController.navigate(allowed) }
+                    .onFailure { Log.w("BoxLoreAppRoot", "Ignoring invalid target_route=$allowed", it) }
+            }
+            intent.removeExtra("target_route")
+        } else if (!rawTarget.isNullOrBlank()) {
+            Log.w("BoxLoreAppRoot", "Rejected non-allowlisted target_route=$rawTarget")
+            intent.removeExtra("target_route")
+        }
+        warmStartIntent.value = null
     }
 
     val navBackStackEntry = navController.currentBackStackEntryAsState().value
