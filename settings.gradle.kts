@@ -36,14 +36,13 @@ develocity {
         uploadInBackground.set(!isCi)
 
         if (isCi) {
-            publishing.onlyIf { true }
+            // Default publish-on policy already publishes; no onlyIf needed in CI.
             tag("CI")
             System.getenv("GITHUB_WORKFLOW")
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { value("GitHub workflow", it) }
-            System.getenv("GITHUB_RUN_ID")
-                ?.takeIf { it.isNotEmpty() }
-                ?.let { value("GitHub run id", it) }
+            val runId = System.getenv("GITHUB_RUN_ID")?.takeIf { it.isNotEmpty() }
+            runId?.let { value("GitHub run id", it) }
             System.getenv("GITHUB_REF_NAME")
                 ?.takeIf { it.isNotEmpty() }
                 ?.let { value("GitHub ref", it) }
@@ -53,8 +52,7 @@ develocity {
             val repository = System.getenv("GITHUB_REPOSITORY")
             if (!repository.isNullOrEmpty()) {
                 link("GitHub repository", "https://github.com/$repository")
-                val runId = System.getenv("GITHUB_RUN_ID")
-                if (!runId.isNullOrEmpty()) {
+                if (runId != null) {
                     link(
                         "GitHub Actions run",
                         "https://github.com/$repository/actions/runs/$runId",
