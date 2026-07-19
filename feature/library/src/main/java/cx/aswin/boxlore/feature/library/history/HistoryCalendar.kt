@@ -130,13 +130,8 @@ private fun buildInsightCards(insights: ListeningInsightSummary): List<InsightCa
 
 @Composable
 private fun peakBucketLabel(insights: ListeningInsightSummary): String =
-    when (insights.peakBucket) {
-        ListeningTimeBucket.MORNING -> stringResource(R.string.history_bucket_morning)
-        ListeningTimeBucket.AFTERNOON -> stringResource(R.string.history_bucket_afternoon)
-        ListeningTimeBucket.EVENING -> stringResource(R.string.history_bucket_evening)
-        ListeningTimeBucket.NIGHT -> stringResource(R.string.history_bucket_night)
-        null -> stringResource(R.string.history_waiting_for_plays)
-    }
+    insights.peakBucket?.let { timeBucketLabel(it) }
+        ?: stringResource(R.string.history_waiting_for_plays)
 
 private fun peakBucketConsumedMs(insights: ListeningInsightSummary): Long =
     when (insights.peakBucket) {

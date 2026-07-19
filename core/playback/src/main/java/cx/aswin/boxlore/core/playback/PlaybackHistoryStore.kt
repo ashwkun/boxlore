@@ -202,20 +202,20 @@ internal class PlaybackHistoryStore(
 
     suspend fun removeHistoryItem(episodeId: String): ListeningHistoryRemoval? {
         val existing = listeningHistoryDao.getHistoryItem(episodeId) ?: return null
-        val sessions = listeningInsightsDao.getSessionsForEpisode(episodeId)
-        val rollups = listeningInsightsDao.getRollupsForEpisode(episodeId)
-        val removal =
-            ListeningHistoryRemoval(
-                item = existing.toHistoryItem(),
-                sessions = sessions.map { it.toSnapshot() },
-                rollups = rollups.map { it.toSnapshot() },
-            )
         val database = BoxLoreDatabase.getDatabase(context)
-        database.withTransaction {
+        return database.withTransaction {
+            val sessions = listeningInsightsDao.getSessionsForEpisode(episodeId)
+            val rollups = listeningInsightsDao.getRollupsForEpisode(episodeId)
+            val removal =
+                ListeningHistoryRemoval(
+                    item = existing.toHistoryItem(),
+                    sessions = sessions.map { it.toSnapshot() },
+                    rollups = rollups.map { it.toSnapshot() },
+                )
             listeningHistoryDao.delete(episodeId)
             listeningInsightsDao.deleteEpisodeAnalytics(episodeId)
+            removal
         }
-        return removal
     }
 
     suspend fun restoreHistoryRemoval(removal: ListeningHistoryRemoval) {
