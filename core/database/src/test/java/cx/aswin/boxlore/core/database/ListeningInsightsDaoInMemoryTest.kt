@@ -220,7 +220,7 @@ class ListeningInsightsMigration29To30Test {
                 ).build()
         val openHelper = FrameworkSQLiteOpenHelperFactory().create(config)
         val db = openHelper.writableDatabase
-        BoxLoreDatabaseMigrations.MIGRATE_29_30(db)
+        BoxLoreDatabaseMigrations.migrate29To30(db)
 
         val sessions =
             db.query("SELECT name FROM sqlite_master WHERE type='table' AND name='listening_sessions'")

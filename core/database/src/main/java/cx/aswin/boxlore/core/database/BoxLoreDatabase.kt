@@ -187,7 +187,7 @@ abstract class BoxLoreDatabase : RoomDatabase() {
 
         private val MIGRATION_29_30 = object : Migration(29, 30) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                BoxLoreDatabaseMigrations.MIGRATE_29_30(db)
+                BoxLoreDatabaseMigrations.migrate29To30(db)
             }
         }
 

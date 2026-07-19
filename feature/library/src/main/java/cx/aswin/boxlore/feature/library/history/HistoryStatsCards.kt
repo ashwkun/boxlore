@@ -106,16 +106,9 @@ fun ListeningTimeCard(
     modifier: Modifier = Modifier,
 ) {
     val precise = insights.hasEnoughData
-    val displayMs = if (precise) insights.totalConsumedMs else insights.estimatedLibraryMs
+    val displayMs = listeningTimeDisplayMs(insights)
     val durationText = formatDuration(displayMs)
-    val deltaLabel =
-        if (precise && insights.period != ListeningPeriod.ALL) {
-            val delta = insights.totalConsumedMs - insights.previousPeriodConsumedMs
-            val sign = if (delta >= 0) "+" else "-"
-            "$sign${formatDuration(abs(delta))}"
-        } else {
-            null
-        }
+    val deltaLabel = listeningTimeDeltaLabel(insights)
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -129,14 +122,7 @@ fun ListeningTimeCard(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 16.dp),
         ) {
-            val lengthFactor =
-                when {
-                    durationText.length <= 2 -> 0.28f
-                    durationText.length <= 5 -> 0.22f
-                    else -> 0.16f
-                }
-            val valueSp =
-                min(maxWidth.value * lengthFactor, 68f).coerceAtLeast(40f).sp
+            val valueSp = listeningTimeValueSp(durationText, maxWidth.value)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -190,6 +176,29 @@ fun ListeningTimeCard(
             }
         }
     }
+}
+
+private fun listeningTimeDisplayMs(insights: ListeningInsightSummary): Long =
+    if (insights.hasEnoughData) insights.totalConsumedMs else insights.estimatedLibraryMs
+
+private fun listeningTimeDeltaLabel(insights: ListeningInsightSummary): String? {
+    if (!insights.hasEnoughData || insights.period == ListeningPeriod.ALL) return null
+    val delta = insights.totalConsumedMs - insights.previousPeriodConsumedMs
+    val sign = if (delta >= 0) "+" else "-"
+    return "$sign${formatDuration(abs(delta))}"
+}
+
+private fun listeningTimeValueSp(
+    durationText: String,
+    maxWidthDp: Float,
+) = run {
+    val lengthFactor =
+        when {
+            durationText.length <= 2 -> 0.28f
+            durationText.length <= 5 -> 0.22f
+            else -> 0.16f
+        }
+    min(maxWidthDp * lengthFactor, 68f).coerceAtLeast(40f).sp
 }
 
 @Composable

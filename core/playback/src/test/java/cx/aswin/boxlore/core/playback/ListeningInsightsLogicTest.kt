@@ -19,13 +19,15 @@ class ListeningSessionRecordLogicTest {
         assertTrue(ListeningSessionRecordLogic.shouldPersist(5_000))
         assertNull(
             ListeningSessionRecordLogic.buildSession(
-                sessionId = "s",
-                episodeId = "e",
-                podcastId = "p",
-                startedAt = 1_000,
-                endedAt = 2_000,
-                consumedMs = 100,
-                completed = false,
+                ListeningSessionRecordLogic.BuildSessionInput(
+                    sessionId = "s",
+                    episodeId = "e",
+                    podcastId = "p",
+                    startedAt = 1_000,
+                    endedAt = 2_000,
+                    consumedMs = 100,
+                    completed = false,
+                ),
             ),
         )
     }
@@ -78,29 +80,31 @@ class ListeningInsightsLogicTest {
         val today = LocalDate.ofEpochDay(100)
         val summary =
             ListeningInsightsLogic.summarize(
-                period = ListeningPeriod.DAYS_30,
-                sessions = listOf(session(day = 100, consumed = 400, bucket = 1)),
-                rollups =
-                    listOf(
-                        ListeningRollupEntity(
-                            localDay = 90,
-                            episodeId = "ep-old",
-                            podcastId = "pod-a",
-                            consumedMs = 600,
-                            sessionCount = 2,
-                            completionCount = 1,
-                            lastListenedAt = 1,
-                            morningMs = 600,
+                ListeningInsightsLogic.SummarizeInput(
+                    period = ListeningPeriod.DAYS_30,
+                    sessions = listOf(session(day = 100, consumed = 400, bucket = 1)),
+                    rollups =
+                        listOf(
+                            ListeningRollupEntity(
+                                localDay = 90,
+                                episodeId = "ep-old",
+                                podcastId = "pod-a",
+                                consumedMs = 600,
+                                sessionCount = 2,
+                                completionCount = 1,
+                                lastListenedAt = 1,
+                                morningMs = 600,
+                            ),
                         ),
-                    ),
-                historyRows = emptyList(),
-                historyCompleted = 3,
-                historyInProgress = 1,
-                historyLiked = 2,
-                podcastMetaById =
-                    mapOf("pod-a" to ListeningInsightsLogic.PodcastMeta("Show A", null)),
-                today = today,
-                trackingSinceEpochMs = 1L,
+                    historyRows = emptyList(),
+                    historyCompleted = 3,
+                    historyInProgress = 1,
+                    historyLiked = 2,
+                    podcastMetaById =
+                        mapOf("pod-a" to ListeningInsightsLogic.PodcastMeta("Show A", null)),
+                    today = today,
+                    trackingSinceEpochMs = 1L,
+                ),
             )
         assertEquals(1_000L, summary.totalConsumedMs)
         assertEquals(3, summary.sessionCount)
@@ -115,27 +119,29 @@ class ListeningInsightsLogicTest {
         val today = LocalDate.ofEpochDay(100)
         val summary =
             ListeningInsightsLogic.summarize(
-                period = ListeningPeriod.ALL,
-                sessions = emptyList(),
-                rollups = emptyList(),
-                historyRows =
-                    listOf(
-                        ListeningInsightsLogic.HistoryActivityRow(
-                            podcastId = "pod-a",
-                            podcastName = "Show A",
-                            podcastImageUrl = null,
-                            progressMs = 3_600_000,
-                            durationMs = 3_600_000,
-                            isCompletedFlag = true,
-                            lastPlayedAt = today.toEpochDay() * 86_400_000,
+                ListeningInsightsLogic.SummarizeInput(
+                    period = ListeningPeriod.ALL,
+                    sessions = emptyList(),
+                    rollups = emptyList(),
+                    historyRows =
+                        listOf(
+                            ListeningInsightsLogic.HistoryActivityRow(
+                                podcastId = "pod-a",
+                                podcastName = "Show A",
+                                podcastImageUrl = null,
+                                progressMs = 3_600_000,
+                                durationMs = 3_600_000,
+                                isCompletedFlag = true,
+                                lastPlayedAt = today.toEpochDay() * 86_400_000,
+                            ),
                         ),
-                    ),
-                historyCompleted = 1,
-                historyInProgress = 0,
-                historyLiked = 0,
-                podcastMetaById = emptyMap(),
-                today = today,
-                trackingSinceEpochMs = null,
+                    historyCompleted = 1,
+                    historyInProgress = 0,
+                    historyLiked = 0,
+                    podcastMetaById = emptyMap(),
+                    today = today,
+                    trackingSinceEpochMs = null,
+                ),
             )
         assertFalse(summary.hasEnoughData)
         assertEquals(3_600_000L, summary.estimatedLibraryMs)

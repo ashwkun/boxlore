@@ -1,5 +1,6 @@
 package cx.aswin.boxlore.core.playback
 
+import cx.aswin.boxlore.core.database.ListeningInsightsDao
 import cx.aswin.boxlore.core.database.ListeningRollupEntity
 import cx.aswin.boxlore.core.database.ListeningSessionEntity
 import cx.aswin.boxlore.core.model.ListeningInsightSummary
@@ -14,6 +15,17 @@ object ListeningSessionRecordLogic {
     const val MIN_CONSUMED_MS = 5_000L
     const val RETENTION_DAYS = 180L
 
+    data class BuildSessionInput(
+        val sessionId: String,
+        val episodeId: String,
+        val podcastId: String,
+        val startedAt: Long,
+        val endedAt: Long,
+        val consumedMs: Long,
+        val completed: Boolean,
+        val zoneId: ZoneId = ZoneId.systemDefault(),
+    )
+
     fun timeBucketForHour(hour: Int): Int =
         when (hour) {
             in 5..10 -> 0
@@ -27,27 +39,18 @@ object ListeningSessionRecordLogic {
 
     fun shouldPersist(consumedMs: Long): Boolean = consumedMs >= MIN_CONSUMED_MS
 
-    fun buildSession(
-        sessionId: String,
-        episodeId: String,
-        podcastId: String,
-        startedAt: Long,
-        endedAt: Long,
-        consumedMs: Long,
-        completed: Boolean,
-        zoneId: ZoneId = ZoneId.systemDefault(),
-    ): ListeningSessionEntity? {
-        if (!shouldPersist(consumedMs)) return null
-        val hour = Instant.ofEpochMilli(startedAt).atZone(zoneId).hour
+    fun buildSession(input: BuildSessionInput): ListeningSessionEntity? {
+        if (!shouldPersist(input.consumedMs)) return null
+        val hour = Instant.ofEpochMilli(input.startedAt).atZone(input.zoneId).hour
         return ListeningSessionEntity(
-            sessionId = sessionId,
-            episodeId = episodeId,
-            podcastId = podcastId,
-            startedAt = startedAt,
-            endedAt = endedAt,
-            consumedMs = consumedMs,
-            completed = completed,
-            localDay = localDay(startedAt, zoneId),
+            sessionId = input.sessionId,
+            episodeId = input.episodeId,
+            podcastId = input.podcastId,
+            startedAt = input.startedAt,
+            endedAt = input.endedAt,
+            consumedMs = input.consumedMs,
+            completed = input.completed,
+            localDay = localDay(input.startedAt, input.zoneId),
             timeBucket = timeBucketForHour(hour),
         )
     }
@@ -59,6 +62,20 @@ object ListeningSessionRecordLogic {
         val today = Instant.ofEpochMilli(nowMs).atZone(zoneId).toLocalDate()
         val cutoffDay = today.minusDays(RETENTION_DAYS)
         return cutoffDay.atStartOfDay(zoneId).toInstant().toEpochMilli()
+    }
+
+    suspend fun persistSessionAndRollUp(
+        dao: ListeningInsightsDao,
+        session: ListeningSessionEntity,
+        nowMs: Long = System.currentTimeMillis(),
+        zoneId: ZoneId = ZoneId.systemDefault(),
+    ) {
+        dao.upsertSession(session)
+        val today = Instant.ofEpochMilli(nowMs).atZone(zoneId).toLocalDate()
+        dao.rollUpEligibleSessions(
+            cutoffEndedAtExclusive = retentionCutoffEndedAtExclusive(nowMs, zoneId),
+            todayLocalDay = today.toEpochDay(),
+        )
     }
 }
 
@@ -76,6 +93,20 @@ object ListeningInsightsLogic {
         val durationMs: Long,
         val isCompletedFlag: Boolean,
         val lastPlayedAt: Long,
+    )
+
+    data class SummarizeInput(
+        val period: ListeningPeriod,
+        val sessions: List<ListeningSessionEntity>,
+        val rollups: List<ListeningRollupEntity>,
+        val historyRows: List<HistoryActivityRow>,
+        val historyCompleted: Int,
+        val historyInProgress: Int,
+        val historyLiked: Int,
+        val podcastMetaById: Map<String, PodcastMeta>,
+        val today: LocalDate = LocalDate.now(),
+        val trackingSinceEpochMs: Long?,
+        val zoneId: ZoneId = ZoneId.systemDefault(),
     )
 
     fun periodStartDay(
@@ -120,27 +151,16 @@ object ListeningInsightsLogic {
         return if (completed && durationMs > 0) durationMs else progressMs.coerceAtLeast(0L)
     }
 
-    fun summarize(
-        period: ListeningPeriod,
-        sessions: List<ListeningSessionEntity>,
-        rollups: List<ListeningRollupEntity>,
-        historyRows: List<HistoryActivityRow>,
-        historyCompleted: Int,
-        historyInProgress: Int,
-        historyLiked: Int,
-        podcastMetaById: Map<String, PodcastMeta>,
-        today: LocalDate = LocalDate.now(),
-        trackingSinceEpochMs: Long?,
-        zoneId: ZoneId = ZoneId.systemDefault(),
-    ): ListeningInsightSummary {
-        val startDay = periodStartDay(period, today)
+    fun summarize(input: SummarizeInput): ListeningInsightSummary {
+        val startDay = periodStartDay(input.period, input.today)
         val filteredSessions =
-            sessions.filter { startDay == null || it.localDay >= startDay }
+            input.sessions.filter { startDay == null || it.localDay >= startDay }
         val filteredRollups =
-            rollups.filter { startDay == null || it.localDay >= startDay }
+            input.rollups.filter { startDay == null || it.localDay >= startDay }
         val filteredHistory =
-            historyRows.filter { row ->
-                val day = Instant.ofEpochMilli(row.lastPlayedAt).atZone(zoneId).toLocalDate().toEpochDay()
+            input.historyRows.filter { row ->
+                val day =
+                    Instant.ofEpochMilli(row.lastPlayedAt).atZone(input.zoneId).toLocalDate().toEpochDay()
                 startDay == null || day >= startDay
             }
 
@@ -178,9 +198,9 @@ object ListeningInsightsLogic {
                 ?.first
 
         val previousConsumed =
-            previousPeriodBounds(period, today)?.let { (prevStart, prevEnd) ->
-                sessions.filter { it.localDay in prevStart..prevEnd }.sumOf { it.consumedMs } +
-                    rollups.filter { it.localDay in prevStart..prevEnd }.sumOf { it.consumedMs }
+            previousPeriodBounds(input.period, input.today)?.let { (prevStart, prevEnd) ->
+                input.sessions.filter { it.localDay in prevStart..prevEnd }.sumOf { it.consumedMs } +
+                    input.rollups.filter { it.localDay in prevStart..prevEnd }.sumOf { it.consumedMs }
             } ?: 0L
 
         val sessionActiveDays =
@@ -191,16 +211,16 @@ object ListeningInsightsLogic {
         val historyActiveDays =
             filteredHistory
                 .map {
-                    Instant.ofEpochMilli(it.lastPlayedAt).atZone(zoneId).toLocalDate().toEpochDay()
+                    Instant.ofEpochMilli(it.lastPlayedAt).atZone(input.zoneId).toLocalDate().toEpochDay()
                 }.toSet()
         val activeDays = if (sessionActiveDays.isNotEmpty()) sessionActiveDays else historyActiveDays
-        val streak = computeStreak(activeDays, today.toEpochDay())
+        val streak = computeStreak(activeDays, input.today.toEpochDay())
 
         val longestRaw = filteredSessions.maxOfOrNull { it.consumedMs } ?: 0L
         val average =
             if (sessionCount > 0) totalConsumed / sessionCount else 0L
 
-        val preciseTop = topShowByConsumed(filteredSessions, filteredRollups, podcastMetaById)
+        val preciseTop = topShowByConsumed(filteredSessions, filteredRollups, input.podcastMetaById)
         val topShow = preciseTop ?: topShowByHistoryPlays(filteredHistory)
 
         val hasEnoughData = sessionCount > 0 || totalConsumed > 0L
@@ -212,19 +232,19 @@ object ListeningInsightsLogic {
                 filteredRollups = filteredRollups,
                 filteredHistory = filteredHistory,
                 startDay = startDay,
-                today = today,
-                zoneId = zoneId,
+                today = input.today,
+                zoneId = input.zoneId,
             )
 
         return ListeningInsightSummary(
-            period = period,
-            trackingSinceEpochMs = trackingSinceEpochMs,
+            period = input.period,
+            trackingSinceEpochMs = input.trackingSinceEpochMs,
             totalConsumedMs = totalConsumed,
             previousPeriodConsumedMs = previousConsumed,
             estimatedLibraryMs = estimatedLibraryMs,
-            completedCount = historyCompleted,
-            inProgressCount = historyInProgress,
-            likedCount = historyLiked,
+            completedCount = input.historyCompleted,
+            inProgressCount = input.historyInProgress,
+            likedCount = input.historyLiked,
             sessionCount = sessionCount,
             averageSessionMs = average,
             longestSessionMs = longestRaw,
@@ -350,4 +370,3 @@ object ListeningInsightsLogic {
         )
     }
 }
-

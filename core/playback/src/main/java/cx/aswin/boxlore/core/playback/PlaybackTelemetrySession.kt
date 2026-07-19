@@ -450,29 +450,22 @@ internal class PlaybackTelemetrySession(
             try {
                 val entity =
                     ListeningSessionRecordLogic.buildSession(
-                        sessionId =
-                            java.util.UUID
-                                .randomUUID()
-                                .toString(),
-                        episodeId = currentEpisodeId,
-                        podcastId = sessionPodcastIdForRecord.orEmpty(),
-                        startedAt = sessionStartedAt,
-                        endedAt = System.currentTimeMillis(),
-                        consumedMs = sessionConsumedMs,
-                        completed = isCompleted,
+                        ListeningSessionRecordLogic.BuildSessionInput(
+                            sessionId =
+                                java.util.UUID
+                                    .randomUUID()
+                                    .toString(),
+                            episodeId = currentEpisodeId,
+                            podcastId = sessionPodcastIdForRecord.orEmpty(),
+                            startedAt = sessionStartedAt,
+                            endedAt = System.currentTimeMillis(),
+                            consumedMs = sessionConsumedMs,
+                            completed = isCompleted,
+                        ),
                     ) ?: return@launch
-                database.listeningInsightsDao().upsertSession(entity)
-                val zone = java.time.ZoneId.systemDefault()
-                val nowMs = System.currentTimeMillis()
-                val today =
-                    java.time.Instant
-                        .ofEpochMilli(nowMs)
-                        .atZone(zone)
-                        .toLocalDate()
-                database.listeningInsightsDao().rollUpEligibleSessions(
-                    cutoffEndedAtExclusive =
-                        ListeningSessionRecordLogic.retentionCutoffEndedAtExclusive(nowMs, zone),
-                    todayLocalDay = today.toEpochDay(),
+                ListeningSessionRecordLogic.persistSessionAndRollUp(
+                    dao = database.listeningInsightsDao(),
+                    session = entity,
                 )
             } catch (e: Exception) {
                 Log.e("BoxLorePlaybackService", "Failed to persist listening session", e)

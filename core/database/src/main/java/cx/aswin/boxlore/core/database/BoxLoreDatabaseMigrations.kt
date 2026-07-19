@@ -6,7 +6,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  * Extracted migration SQL so unit tests can verify table creation without Room schema JSON.
  */
 object BoxLoreDatabaseMigrations {
-    fun MIGRATE_29_30(db: SupportSQLiteDatabase) {
+    fun migrate29To30(db: SupportSQLiteDatabase) {
         db.execSQL(
             """
             CREATE TABLE IF NOT EXISTS listening_sessions (

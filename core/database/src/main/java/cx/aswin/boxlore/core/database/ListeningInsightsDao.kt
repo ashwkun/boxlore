@@ -70,8 +70,17 @@ interface ListeningInsightsDao {
     @Query("SELECT MIN(lastListenedAt) FROM listening_rollups")
     suspend fun getEarliestRollupListenedAt(): Long?
 
-    @Query("DELETE FROM listening_sessions WHERE sessionId IN (:sessionIds)")
-    suspend fun deleteSessionsByIds(sessionIds: List<String>)
+    @Query(
+        """
+        DELETE FROM listening_sessions
+        WHERE endedAt < :cutoffEndedAtExclusive
+          AND localDay < :todayLocalDay
+        """,
+    )
+    suspend fun deleteSessionsEligibleForRollup(
+        cutoffEndedAtExclusive: Long,
+        todayLocalDay: Long,
+    )
 
     @Query("DELETE FROM listening_sessions WHERE episodeId = :episodeId")
     suspend fun deleteSessionsForEpisode(episodeId: String)
@@ -157,7 +166,7 @@ interface ListeningInsightsDao {
             )
         }
 
-        deleteSessionsByIds(eligible.map { it.sessionId })
+        deleteSessionsEligibleForRollup(cutoffEndedAtExclusive, todayLocalDay)
         return eligible.size
     }
 }

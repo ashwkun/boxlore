@@ -156,16 +156,18 @@ internal class PlaybackHistoryStore(
                     rollups.minOfOrNull { it.lastListenedAt },
                 ).minOrNull()
             ListeningInsightsLogic.summarize(
-                period = period,
-                sessions = sessions,
-                rollups = rollups,
-                historyRows = historyRows,
-                historyCompleted = completedCount,
-                historyInProgress = inProgressCount,
-                historyLiked = likedCount,
-                podcastMetaById = podcastMeta,
-                today = LocalDate.now(),
-                trackingSinceEpochMs = trackingSince,
+                ListeningInsightsLogic.SummarizeInput(
+                    period = period,
+                    sessions = sessions,
+                    rollups = rollups,
+                    historyRows = historyRows,
+                    historyCompleted = completedCount,
+                    historyInProgress = inProgressCount,
+                    historyLiked = likedCount,
+                    podcastMetaById = podcastMeta,
+                    today = LocalDate.now(),
+                    trackingSinceEpochMs = trackingSince,
+                ),
             )
         }
 
@@ -181,8 +183,10 @@ internal class PlaybackHistoryStore(
     }
 
     suspend fun recordListeningSession(session: ListeningSessionEntity) {
-        listeningInsightsDao.upsertSession(session)
-        maintainListeningAnalytics()
+        ListeningSessionRecordLogic.persistSessionAndRollUp(
+            dao = listeningInsightsDao,
+            session = session,
+        )
     }
 
     suspend fun maintainListeningAnalytics() {
