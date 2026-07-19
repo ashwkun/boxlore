@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test
  * ([toHttps] and [resolvePrimaryGenre]).
  */
 class PodcastRepositoryMappersTest {
-
     @Test
     fun toHttpsUpgradesInsecureUrls() {
         assertEquals("https://cdn.example/a.jpg", "http://cdn.example/a.jpg".toHttps())

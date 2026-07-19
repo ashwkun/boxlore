@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class RssRepositoryHelpersTest {
-
     @Test
     fun escapeForSqlLikeEscapesWildcardsAndBackslash() {
         assertEquals("100\\% done", "100% done".escapeForSqlLike())
@@ -60,27 +59,30 @@ class RssRepositoryHelpersTest {
 
     @Test
     fun findMatchingEpisodeUsesDateWhenTitlesAmbiguous() {
-        val episodes = listOf(
-            episode("-1", "News update", "https://cdn.example/1.mp3", 1_000L),
-            episode("-2", "News update", "https://cdn.example/2.mp3", 90_000L),
-        )
+        val episodes =
+            listOf(
+                episode("-1", "News update", "https://cdn.example/1.mp3", 1_000L),
+                episode("-2", "News update", "https://cdn.example/2.mp3", 90_000L),
+            )
 
-        val match = RssSourceMatcher.findMatchingEpisode(
-            episodes = episodes,
-            title = "News update",
-            audioUrl = null,
-            publishedDate = 90_050L,
-        )
+        val match =
+            RssSourceMatcher.findMatchingEpisode(
+                episodes = episodes,
+                title = "News update",
+                audioUrl = null,
+                publishedDate = 90_050L,
+            )
 
         assertSame(episodes[1], match)
     }
 
     @Test
     fun findMatchingEpisodeReturnsNullWhenDateTooFarApart() {
-        val episodes = listOf(
-            episode("-1", "News update", "https://cdn.example/1.mp3", 1_000L),
-            episode("-2", "News update", "https://cdn.example/2.mp3", 2_000L),
-        )
+        val episodes =
+            listOf(
+                episode("-1", "News update", "https://cdn.example/1.mp3", 1_000L),
+                episode("-2", "News update", "https://cdn.example/2.mp3", 2_000L),
+            )
 
         assertNull(
             RssSourceMatcher.findMatchingEpisode(

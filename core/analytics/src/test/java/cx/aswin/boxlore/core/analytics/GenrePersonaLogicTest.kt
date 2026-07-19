@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test
  * breadth tier, and enthusiasm bucket.
  */
 class GenrePersonaLogicTest {
-
     private fun persona(vararg genres: String) = GenrePersonaLogic.deriveGenrePersona(genres.toSet())
 
     // ---- breadth ----

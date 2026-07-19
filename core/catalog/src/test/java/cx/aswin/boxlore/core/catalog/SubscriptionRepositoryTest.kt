@@ -27,7 +27,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class SubscriptionRepositoryTest {
-
     private lateinit var database: BoxLoreDatabase
     private lateinit var podcastDao: PodcastDao
     private lateinit var repository: SubscriptionRepository
@@ -35,9 +34,11 @@ class SubscriptionRepositoryTest {
     @Before
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
-        database = Room.inMemoryDatabaseBuilder(context, BoxLoreDatabase::class.java)
-            .allowMainThreadQueries()
-            .build()
+        database =
+            Room
+                .inMemoryDatabaseBuilder(context, BoxLoreDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
         podcastDao = database.podcastDao()
         repository = SubscriptionRepository(podcastDao)
     }
@@ -68,160 +69,181 @@ class SubscriptionRepositoryTest {
     )
 
     @Test
-    fun subscribePersistsSubscribedEntity() = runTest {
-        repository.subscribe(podcast())
+    fun subscribePersistsSubscribedEntity() =
+        runTest {
+            repository.subscribe(podcast())
 
-        val stored = podcastDao.getPodcast("pod-1")!!
-        assertTrue(stored.isSubscribed)
-        assertEquals("Show", stored.title)
-        assertTrue(repository.isSubscribed("pod-1"))
-    }
-
-    @Test
-    fun subscribeSerialDefaultsToOldestSort() = runTest {
-        repository.subscribe(podcast(type = "serial"))
-
-        val stored = podcastDao.getPodcast("pod-1")!!
-        assertEquals("oldest", stored.preferredSort)
-        assertEquals("serial", stored.type)
-    }
+            val stored = podcastDao.getPodcast("pod-1")!!
+            assertTrue(stored.isSubscribed)
+            assertEquals("Show", stored.title)
+            assertTrue(repository.isSubscribed("pod-1"))
+        }
 
     @Test
-    fun subscribeEpisodicDefaultsToNewestSort() = runTest {
-        repository.subscribe(podcast(type = "episodic"))
+    fun subscribeSerialDefaultsToOldestSort() =
+        runTest {
+            repository.subscribe(podcast(type = "serial"))
 
-        assertEquals("newest", podcastDao.getPodcast("pod-1")!!.preferredSort)
-    }
-
-    @Test
-    fun subscribeIsSkippedWhenLinkedRssAlreadySubscribed() = runTest {
-        // A subscribed RSS row links to the podcast-index id; subscribing the index copy is a no-op.
-        podcastDao.upsert(
-            PodcastEntity(
-                podcastId = "-2001",
-                title = "RSS Copy",
-                author = "Artist",
-                imageUrl = "",
-                description = null,
-                isSubscribed = true,
-                sourceType = PodcastEntity.SOURCE_RSS,
-                linkedPodcastIndexId = "pod-1",
-            ),
-        )
-
-        repository.subscribe(podcast(id = "pod-1"))
-
-        assertNull(podcastDao.getPodcast("pod-1"))
-        assertTrue(repository.isSubscribed("pod-1"))
-    }
+            val stored = podcastDao.getPodcast("pod-1")!!
+            assertEquals("oldest", stored.preferredSort)
+            assertEquals("serial", stored.type)
+        }
 
     @Test
-    fun toggleSubscriptionSubscribesThenUnsubscribes() = runTest {
-        repository.toggleSubscription(podcast())
-        assertTrue(podcastDao.getPodcast("pod-1")!!.isSubscribed)
+    fun subscribeEpisodicDefaultsToNewestSort() =
+        runTest {
+            repository.subscribe(podcast(type = "episodic"))
 
-        repository.toggleSubscription(podcast())
-        val after = podcastDao.getPodcast("pod-1")!!
-        assertFalse(after.isSubscribed)
-        assertEquals(0L, after.subscribedAt)
-    }
+            assertEquals("newest", podcastDao.getPodcast("pod-1")!!.preferredSort)
+        }
 
     @Test
-    fun subscribedPodcastIdsReflectsSubscriptions() = runTest {
-        repository.subscribe(podcast(id = "a", title = "A"))
-        repository.subscribe(podcast(id = "b", title = "B"))
+    fun subscribeIsSkippedWhenLinkedRssAlreadySubscribed() =
+        runTest {
+            // A subscribed RSS row links to the podcast-index id; subscribing the index copy is a no-op.
+            podcastDao.upsert(
+                PodcastEntity(
+                    podcastId = "-2001",
+                    title = "RSS Copy",
+                    author = "Artist",
+                    imageUrl = "",
+                    description = null,
+                    isSubscribed = true,
+                    sourceType = PodcastEntity.SOURCE_RSS,
+                    linkedPodcastIndexId = "pod-1",
+                ),
+            )
 
-        assertEquals(setOf("a", "b"), repository.subscribedPodcastIds.first())
-        assertEquals(setOf("a", "b"), repository.subscribedPodcasts.first().map { it.id }.toSet())
-    }
+            repository.subscribe(podcast(id = "pod-1"))
 
-    @Test
-    fun isSubscribedFalseForUnknown() = runTest {
-        assertFalse(repository.isSubscribed("nobody"))
-    }
-
-    @Test
-    fun setNotificationsEnabledForRssForcesOff() = runTest {
-        repository.subscribe(podcast(id = "-3001", sourceType = Podcast.SOURCE_RSS, feedUrl = "https://feed"))
-        repository.setNotificationsEnabled(podcast(id = "-3001", sourceType = Podcast.SOURCE_RSS), true)
-
-        val stored = podcastDao.getPodcast("-3001")!!
-        assertFalse(stored.notificationsEnabled)
-        assertFalse(stored.autoDownloadEnabled)
-    }
-
-    @Test
-    fun setAutoDownloadEnabledForRssForcesOff() = runTest {
-        repository.subscribe(podcast(id = "-3002", sourceType = Podcast.SOURCE_RSS, feedUrl = "https://feed"))
-        repository.setAutoDownloadEnabled("-3002", true)
-
-        assertFalse(podcastDao.getPodcast("-3002")!!.autoDownloadEnabled)
-    }
+            assertNull(podcastDao.getPodcast("pod-1"))
+            assertTrue(repository.isSubscribed("pod-1"))
+        }
 
     @Test
-    fun setAutoDownloadEnabledForIndexPodcastPersists() = runTest {
-        repository.subscribe(podcast(id = "pod-1"))
-        repository.setAutoDownloadEnabled("pod-1", true)
+    fun toggleSubscriptionSubscribesThenUnsubscribes() =
+        runTest {
+            repository.toggleSubscription(podcast())
+            assertTrue(podcastDao.getPodcast("pod-1")!!.isSubscribed)
 
-        assertTrue(podcastDao.getPodcast("pod-1")!!.autoDownloadEnabled)
-    }
-
-    @Test
-    fun updatePreferredSortUpdatesTypeToo() = runTest {
-        repository.subscribe(podcast())
-        repository.updatePreferredSort("pod-1", "oldest")
-
-        val stored = podcastDao.getPodcast("pod-1")!!
-        assertEquals("oldest", stored.preferredSort)
-        assertEquals("serial", stored.type)
-    }
+            repository.toggleSubscription(podcast())
+            val after = podcastDao.getPodcast("pod-1")!!
+            assertFalse(after.isSubscribed)
+            assertEquals(0L, after.subscribedAt)
+        }
 
     @Test
-    fun setPlaybackSkipOverridesPersist() = runTest {
-        repository.subscribe(podcast())
-        repository.setPlaybackSkipOverrides("pod-1", 5_000L, 10_000L)
+    fun subscribedPodcastIdsReflectsSubscriptions() =
+        runTest {
+            repository.subscribe(podcast(id = "a", title = "A"))
+            repository.subscribe(podcast(id = "b", title = "B"))
 
-        val stored = podcastDao.getPodcast("pod-1")!!
-        assertEquals(5_000L, stored.skipBeginningOverrideMs)
-        assertEquals(10_000L, stored.skipEndingOverrideMs)
-    }
-
-    @Test
-    fun clearRssNewEpisodesFlagClearsBadge() = runTest {
-        podcastDao.upsert(
-            PodcastEntity(
-                podcastId = "-4001",
-                title = "RSS",
-                author = "A",
-                imageUrl = "",
-                description = null,
-                isSubscribed = true,
-                sourceType = PodcastEntity.SOURCE_RSS,
-                rssHasNewEpisodes = true,
-            ),
-        )
-
-        repository.clearRssNewEpisodesFlag("-4001")
-
-        assertFalse(podcastDao.getPodcast("-4001")!!.rssHasNewEpisodes)
-    }
+            assertEquals(setOf("a", "b"), repository.subscribedPodcastIds.first())
+            assertEquals(
+                setOf("a", "b"),
+                repository.subscribedPodcasts
+                    .first()
+                    .map { it.id }
+                    .toSet(),
+            )
+        }
 
     @Test
-    fun updateLatestEpisodeBackfillsPodcastTitle() = runTest {
-        repository.subscribe(podcast(id = "pod-1", title = "My Show"))
-        val episode = cx.aswin.boxlore.core.model.Episode(
-            id = "ep-1",
-            title = "Ep 1",
-            description = "d",
-            audioUrl = "https://example.com/ep1.mp3",
-            podcastId = "",
-            podcastTitle = null,
-        )
+    fun isSubscribedFalseForUnknown() =
+        runTest {
+            assertFalse(repository.isSubscribed("nobody"))
+        }
 
-        repository.updateLatestEpisode("pod-1", episode)
+    @Test
+    fun setNotificationsEnabledForRssForcesOff() =
+        runTest {
+            repository.subscribe(podcast(id = "-3001", sourceType = Podcast.SOURCE_RSS, feedUrl = "https://feed"))
+            repository.setNotificationsEnabled(podcast(id = "-3001", sourceType = Podcast.SOURCE_RSS), true)
 
-        val stored = podcastDao.getPodcast("pod-1")!!.latestEpisode!!
-        assertEquals("pod-1", stored.podcastId)
-        assertEquals("My Show", stored.podcastTitle)
-    }
+            val stored = podcastDao.getPodcast("-3001")!!
+            assertFalse(stored.notificationsEnabled)
+            assertFalse(stored.autoDownloadEnabled)
+        }
+
+    @Test
+    fun setAutoDownloadEnabledForRssForcesOff() =
+        runTest {
+            repository.subscribe(podcast(id = "-3002", sourceType = Podcast.SOURCE_RSS, feedUrl = "https://feed"))
+            repository.setAutoDownloadEnabled("-3002", true)
+
+            assertFalse(podcastDao.getPodcast("-3002")!!.autoDownloadEnabled)
+        }
+
+    @Test
+    fun setAutoDownloadEnabledForIndexPodcastPersists() =
+        runTest {
+            repository.subscribe(podcast(id = "pod-1"))
+            repository.setAutoDownloadEnabled("pod-1", true)
+
+            assertTrue(podcastDao.getPodcast("pod-1")!!.autoDownloadEnabled)
+        }
+
+    @Test
+    fun updatePreferredSortUpdatesTypeToo() =
+        runTest {
+            repository.subscribe(podcast())
+            repository.updatePreferredSort("pod-1", "oldest")
+
+            val stored = podcastDao.getPodcast("pod-1")!!
+            assertEquals("oldest", stored.preferredSort)
+            assertEquals("serial", stored.type)
+        }
+
+    @Test
+    fun setPlaybackSkipOverridesPersist() =
+        runTest {
+            repository.subscribe(podcast())
+            repository.setPlaybackSkipOverrides("pod-1", 5_000L, 10_000L)
+
+            val stored = podcastDao.getPodcast("pod-1")!!
+            assertEquals(5_000L, stored.skipBeginningOverrideMs)
+            assertEquals(10_000L, stored.skipEndingOverrideMs)
+        }
+
+    @Test
+    fun clearRssNewEpisodesFlagClearsBadge() =
+        runTest {
+            podcastDao.upsert(
+                PodcastEntity(
+                    podcastId = "-4001",
+                    title = "RSS",
+                    author = "A",
+                    imageUrl = "",
+                    description = null,
+                    isSubscribed = true,
+                    sourceType = PodcastEntity.SOURCE_RSS,
+                    rssHasNewEpisodes = true,
+                ),
+            )
+
+            repository.clearRssNewEpisodesFlag("-4001")
+
+            assertFalse(podcastDao.getPodcast("-4001")!!.rssHasNewEpisodes)
+        }
+
+    @Test
+    fun updateLatestEpisodeBackfillsPodcastTitle() =
+        runTest {
+            repository.subscribe(podcast(id = "pod-1", title = "My Show"))
+            val episode =
+                cx.aswin.boxlore.core.model.Episode(
+                    id = "ep-1",
+                    title = "Ep 1",
+                    description = "d",
+                    audioUrl = "https://example.com/ep1.mp3",
+                    podcastId = "",
+                    podcastTitle = null,
+                )
+
+            repository.updateLatestEpisode("pod-1", episode)
+
+            val stored = podcastDao.getPodcast("pod-1")!!.latestEpisode!!
+            assertEquals("pod-1", stored.podcastId)
+            assertEquals("My Show", stored.podcastTitle)
+        }
 }

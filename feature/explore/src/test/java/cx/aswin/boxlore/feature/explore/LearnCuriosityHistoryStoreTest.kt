@@ -16,7 +16,6 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class LearnCuriosityHistoryStoreTest {
-
     private lateinit var application: Application
     private lateinit var store: LearnCuriosityHistoryStore
 
@@ -33,20 +32,24 @@ class LearnCuriosityHistoryStoreTest {
         store.consumePendingRestores()
     }
 
-    private fun card(id: String, title: String = "Episode $id"): LearnCuriosityCard = LearnCuriosityCard(
-        episodeId = id,
-        question = "Why $id?",
-        explanation = "Because $id",
-        curiosityScore = 7,
-        episodeTitle = title,
-        podcastTitle = "Show",
-        imageUrl = "https://img/$id.jpg",
-        feedImage = null,
-        podcastId = "pod-$id",
-        audioUrl = "https://audio/$id.mp3",
-        duration = 1234,
-        description = "Desc $id",
-    )
+    private fun card(
+        id: String,
+        title: String = "Episode $id",
+    ): LearnCuriosityCard =
+        LearnCuriosityCard(
+            episodeId = id,
+            question = "Why $id?",
+            explanation = "Because $id",
+            curiosityScore = 7,
+            episodeTitle = title,
+            podcastTitle = "Show",
+            imageUrl = "https://img/$id.jpg",
+            feedImage = null,
+            podcastId = "pod-$id",
+            audioUrl = "https://audio/$id.mp3",
+            duration = 1234,
+            description = "Desc $id",
+        )
 
     @Test
     fun emptyStoreReturnsNoEntries() {
@@ -123,7 +126,8 @@ class LearnCuriosityHistoryStoreTest {
     @Test
     fun malformedJsonYieldsEmptyEntries() {
         // Directly corrupt the backing store, then confirm parsing degrades gracefully.
-        cx.aswin.boxlore.core.prefs.BoxcastPrefs(application)
+        cx.aswin.boxlore.core.prefs
+            .BoxcastPrefs(application)
             .setLearnCuriosityHistoryJson("{not-json")
 
         assertTrue(store.getEntries().isEmpty())

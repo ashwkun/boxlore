@@ -17,15 +17,17 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [34])
 class RankingRuntimeControlsTest {
-
     private lateinit var context: Context
     private lateinit var controls: RankingRuntimeControls
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        context.getSharedPreferences("adaptive_ranking_runtime", Context.MODE_PRIVATE)
-            .edit().clear().commit()
+        context
+            .getSharedPreferences("adaptive_ranking_runtime", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .commit()
         controls = RankingRuntimeControls.create(context)
     }
 

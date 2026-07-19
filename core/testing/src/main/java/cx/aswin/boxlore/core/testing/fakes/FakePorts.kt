@@ -35,8 +35,7 @@ class FakeLocalCatalogPort(
 
     override suspend fun getLocalPodcast(id: String): Podcast? = byId[id]
 
-    override suspend fun getSubscribedRssLinkedTo(podcastIndexId: String): Podcast? =
-        rssLinks[podcastIndexId]
+    override suspend fun getSubscribedRssLinkedTo(id: String): Podcast? = rssLinks[id]
 
     override suspend fun upsertSubscribedPodcast(podcast: Podcast) {
         upsertCalls++

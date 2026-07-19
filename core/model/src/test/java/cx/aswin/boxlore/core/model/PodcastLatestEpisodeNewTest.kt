@@ -6,10 +6,12 @@ import org.junit.jupiter.api.Test
 
 /** Branch coverage for the [isLatestEpisodeNew] behavior helper. */
 class PodcastLatestEpisodeNewTest {
-
     private val nowSeconds = System.currentTimeMillis() / 1000L
 
-    private fun episode(id: String = "ep-1", publishedSecondsAgo: Long = 3_600L) = Episode(
+    private fun episode(
+        id: String = "ep-1",
+        publishedSecondsAgo: Long = 3_600L,
+    ) = Episode(
         id = id,
         title = "Latest",
         description = "",
@@ -37,11 +39,12 @@ class PodcastLatestEpisodeNewTest {
 
     @Test
     fun rssWithNewEpisodesFlagIsAlwaysNew() {
-        val podcast = podcast(
-            sourceType = Podcast.SOURCE_RSS,
-            rssHasNewEpisodes = true,
-            episodeStatus = EpisodeStatus.COMPLETED,
-        )
+        val podcast =
+            podcast(
+                sourceType = Podcast.SOURCE_RSS,
+                rssHasNewEpisodes = true,
+                episodeStatus = EpisodeStatus.COMPLETED,
+            )
         assertTrue(podcast.isLatestEpisodeNew(lastSeenId = "ep-1"))
     }
 
@@ -69,10 +72,11 @@ class PodcastLatestEpisodeNewTest {
     @Test
     fun episodeOlderThanSubscriptionIsNotNew() {
         // Episode published before the subscription timestamp.
-        val podcast = podcast(
-            latestEpisode = episode(publishedSecondsAgo = 10_000L),
-            subscribedSecondsAgo = 5_000L,
-        )
+        val podcast =
+            podcast(
+                latestEpisode = episode(publishedSecondsAgo = 10_000L),
+                subscribedSecondsAgo = 5_000L,
+            )
         assertFalse(podcast.isLatestEpisodeNew(null))
     }
 
@@ -84,10 +88,11 @@ class PodcastLatestEpisodeNewTest {
     @Test
     fun staleEpisodeBeyond48HoursIsNotNew() {
         // Subscribed long ago; episode released just after subscription but far in the past.
-        val podcast = podcast(
-            latestEpisode = episode(publishedSecondsAgo = 100L * 24 * 3600),
-            subscribedSecondsAgo = 101L * 24 * 3600,
-        )
+        val podcast =
+            podcast(
+                latestEpisode = episode(publishedSecondsAgo = 100L * 24 * 3600),
+                subscribedSecondsAgo = 101L * 24 * 3600,
+            )
         assertFalse(podcast.isLatestEpisodeNew(null))
     }
 }

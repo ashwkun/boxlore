@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test
  * so no PostHog SDK is required.
  */
 class AnalyticsTracksFacadeTest {
-
     private val recorder = mutableListOf<Pair<String, Map<String, Any>>>()
     private lateinit var restore: () -> Unit
 
@@ -30,8 +29,7 @@ class AnalyticsTracksFacadeTest {
 
     private fun names() = recorder.map { it.first }
 
-    private fun firstProps(event: String): Map<String, Any> =
-        recorder.first { it.first == event }.second
+    private fun firstProps(event: String): Map<String, Any> = recorder.first { it.first == event }.second
 
     // ── Onboarding ─────────────────────────────────────────────────
 
@@ -137,9 +135,16 @@ class AnalyticsTracksFacadeTest {
         AnalyticsHelper.trackPodcastSubscriptionToggled("p1", "Pod", true, "home")
         AnalyticsHelper.trackPodcastSubscriptionToggled("p1", null, false, "home")
         AnalyticsHelper.trackPodcastInfoScreenSession(
-            "p1", "Pod", 12f, wasSubscribed = true, didSubscribe = false,
-            didUnsubscribe = true, didSearch = true, didSortEpisodes = false,
-            episodesPlayedCount = 2, episodesClickedCount = 3,
+            "p1",
+            "Pod",
+            12f,
+            wasSubscribed = true,
+            didSubscribe = false,
+            didUnsubscribe = true,
+            didSearch = true,
+            didSortEpisodes = false,
+            episodesPlayedCount = 2,
+            episodesClickedCount = 3,
         )
         AnalyticsHelper.trackCuratedCardTapped("p1", "Pod", "vibe", 0)
         AnalyticsHelper.trackCuratedCardTapped("p1", null, "vibe", 0)
@@ -160,20 +165,52 @@ class AnalyticsTracksFacadeTest {
     @Test
     fun playbackLifecycleEvents() {
         AnalyticsHelper.trackPlaybackStarted(
-            "p1", "Pod", "News", "e1", "Ep", 0f, 100f,
-            isRepeating = false, isSubscribed = true, entryPoint = "home_hero_resume",
+            "p1",
+            "Pod",
+            "News",
+            "e1",
+            "Ep",
+            0f,
+            100f,
+            isRepeating = false,
+            isSubscribed = true,
+            entryPoint = "home_hero_resume",
             entryPointContext = mapOf("extra" to "v"),
         )
         AnalyticsHelper.trackPlaybackStarted(
-            null, null, null, "e1", null, 0f, 100f,
-            isRepeating = true, isSubscribed = false,
+            null,
+            null,
+            null,
+            "e1",
+            null,
+            0f,
+            100f,
+            isRepeating = true,
+            isSubscribed = false,
         )
         AnalyticsHelper.trackPlaybackPaused(
-            "p1", "Pod", "News", "e1", "Ep", 50f, 10f, 100f,
-            isCompleted = false, queueSize = 3, pauseReason = "user_voluntary",
+            "p1",
+            "Pod",
+            "News",
+            "e1",
+            "Ep",
+            50f,
+            10f,
+            100f,
+            isCompleted = false,
+            queueSize = 3,
+            pauseReason = "user_voluntary",
         )
         AnalyticsHelper.trackPlaybackPaused(
-            null, null, null, "e1", null, 0f, 0f, 0f, isCompleted = true,
+            null,
+            null,
+            null,
+            "e1",
+            null,
+            0f,
+            0f,
+            0f,
+            isCompleted = true,
         )
         AnalyticsHelper.trackPlaybackCompleted("p1", "Pod", "News", "e1", "Ep", 100f)
         AnalyticsHelper.trackPlaybackCompleted(null, null, null, "e1", null, 100f)
@@ -203,10 +240,26 @@ class AnalyticsTracksFacadeTest {
         AnalyticsHelper.trackExploreScreenViewed()
         AnalyticsHelper.trackExploreSearchPerformed("  q  ", 5)
         AnalyticsHelper.trackExploreScreenSession(
-            30f, 1, 2, 3, 4, 5, "all", "vibe", "q",
+            30f,
+            1,
+            2,
+            3,
+            4,
+            5,
+            "all",
+            "vibe",
+            "q",
         )
         AnalyticsHelper.trackExploreScreenSession(
-            30f, 1, 2, 3, 4, 5, "all", null, null,
+            30f,
+            1,
+            2,
+            3,
+            4,
+            5,
+            "all",
+            null,
+            null,
         )
 
         assertTrue("explore_screen_viewed" in names())

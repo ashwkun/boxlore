@@ -11,7 +11,6 @@ import org.junit.Test
  * detection and the exact/prefix route tables not exercised by the primary test.
  */
 class PushTargetRouteAllowlistBranchesTest {
-
     @Test
     fun isAppOrWebUriRecognizesAllSchemes() {
         assertTrue(PushTargetRouteAllowlist.isAppOrWebUri("http://example.com"))

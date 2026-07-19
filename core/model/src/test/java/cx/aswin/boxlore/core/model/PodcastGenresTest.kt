@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test
 
 /** Coverage for [PodcastGenres.canonicalize] — canonical names, aliases, and normalization. */
 class PodcastGenresTest {
-
     @Test
     fun canonicalizeReturnsExactCanonicalName() {
         assertEquals("Technology", PodcastGenres.canonicalize("Technology"))

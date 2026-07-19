@@ -22,12 +22,13 @@ class SuggestedPodcastRowItemUiTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private val podcast = Podcast(
-        id = "pod-42",
-        title = "Fake Onboarding Show",
-        artist = "Fake Host",
-        imageUrl = "https://example.com/cover.jpg",
-    )
+    private val podcast =
+        Podcast(
+            id = "pod-42",
+            title = "Fake Onboarding Show",
+            artist = "Fake Host",
+            imageUrl = "https://example.com/cover.jpg",
+        )
 
     @Test
     fun unsubscribedRow_showsMetadata_andToggleInvokesSubscription() {

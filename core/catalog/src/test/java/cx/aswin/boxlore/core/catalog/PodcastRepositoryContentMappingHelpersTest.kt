@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test
 
 /** Pure coverage for the top-level helpers in `PodcastRepositoryContentMapping.kt`. */
 class PodcastRepositoryContentMappingHelpersTest {
-
     @Test
     fun mapRegionForBriefingCanonicalisesAliases() {
         assertEquals("us", mapRegionForBriefing("US"))

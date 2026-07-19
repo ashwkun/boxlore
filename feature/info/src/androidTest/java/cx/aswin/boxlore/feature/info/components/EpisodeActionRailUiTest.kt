@@ -52,13 +52,14 @@ class EpisodeActionRailUiTest {
         composeRule.setContent {
             EpisodeActionRail(
                 state = state(),
-                callbacks = EpisodeActionRailCallbacks(
-                    onMainActionClick = { mainClicks++ },
-                    onLikeClick = { likeClicks++ },
-                    onDownloadClick = { downloadClicks++ },
-                    onQueueClick = { queueClicks++ },
-                    onMarkPlayedClick = { markPlayedClicks++ },
-                ),
+                callbacks =
+                    EpisodeActionRailCallbacks(
+                        onMainActionClick = { mainClicks++ },
+                        onLikeClick = { likeClicks++ },
+                        onDownloadClick = { downloadClicks++ },
+                        onQueueClick = { queueClicks++ },
+                        onMarkPlayedClick = { markPlayedClicks++ },
+                    ),
                 accentColor = Color(0xFF6750A4),
                 showMarkPlayedTip = false,
                 onMarkPlayedTipDismissed = {},
@@ -82,20 +83,22 @@ class EpisodeActionRailUiTest {
     fun activeState_reflectsPlayingAndToggledControls() {
         composeRule.setContent {
             EpisodeActionRail(
-                state = state(
-                    isPlaying = true,
-                    isLiked = true,
-                    isDownloaded = true,
-                    isQueued = true,
-                    isCompleted = true,
-                ),
-                callbacks = EpisodeActionRailCallbacks(
-                    onMainActionClick = {},
-                    onLikeClick = {},
-                    onDownloadClick = {},
-                    onQueueClick = {},
-                    onMarkPlayedClick = {},
-                ),
+                state =
+                    state(
+                        isPlaying = true,
+                        isLiked = true,
+                        isDownloaded = true,
+                        isQueued = true,
+                        isCompleted = true,
+                    ),
+                callbacks =
+                    EpisodeActionRailCallbacks(
+                        onMainActionClick = {},
+                        onLikeClick = {},
+                        onDownloadClick = {},
+                        onQueueClick = {},
+                        onMarkPlayedClick = {},
+                    ),
                 accentColor = Color(0xFF6750A4),
                 showMarkPlayedTip = false,
                 onMarkPlayedTipDismissed = {},

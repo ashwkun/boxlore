@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test
  * [RecordingAnalyticsTest].
  */
 class RecordingAnalyticsExtraTest {
-
     private lateinit var analytics: RecordingAnalytics
 
     @BeforeEach

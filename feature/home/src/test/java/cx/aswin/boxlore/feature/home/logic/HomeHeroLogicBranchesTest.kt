@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class HomeHeroLogicBranchesTest {
-
     private fun session(
         id: String,
         podcastId: String = "pod-$id",
@@ -18,26 +17,28 @@ class HomeHeroLogicBranchesTest {
         positionMs: Long = 30_000L,
         durationMs: Long = 120_000L,
         imageUrl: String? = "https://example.com/$id.jpg",
-    ): PlaybackSession = PlaybackSession(
-        podcastId = podcastId,
-        episodeId = "ep-$id",
-        positionMs = positionMs,
-        durationMs = durationMs,
-        timestamp = 1L,
-        episodeTitle = "Episode $id",
-        podcastTitle = podcastTitle,
-        imageUrl = imageUrl,
-        podcastImageUrl = "https://example.com/pod-$id.jpg",
-        audioUrl = "https://example.com/$id.mp3",
-    )
+    ): PlaybackSession =
+        PlaybackSession(
+            podcastId = podcastId,
+            episodeId = "ep-$id",
+            positionMs = positionMs,
+            durationMs = durationMs,
+            timestamp = 1L,
+            episodeTitle = "Episode $id",
+            podcastTitle = podcastTitle,
+            imageUrl = imageUrl,
+            podcastImageUrl = "https://example.com/pod-$id.jpg",
+            audioUrl = "https://example.com/$id.mp3",
+        )
 
     @Test
     fun sessionToPodcastFallsBackToParentTitleAndPodcastImage() {
         val parent = TestFixtures.podcast(id = "pod-x", title = "Parent Show")
-        val podcast = HomeHeroLogic.sessionToPodcast(
-            session = session(id = "x", podcastId = "pod-x", podcastTitle = "Unknown Podcast", imageUrl = null),
-            subs = listOf(parent),
-        )
+        val podcast =
+            HomeHeroLogic.sessionToPodcast(
+                session = session(id = "x", podcastId = "pod-x", podcastTitle = "Unknown Podcast", imageUrl = null),
+                subs = listOf(parent),
+            )
         assertEquals("Parent Show", podcast.title)
         // No episode image -> falls back to the podcast image.
         assertEquals("https://example.com/pod-x.jpg", podcast.imageUrl)
@@ -45,10 +46,11 @@ class HomeHeroLogicBranchesTest {
 
     @Test
     fun sessionToPodcastBlankPodcastIdBecomesEmptyIdAndDefaultTitle() {
-        val podcast = HomeHeroLogic.sessionToPodcast(
-            session = session(id = "y", podcastId = "0", podcastTitle = "").copy(durationMs = 0L),
-            subs = emptyList(),
-        )
+        val podcast =
+            HomeHeroLogic.sessionToPodcast(
+                session = session(id = "y", podcastId = "0", podcastTitle = "").copy(durationMs = 0L),
+                subs = emptyList(),
+            )
         assertEquals("", podcast.id)
         assertEquals("Podcast", podcast.title)
         assertEquals(0f, podcast.resumeProgress)
@@ -86,10 +88,11 @@ class HomeHeroLogicBranchesTest {
     fun appendUnplayedItemsWithTwoAddsTwoJumpBackInCards() {
         val hero = mutableListOf<SmartHeroItem>()
         val used = mutableSetOf<String>()
-        val bucket = listOf(
-            TestFixtures.podcast(id = "u1").copy(latestEpisode = TestFixtures.episode(id = "e1"), preferredSort = "oldest"),
-            TestFixtures.podcast(id = "u2").copy(latestEpisode = TestFixtures.episode(id = "e2")),
-        )
+        val bucket =
+            listOf(
+                TestFixtures.podcast(id = "u1").copy(latestEpisode = TestFixtures.episode(id = "e1"), preferredSort = "oldest"),
+                TestFixtures.podcast(id = "u2").copy(latestEpisode = TestFixtures.episode(id = "e2")),
+            )
         HomeHeroLogic.appendUnplayedHeroItems(hero, used, bucket)
         assertEquals(2, hero.size)
         assertEquals("NEXT", hero.first().label)
@@ -100,9 +103,10 @@ class HomeHeroLogicBranchesTest {
     fun appendUnplayedItemsWithMoreThanTwoAddsNewEpisodesGrid() {
         val hero = mutableListOf<SmartHeroItem>()
         val used = mutableSetOf<String>()
-        val bucket = (1..5).map {
-            TestFixtures.podcast(id = "u$it").copy(latestEpisode = TestFixtures.episode(id = "e$it"))
-        }
+        val bucket =
+            (1..5).map {
+                TestFixtures.podcast(id = "u$it").copy(latestEpisode = TestFixtures.episode(id = "e$it"))
+            }
         HomeHeroLogic.appendUnplayedHeroItems(hero, used, bucket)
         val grid = hero.first { it.type == HeroType.NEW_EPISODES_GRID }
         assertEquals("NEW EPISODES", grid.label)
@@ -120,8 +124,10 @@ class HomeHeroLogicBranchesTest {
 
     @Test
     fun displayPodcastForSpotlightUsesEpisodeArtWhenPresent() {
-        val withEpArt = TestFixtures.podcast(id = "p1", imageUrl = "pod.jpg")
-            .copy(latestEpisode = TestFixtures.episode(id = "e1", imageUrl = "ep.jpg"))
+        val withEpArt =
+            TestFixtures
+                .podcast(id = "p1", imageUrl = "pod.jpg")
+                .copy(latestEpisode = TestFixtures.episode(id = "e1", imageUrl = "ep.jpg"))
         val resultWith = HomeHeroLogic.displayPodcastForSpotlight(withEpArt)
         assertEquals("ep.jpg", resultWith.imageUrl)
         assertEquals("pod.jpg", resultWith.fallbackImageUrl)

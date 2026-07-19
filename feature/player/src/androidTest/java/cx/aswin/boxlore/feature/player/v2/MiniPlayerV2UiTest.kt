@@ -23,27 +23,30 @@ class MiniPlayerV2UiTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private val episode = Episode(
-        id = "ep-1",
-        title = "Mini Player Episode",
-        description = "desc",
-        audioUrl = "https://example.com/a.mp3",
-    )
+    private val episode =
+        Episode(
+            id = "ep-1",
+            title = "Mini Player Episode",
+            description = "desc",
+            audioUrl = "https://example.com/a.mp3",
+        )
 
-    private fun content(isPlaying: Boolean) = MiniPlayerContent(
-        episode = episode,
-        podcastTitle = "Fake Podcast",
-        podcastImageUrl = null,
-        isPlaying = isPlaying,
-        isLoading = false,
-        position = 30_000L,
-        duration = 120_000L,
-    )
+    private fun content(isPlaying: Boolean) =
+        MiniPlayerContent(
+            episode = episode,
+            podcastTitle = "Fake Podcast",
+            podcastImageUrl = null,
+            isPlaying = isPlaying,
+            isLoading = false,
+            position = 30_000L,
+            duration = 120_000L,
+        )
 
-    private val colors = MiniPlayerColors(
-        colorScheme = lightColorScheme(),
-        backgroundColor = Color(0xFFEDE7F6),
-    )
+    private val colors =
+        MiniPlayerColors(
+            colorScheme = lightColorScheme(),
+            backgroundColor = Color(0xFFEDE7F6),
+        )
 
     @Test
     fun pausedState_showsPlay_metadata_andInvokesPlayPause() {
@@ -53,12 +56,13 @@ class MiniPlayerV2UiTest {
             MiniPlayerV2(
                 content = content(isPlaying = false),
                 colors = colors,
-                actions = MiniPlayerActions(
-                    onPlayPause = { playPauseClicks++ },
-                    onReplay = {},
-                    onForward = {},
-                    onDismiss = {},
-                ),
+                actions =
+                    MiniPlayerActions(
+                        onPlayPause = { playPauseClicks++ },
+                        onReplay = {},
+                        onForward = {},
+                        onDismiss = {},
+                    ),
             )
         }
 
@@ -74,12 +78,13 @@ class MiniPlayerV2UiTest {
             MiniPlayerV2(
                 content = content(isPlaying = true),
                 colors = colors,
-                actions = MiniPlayerActions(
-                    onPlayPause = {},
-                    onReplay = {},
-                    onForward = {},
-                    onDismiss = {},
-                ),
+                actions =
+                    MiniPlayerActions(
+                        onPlayPause = {},
+                        onReplay = {},
+                        onForward = {},
+                        onDismiss = {},
+                    ),
             )
         }
 

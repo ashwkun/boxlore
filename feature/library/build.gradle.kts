@@ -32,7 +32,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -48,7 +48,6 @@ android {
     buildFeatures {
         compose = true
     }
-
 }
 
 dependencies {
@@ -60,7 +59,7 @@ dependencies {
     implementation(projects.core.designsystem)
     implementation(projects.core.analytics)
     implementation(projects.core.ranking)
-    
+
     // Feature Dependencies (for Navigation if needed, though mostly callbacks)
     // implementation(projects.feature.info) // Not strictly needed if we use callbacks
 
@@ -73,7 +72,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.material.icons.extended)
-    
+
     // Expressive
     implementation(libs.androidx.material3.adaptive)
 

@@ -14,7 +14,6 @@ import org.junit.jupiter.api.Test
  * ([ChapterRepository.parseChaptersFromDescription]) — no network is touched.
  */
 class ChapterRepositoryTest {
-
     @BeforeEach
     fun setUp() {
         ChapterRepository.clearCache()

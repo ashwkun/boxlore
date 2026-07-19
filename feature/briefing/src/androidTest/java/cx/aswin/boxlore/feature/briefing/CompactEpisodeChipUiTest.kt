@@ -24,14 +24,15 @@ class CompactEpisodeChipUiTest {
     @get:Rule
     val composeRule = createComposeRule()
 
-    private val episode = Episode(
-        id = "ep-9",
-        title = "Briefing Related Episode",
-        description = "desc",
-        audioUrl = "https://example.com/b.mp3",
-        podcastTitle = "Briefing Source Show",
-        duration = 600,
-    )
+    private val episode =
+        Episode(
+            id = "ep-9",
+            title = "Briefing Related Episode",
+            description = "desc",
+            audioUrl = "https://example.com/b.mp3",
+            podcastTitle = "Briefing Source Show",
+            duration = 600,
+        )
 
     @Test
     fun inactiveChip_displaysMetadata_andInvokesClick() {

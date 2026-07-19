@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test
  * through [AnalyticsEmit] (intercepted, so no PostHog SDK is required).
  */
 class AnalyticsHelperStateTest {
-
     private val recorder = mutableListOf<Pair<String, Map<String, Any>>>()
     private lateinit var restore: () -> Unit
 

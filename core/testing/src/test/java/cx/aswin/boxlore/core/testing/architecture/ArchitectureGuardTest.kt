@@ -193,8 +193,11 @@ class ArchitectureGuardTest {
                 .filter {
                     it.isFile &&
                         it.extension == "kt" &&
-                        (it.path.contains("/src/main/") || it.path.contains("/src/test/") ||
-                            it.path.contains("/src/androidTest/"))
+                        (
+                            it.path.contains("/src/main/") ||
+                                it.path.contains("/src/test/") ||
+                                it.path.contains("/src/androidTest/")
+                        )
                 }.forEach { file ->
                     file.readLines().forEachIndexed { index, line ->
                         val code = line.trim()
@@ -378,8 +381,8 @@ class ArchitectureGuardTest {
             if (!hasMatchingTest) {
                 violations +=
                     "${mainFile.relativeTo(projectRoot).path.replace('\\', '/')}: " +
-                        "needs a matching ${baseName}*Test.kt under the module's src/test or " +
-                        "src/androidTest (or add it to the documented allowlist in ArchitectureGuardTest)"
+                    "needs a matching $baseName*Test.kt under the module's src/test or " +
+                    "src/androidTest (or add it to the documented allowlist in ArchitectureGuardTest)"
             }
         }
 

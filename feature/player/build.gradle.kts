@@ -48,7 +48,7 @@ dependencies {
     implementation(projects.core.network)
     implementation(projects.core.designsystem)
     implementation(projects.core.analytics)
-    
+
     // Media & Palette
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)
@@ -61,7 +61,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.navigation.compose)
-    
+
     // UI
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

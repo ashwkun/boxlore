@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test
  * session (start → actions → end) and asserts the metrics emitted via [AnalyticsEmit].
  */
 class PlayerSessionAggregatorTest {
-
     private val captured = mutableListOf<Pair<String, Map<String, Any>>>()
     private lateinit var restore: () -> Unit
 
