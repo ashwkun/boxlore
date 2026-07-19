@@ -481,8 +481,7 @@ class BoxLorePlaybackService :
         android.util.Log.d("BoxCastPlayer", "$source to ${target}ms")
     }
 
-    private fun lifecycleEpisodeId(item: MediaItem?): String? =
-        item?.mediaId?.stripEpisodePrefix()
+    private fun lifecycleEpisodeId(item: MediaItem?): String? = item?.mediaId?.stripEpisodePrefix()
 
     private fun handleMediaItemTransition(
         player: ExoPlayer,
