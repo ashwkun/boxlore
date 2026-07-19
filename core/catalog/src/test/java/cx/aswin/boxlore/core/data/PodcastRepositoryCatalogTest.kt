@@ -6,6 +6,7 @@ import cx.aswin.boxlore.core.data.database.BoxLoreDatabase
 import cx.aswin.boxlore.core.data.database.PodcastDao
 import cx.aswin.boxlore.core.data.database.RssEpisodeDao
 import cx.aswin.boxlore.core.network.NetworkModule
+import cx.aswin.boxlore.core.rss.RssPodcastRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -159,8 +160,11 @@ class PodcastRepositoryCatalogTest {
         val prefs = mock(SharedPreferences::class.java)
         val editor = mock(SharedPreferences.Editor::class.java)
         `when`(prefs.getString(anyString(), nullable(String::class.java))).thenReturn(null)
+        `when`(prefs.getAll()).thenReturn(emptyMap())
+        `when`(prefs.contains(anyString())).thenReturn(false)
         `when`(prefs.edit()).thenReturn(editor)
         `when`(editor.putString(anyString(), anyString())).thenReturn(editor)
+        `when`(editor.commit()).thenReturn(true)
         `when`(editor.apply()).then { }
 
         val appContext = mock(Context::class.java)
