@@ -2,44 +2,51 @@
 
 ## Purpose
 
-Daily briefing playback UI and ViewModel (region selection, chapters/transcript wiring via podcast repository). Presentation only; playback/queue engines stay in `:core:playback`.
+Owns the Daily Briefing presentation flow: region-aware briefing content, story pager UI, transcript and chapter presentation, and playback actions delegated to injected core dependencies. It does not own catalog retrieval, queue persistence, playback services, or navigation registration.
 
 ## Public API
 
-- `BriefingScreen` / `BriefingViewModel` (injected `PodcastRepository`, `PlaybackRepository`, `QueueManager`)
-- `BriefingUiState`
-
-Route in `:app`: `briefing`.
+- `BriefingScreen` is the route-level composable used by `:app`.
+- `BriefingViewModel` exposes briefing state and actions using injected catalog, playback, and queue dependencies.
+- `BriefingUiState` models screen state.
+- `BriefingIdentity` contains pure identity helpers for tests and UI mapping.
+- `BriefingStoriesPager` and `BriefingStoryComponents` provide extracted story-presentation pieces.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/feature/briefing/
-  BriefingScreen.kt
-  BriefingViewModel.kt
-  BriefingUiState.kt
   BriefingIdentity.kt
+  BriefingScreen.kt
+  BriefingStoriesPager.kt
+  BriefingStoryComponents.kt
+  BriefingUiState.kt
+  BriefingViewModel.kt
 ```
 
 ## Dependencies
 
-- → `:core:model`, `:core:catalog`, `:core:designsystem` (playback/queue via container-injected types)
-
-Forbidden: feature → feature; do not construct a parallel playback graph.
+- Project dependencies: `:core:designsystem`, `:core:catalog`, `:core:playback`, `:core:model`, `:core:network`, and `:core:analytics`.
+- Libraries: Compose, Navigation, Coil, lifecycle ViewModel/runtime Compose, Palette, and Material icons.
+- Reverse-edge rule: feature modules must not depend on other feature modules or construct playback/catalog graphs.
 
 ## Threading / lifecycle
 
-- ViewModel nav-scoped; `PlaybackRepository` / `QueueManager` Application-scoped from `AppContainer`
-- UI on Main
+- `BriefingViewModel` is scoped to the route or navigation owner that creates it.
+- Catalog, playback, and queue objects are application-scoped instances supplied by app wiring.
+- Compose UI runs on the main thread; repository calls use suspend APIs from injected dependencies.
 
 ## Persistence & identity
 
-None owned. Briefing content identity comes from catalog/network models; playback session identity from `:core:playback`.
+- This module owns no storage files or stable keys.
+- Briefing episode and podcast identity comes from catalog/network models.
+- Playback session identity is owned by `:core:playback`.
 
 ## Testing notes
 
-- JVM: `BriefingIdentityTest` (episode id + cover drawable region aliases)
-- Manual smoke: open briefing from home; play/resume via shared playback graph
+- Unit tests live under `feature/briefing/src/test`.
+- `BriefingIdentityTest` covers region aliases and briefing identity helpers.
+- Manual smoke should verify briefing launch, story paging, and play/resume through the shared playback graph.
 
 ```bash
 ./gradlew :feature:briefing:testDebugUnitTest
@@ -47,10 +54,12 @@ None owned. Briefing content identity comes from catalog/network models; playbac
 
 ## CI relevance
 
-Compiled in `unit-tests.yml`. No module-specific instrumented job.
+- `unit-tests.yml` compiles and runs briefing JVM tests with the project suite.
+- No dedicated instrumented job is configured for this module.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
 - [`:core:playback` README](../../core/playback/README.md)
 - [`:app` README](../../app/README.md)

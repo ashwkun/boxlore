@@ -2,87 +2,73 @@
 
 ## Purpose
 
-**Catalog and orchestration layer.** Owns the Podcast Index catalog (`PodcastRepository`), subscriptions, content sections, cross-promo, engagement, backup/restore, and the shared-deps composition bridge for workers and Media3 services. It is **not** a junk drawer — every type here is a catalog, subscription, or orchestration concern.
-
-Gradle id is `:core:catalog`. Package root: `cx.aswin.boxlore.core.catalog` (namespace + Kotlin packages aligned in Phase 2 PR10).
-
-Extracted subsystems now live in dedicated modules:
-
-| Subsystem | Module |
-| :--- | :--- |
-| RSS feed fetch / parse / IDs / `RssPodcastRepository` | `:core:rss` (re-exported via `api`) |
-| Adaptive ranking / LinUCB / feedback loop | `:core:ranking` (`implementation` — declare directly in consumers) |
-| Analytics façade (`AnalyticsHelper`, `Analytics`) | `:core:analytics` (not re-exported; declare directly) |
-| Smart queue / queue math / mixtape | `:core:playback` |
-| Download worker stack | `:core:downloads` |
-| Playback / queue / Media3 services | `:core:playback` |
-| DataStore + SharedPrefs | `:core:prefs` |
-| Main Room database | `:core:database` |
+Owns catalog orchestration: Podcast Index access through `PodcastRepository`, subscriptions, chapters, transcripts, personalized content sections, cross-promotion, consent helpers, install-referrer handling, backup and restore, and shared dependency bridges used by workers and services. It does not own playback, download workers, Compose UI, Room schemas, RSS internals, or ranking model storage.
 
 ## Public API
 
-- **Catalog:** `PodcastRepository` (Podcast Index HTTP + RSS delegate via `RssPodcastRepository`), `SubscriptionRepository`, `ChapterRepository`, `TranscriptRepository`
-- **Content sections:** `content/ContentOrchestrator`, `content/GroupedContentSectionProvider`, `content/ContentContextEngine`
-- **Backup/restore:** `backup/LibraryBackupManager` — JSON + OPML export/import, ranking backup, RSS re-import. Wire type is `BoxLoreBackup` (Gson field names / `version` unchanged for restore compatibility).
-- **Shared-deps bridge:**
-  - `SharedAppDependencies` — interface of Application-scoped instances consumed by workers/services via `SharedAppDependenciesHolder` (includes ranking types; consumers that touch those members must depend on `:core:ranking`)
-  - `SharedAppDependenciesHolder` — `@Volatile` install + `require()` (throws if unset)
-- **Re-exported (api) subsystems:** types from `:core:rss`, `:core:domain`, `:core:database`, `:core:prefs`
-- **Data-only ports:** `ports.ListeningHistoryBackupPort`, `ports.SmartDownloadSyncPort`
-- **Domain port impls:** `RoomLocalCatalog` (`LocalCatalogPort`), `RoomEpisodeOfflineLookup` (`EpisodeOfflineLookupPort`)
-
-> `ports.DownloadCacheRelinker` lives in `:core:rss` (package `cx.aswin.boxlore.core.rss.ports`; re-exported via `api(core:rss)`).
+- `PodcastRepository` coordinates Podcast Index calls, recommendation endpoints, content sections, and RSS delegation.
+- `SubscriptionRepository`, `ChapterRepository`, and `TranscriptRepository` expose catalog-adjacent data operations.
+- `content.ContentOrchestrator`, `GroupedContentSectionProvider`, `ContentContextEngine`, and related content contracts assemble personalized Home and discovery sections.
+- `backup.LibraryBackupManager` imports and exports library data, OPML, listening history, and ranking backup payloads.
+- `SharedAppDependencies` and `SharedAppDependenciesHolder` expose application-scoped instances to workers and services.
+- `RoomLocalCatalog` implements `LocalCatalogPort`; `RoomEpisodeOfflineLookup` implements `EpisodeOfflineLookupPort`.
+- `ports.ListeningHistoryBackupPort` and `ports.SmartDownloadSyncPort` keep backup and download seams out of UI modules.
+- `:core:rss`, `:core:domain`, `:core:database`, and `:core:prefs` are re-exported where existing public signatures require those types.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/core/catalog/
   PodcastRepository.kt
+  PodcastRepositoryContentCache.kt
+  PodcastRepositoryContentMapping.kt
+  PodcastRepositoryMappers.kt
+  PodcastRepositoryNetworkLookups.kt
+  PodcastRepositoryRecommendations.kt
+  PodcastRepositoryStreams.kt
+  EpisodeMapper.kt
   SubscriptionRepository.kt
-  ChapterRepository.kt / TranscriptRepository.kt
+  ChapterRepository.kt
+  TranscriptRepository.kt
   SharedAppDependencies.kt
-  EngagementPromptCoordinator.kt / InstallReferrerManager.kt
-  content/                       # Personalised home sections
-  crosspromo/                    # Cross-promotion
-  backup/                        # LibraryBackupManager
-  privacy/                       # ConsentManager
-  ports/                         # SmartDownloadSyncPort, ListeningHistoryBackupPort
+  RoomLocalCatalog.kt
+  RoomEpisodeOfflineLookup.kt
+  EngagementPromptCoordinator.kt
+  InstallReferrerManager.kt
+  backup/
+  content/
+  crosspromo/
+  ports/
+  privacy/
 ```
+
+Main Kotlin files should remain below 1000 lines; extracted helpers keep repository mapping, network lookups, content cache, recommendations, and stream handling reviewable.
 
 ## Dependencies
 
-- → `:core:rss` (`api`), `:core:ranking` (`implementation`)
-- → `:core:domain` (`api`), `:core:prefs` (`api`), `:core:database` (`api`)
-- → `:core:model`, `:core:network` (internal)
-- → Firebase (database + messaging), Retrofit, OkHttp, Gson, DataStore
-
-Forbidden: `:core:catalog` **must not** depend on `:core:playback`, `:core:designsystem`, `:core:downloads`, or `:core:analytics`.
+- Project dependencies: `:core:model`, `:core:network`, `:core:domain`, `:core:database`, `:core:prefs`, `:core:rss`, and `:core:ranking`.
+- Libraries: Retrofit, OkHttp, Gson, coroutines, DataStore, Firebase Database, Firebase Messaging, and Install Referrer.
+- Reverse-edge rule: catalog must not depend on playback, downloads, designsystem, analytics, or feature modules.
 
 ## Threading / lifecycle
 
-- Repositories are Application-scoped when obtained from `SharedAppDependenciesHolder` / `AppContainer`
-- Workers must not construct a second Podcast/ranking/RSS graph — obtain instances from the holder
+- Production repositories are application-scoped through `AppContainer` and `SharedAppDependenciesHolder`.
+- Network and database work uses suspend APIs and background dispatchers at repository boundaries.
+- Workers and services must use the installed holder instead of constructing independent catalog, RSS, or ranking graphs.
 
 ## Persistence & identity
 
-| Stable | Why |
-| :--- | :--- |
-| DataStore `user_preferences` / SharedPrefs via `:core:prefs` (`boxlore_*` files; dual-read migrate from `boxcast_*`) | Existing installs |
-| Main Room DB filename (owned by `:core:database`) | User data |
-| `rss:` podcast IDs and negative episode IDs (owned by `:core:rss`) | Catalog identity |
-| Namespace `cx.aswin.boxlore.core.catalog` (`R` / `BuildConfig`) | Module resources |
+- Main Room database identity is owned by `:core:database` and exposed through catalog APIs.
+- User preference and cache file names are owned by `:core:prefs` and catalog cache code.
+- RSS podcast IDs and negative episode IDs are owned by `:core:rss`.
+- Backup JSON field names and backup version fields must remain restore-compatible.
+- Package root is `cx.aswin.boxlore.core.catalog`.
 
 ## Testing notes
 
-JVM unit tests under `src/test`:
-
-- **B2 catalog (MockWebServer):** `PodcastRepositoryCatalogTest` — fixtures under `src/test/resources/fixtures/`
-- `content/ContentOrchestratorTest`, `ContentSignalEnrichmentTest`, `GroupedContentSectionsTest`, `RecentSectionIntentStoreTest`
-- `crosspromo/CrossPromotionDetectorTest`, `TranscriptRepositoryTest`
-- `SharedAppDependenciesHolderTest`
-
-Smart-queue JVM tests (`QueueMathTest`, `QueueSkipMemoryTest`, `SmartQueueEngineTest`) live in `:core:playback`.
-RSS ID/matcher tests live in `:core:rss`. Production RSS uses create+install from `AppContainer`; catalog JVM tests use `RssPodcastRepository.createForTests`.
+- Unit tests live under `core/catalog/src/test`.
+- Existing coverage includes `PodcastRepositoryCatalogTest`, content orchestration tests, content signal enrichment, grouped sections, recent section intent storage, cross-promotion detection, transcript behavior, and dependency-holder behavior.
+- RSS ID and matcher tests live in `:core:rss`; smart-queue tests live in `:core:playback`.
 
 ```bash
 ./gradlew :core:catalog:testDebugUnitTest
@@ -91,14 +77,15 @@ RSS ID/matcher tests live in `:core:rss`. Production RSS uses create+install fro
 
 ## CI relevance
 
-Exercised by `unit-tests.yml` (`testDebugUnitTest`). Kover `merged` variant participates in `:koverVerifyMerged`.
+- `unit-tests.yml` runs catalog JVM tests.
+- The root Kover merged verification includes this module.
+- Architecture guards verify README presence and selected dependency boundaries.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- [`docs/PACKAGE_MIGRATION_MAP.md`](../../docs/PACKAGE_MIGRATION_MAP.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
 - [`:core:rss` README](../rss/README.md)
 - [`:core:ranking` README](../ranking/README.md)
-- [`:core:downloads` README](../downloads/README.md)
-- [`:core:playback` README](../playback/README.md)
 - [`:core:prefs` README](../prefs/README.md)
+- [`:core:playback` README](../playback/README.md)

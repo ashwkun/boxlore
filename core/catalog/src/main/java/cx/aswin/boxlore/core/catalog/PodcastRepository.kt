@@ -932,10 +932,14 @@ class PodcastRepository(
         }
     }
 
+    override suspend fun getEpisodes(feedId: String): List<Episode> = getEpisodesImpl(feedId)
+
+    override suspend fun getEpisode(episodeId: String): Episode? = getEpisodeImpl(episodeId)
+
     companion object {
-        private const val FEED_PREFIX_URL = "url:"
-        private const val FEED_PREFIX_GUID = "guid:"
-        private const val FEED_PREFIX_ITUNES = "itunes:"
+        internal const val FEED_PREFIX_URL = "url:"
+        internal const val FEED_PREFIX_GUID = "guid:"
+        internal const val FEED_PREFIX_ITUNES = "itunes:"
         // Catalog caches are endpoint-versioned so an otherwise-valid v1/v2 response cannot
         // suppress the v3 fetch and then invalidate grouped v3 section responses.
 

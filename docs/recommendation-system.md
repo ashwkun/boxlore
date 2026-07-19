@@ -23,9 +23,9 @@ There is **no cloud user-profile store**. The learned model lives in a local Roo
 
 ---
 
-# Part A — Simple guide
+# Simple guide
 
-## A1. What you’ll notice in the app
+## What you’ll notice in the app
 
 ```mermaid
 flowchart TB
@@ -59,7 +59,7 @@ flowchart TB
 
 ---
 
-## A2. How the phone learns (listener version)
+## How the phone learns (listener version)
 
 Think of two memory systems that stay **on your phone**:
 
@@ -85,7 +85,7 @@ flowchart LR
 
 ---
 
-## A3. How recommendations are built (listener version)
+## How recommendations are built (listener version)
 
 Personalization is a pipeline, not a single magic score:
 
@@ -120,11 +120,11 @@ flowchart TB
 
 ---
 
-## A4. Personalized Home discovery rails
+## Personalized Home discovery rails
 
 This is the main Home discovery surface after the greeting (“Good Morning”, “Afternoon Break”, …).
 
-### A4.1 What the listener sees
+### What the listener sees
 
 ```mermaid
 flowchart TB
@@ -142,7 +142,7 @@ flowchart TB
 - While loading with no cache, Home shows an **adaptive rails skeleton** — it does **not** wipe a good previous slate with an empty refresh.
 - **Discover** below the rails deliberately skips podcasts already featured above so the page doesn’t repeat the same shows.
 
-### A4.2 Client mental model
+### Client mental model
 
 ```mermaid
 sequenceDiagram
@@ -173,7 +173,7 @@ Region, local daypart/date, subscription set, or a coarse history-maturity bucke
 **Home policy**  
 `allowUngroupedFallback = false`: if the grouped sections path fails, Home keeps the previous good rails (or shows empty/skeleton) rather than inventing unrelated catalog rows.
 
-### A4.3 What leaves the device (bounded only)
+### What leaves the device (bounded only)
 
 The sections request sends **summaries**, not your raw timeline or local model matrices:
 
@@ -186,7 +186,7 @@ The sections request sends **summaries**, not your raw timeline or local model m
 | Subscription / exclusion IDs | Encrypted backup contents |
 | Recent section intent IDs (rotation) | |
 
-### A4.4 How rails stay fresh without feeling slow
+### How rails stay fresh without feeling slow
 
 ```mermaid
 flowchart LR
@@ -206,7 +206,7 @@ flowchart LR
 - One **active** payload is kept per daypart slot; superseded fingerprints are cleared so an old profile can’t resurrect forever.
 - Client pins an expected **algorithm version** string (opaque version marker). Cache entries with a different version are dropped so a rolled-out recipe can’t poison the UI.
 
-### A4.5 How learning feeds the next rails
+### How learning feeds the next rails
 
 ```mermaid
 flowchart TB
@@ -224,7 +224,7 @@ Visible rails call `trackAdaptiveSectionVisible` → exposures for learning, plu
 
 ---
 
-## A5. Surfaces at a glance
+## Surfaces at a glance
 
 | Surface | Feels like | Engine (client) | API (paths only) |
 |---------|------------|-----------------|------------------|
@@ -240,9 +240,9 @@ Visible rails call `trackAdaptiveSectionVisible` → exposures for learning, plu
 
 ---
 
-# Part B — Engineer deep-dive (on-device)
+# Engineer deep-dive (on-device)
 
-## B1. Architecture at a glance
+## Architecture at a glance
 
 ```mermaid
 flowchart TB
@@ -273,20 +273,20 @@ flowchart TB
 
 Key packages:
 
-- `core/ranking/.../ranking/` — bandit, facets, reward, features, persistence (extracted to `:core:ranking` in Phase A5; same Kotlin package `cx.aswin.boxlore.core.ranking`).
-- `core/data/.../content/` — Home retrieval → ranking → layout (including grouped sections).
-- `core/data/MixtapeEngine.kt`, `core/data/SmartQueueEngine.kt` — surface engines.
-- `core/network/.../BoxLoreApi.kt` — Retrofit boundary.
+- `:core:ranking` — bandit, facets, reward, features, diagnostics, and persistence under package `cx.aswin.boxlore.core.ranking`.
+- `:core:catalog` content package — Home retrieval, ranking input, layout contracts, and grouped sections.
+- `:core:playback` — Mixtape and Smart Queue surface engines.
+- `:core:network` `BoxLoreApi` — Retrofit boundary.
 
 ---
 
-## B2. The learned model — `AdaptiveLinearModel`
+## The learned model — `AdaptiveLinearModel`
 
 File: `core/ranking/.../ranking/AdaptiveLinearModel.kt`
 
 Per-objective **regularized online linear model** with optional UCB exploration (LinUCB-style).
 
-### B2.1 State (`AdaptiveModelState`)
+### State (`AdaptiveModelState`)
 
 | Field | Meaning |
 |-------|---------|
@@ -298,7 +298,7 @@ Per-objective **regularized online linear model** with optional UCB exploration 
 
 Learned weights: **`θ = A⁻¹ · b`**.
 
-### B2.2 Scoring
+### Scoring
 
 ```
 rawLearned  = θ · x
@@ -311,7 +311,7 @@ final       = clamp( (1-blend)·prior + blend·learned + uncertainty , -1, 1)
 - Prior always keeps ≥35% weight at full blend.
 - UCB only when the objective `allowsExploration` **and** `updateCount ≥ 50`.
 
-### B2.3 Learning (`update`)
+### Learning (`update`)
 
 ```
 A ← forgetting·A  +  (1-forgetting)·RIDGE·I(diagonal)  +  x·xᵀ
@@ -326,7 +326,7 @@ Tests: `AdaptiveRankingTest` (cold start blend, offline never explores, opposite
 
 ---
 
-## B3. Taste model — `BayesianPreferenceFacet`
+## Taste model — `BayesianPreferenceFacet`
 
 File: `core/ranking/.../ranking/BayesianPreferenceFacet.kt`
 
@@ -341,13 +341,13 @@ Facets are features for the bandit **and** bounded genre affinities for `content
 
 ---
 
-## B4. Feature vector (18 dimensions)
+## Feature vector (18 dimensions)
 
 `CandidateFeatureBuilder` / `FeatureSlot` — includes (among others) retrieval prior, freshness, duration fit, subscription/history flags, show/genre/source affinities, time context, novelty. Schema versioned; dimension mismatches refuse to load stale matrices.
 
 ---
 
-## B5. Reward model
+## Reward model
 
 `RankingReward` maps actions + listen fraction into `[-1, 1]`.
 
@@ -361,7 +361,7 @@ Facets are features for the bandit **and** bounded genre affinities for `content
 
 ---
 
-## B6. Learning loop end-to-end
+## Learning loop end-to-end
 
 ```mermaid
 flowchart TB
@@ -384,21 +384,21 @@ If there was no exposure (e.g. deep link), **facets still update** so taste isn�
 
 ---
 
-## B7. Retrieval → ranking → diversification → layout
+## Retrieval → ranking → diversification → layout
 
-### B7.1 Candidate sources
+### Candidate sources
 
 `SUBSCRIPTION`, `LOCAL_HISTORY`, `SERVER_RECOMMENDATION`, `CURATED_INTENT`, `TRENDING`, `LIKED`, `DOWNLOADED`.
 
-### B7.2 Scoring
+### Scoring
 
 `AdaptiveCandidateScorer` builds features, `scoreBatch`es the bandit, normalizes heavy-tailed API priors with log1p. If adaptive ranking is gated off for a surface, falls back to prior / `PodcastScoring`.
 
-### B7.3 Diversification
+### Diversification
 
 `DiversityReranker`: de-dupe episodes, `maxPerShow`, genre/recent-show penalties, optional **novel slot**.
 
-### B7.4 Home — `ContentOrchestrator` (grouped-first)
+### Home — `ContentOrchestrator` (grouped-first)
 
 ```mermaid
 flowchart TB
@@ -419,7 +419,7 @@ flowchart TB
 
 ---
 
-## B8. Objectives, surfaces, controls
+## Objectives, surfaces, controls
 
 | Objective | Exploration | Typical use |
 |-----------|-------------|-------------|
@@ -432,7 +432,7 @@ flowchart TB
 
 ---
 
-## B9. Persistence, backup, pruning
+## Persistence, backup, pruning
 
 - Room DB: models, facets, exposures.
 - Exposures: retention + row cap (aggressive prune).
@@ -443,11 +443,11 @@ Debug inspector (local only): `learnerInspectorSnapshot()` — facets, exposures
 
 ---
 
-# Part C — API contract (black box)
+# API contract (black box)
 
 The API is documented **by path and payload shape only**. How it retrieves or ranks internally is intentionally omitted.
 
-## C1. Endpoints the client uses
+## Endpoints the client uses
 
 | Path | Role |
 |------|------|
@@ -465,7 +465,7 @@ The API is documented **by path and payload shape only**. How it retrieves or ra
 
 **Auth (client view):** app key on requests; optional App Check JWT when enforced; device UUID scopes per-device caches; app version for analytics slicing.
 
-## C2. Home sections — `POST /content/sections/v1`
+## Home sections — `POST /content/sections/v1`
 
 **Request (high level):** surface (`home`), local date / timezone offset / minute-of-day, country, languages, recent seeds, interests, subscribed / excluded IDs, taste signal summaries, duration preference, history maturity, novelty preference, recent section IDs, candidate budget, contract version.
 
@@ -478,7 +478,7 @@ The API is documented **by path and payload shape only**. How it retrieves or ra
 3. Re-rank with `DISCOVERY` / intent objective.
 4. Persist one active cache entry per daypart slot (+ latest pointer).
 
-## C3. Recommendations v2 vs legacy v1
+## Recommendations v2 vs legacy v1
 
 | | Legacy `POST /recommendations` | Current `POST /recommendations/v2` |
 |--|--------------------------------|-------------------------------------|
@@ -496,14 +496,14 @@ The API is documented **by path and payload shape only**. How it retrieves or ra
 
 Legacy engagement-weight / cluster details from older write-ups are superseded; treat v1 as **compatibility fallback** only.
 
-## C4. Bootstrap, vibes, curiosity, because-you-like
+## Bootstrap, vibes, curiosity, because-you-like
 
 - **Bootstrap** — packs briefing + trending (+ recs) for first paint.
 - **Curated vibe** — named vibe lists; Home discovery now prefers **sections/v1** rails over vibe rows.
 - **Curiosity v3** — Lore cards; client filters dismissals and records exposures.
 - **Because-you-like / similar** — show- or episode-seeded neighbor lists for UI modules and queue tiers.
 
-## C5. Caching (what the client relies on)
+## Caching (what the client relies on)
 
 | Layer | Role |
 |-------|------|
@@ -514,7 +514,7 @@ Legacy engagement-weight / cluster details from older write-ups are superseded; 
 
 Bypass for debugging: `Cache-Control: no-cache` or `?bypass_cache=true` where supported.
 
-## C6. Privacy boundary checklist
+## Privacy boundary checklist
 
 ```mermaid
 flowchart LR
@@ -538,9 +538,9 @@ flowchart LR
 
 ---
 
-# Part D — Scenarios, diagnostics, reference
+# Scenarios, diagnostics, reference
 
-## D1. Technical scenarios
+## Technical scenarios
 
 ### A — Cold start (day 1)
 
@@ -576,7 +576,7 @@ Keep painted cache; offline prefer-cache path returns disk slate; empty network 
 
 ---
 
-## D2. Learning lifecycle (stages)
+## Learning lifecycle (stages)
 
 | Stage | Rough signal | UX feel |
 |-------|--------------|---------|
@@ -588,7 +588,7 @@ Telemetry buckets (`cold_start` / `learning` / `adaptive`) are derived similarly
 
 ---
 
-## D3. Diagnostics & safety
+## Diagnostics & safety
 
 - Debug screen: Adaptive Learner inspector (local snapshot only).
 - Runtime flags can disable adaptive re-rank per surface.
@@ -597,7 +597,7 @@ Telemetry buckets (`cold_start` / `learning` / `adaptive`) are derived similarly
 
 ---
 
-## D4. Type / file quick reference
+## Type / file quick reference
 
 | Concern | Types / files |
 |---------|----------------|
@@ -613,7 +613,7 @@ Telemetry buckets (`cold_start` / `learning` / `adaptive`) are derived similarly
 
 ---
 
-## D5. Worked example — morning Home (client)
+## Worked example — morning Home (client)
 
 1. Daypart → “Good Morning” greeting; rails subtitle omitted.
 2. Cache paint shows yesterday-afternoon-slot? No — slot is morning; may skeleton or prior morning slate.
@@ -625,7 +625,7 @@ Telemetry buckets (`cold_start` / `learning` / `adaptive`) are derived similarly
 
 ---
 
-## D6. Mental model (one diagram)
+## Mental model (one diagram)
 
 ```mermaid
 flowchart TB

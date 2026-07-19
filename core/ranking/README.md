@@ -2,74 +2,65 @@
 
 ## Purpose
 
-Owns adaptive recommendation and candidate scoring for Boxlore: Bayesian facet preferences, LinUCB linear models, diversity re-ranking, and the action/exposure feedback loop. Includes its **own** Room database (`AdaptiveRankingDatabase`).
-
-Does **not** own main catalog Room (`:core:database`), Podcast Index HTTP (`:core:network`), content orchestration (`:core:catalog`), or feature UI (debug inspector hooks are consumed by `:feature:home`).
+Owns adaptive recommendation and candidate scoring: Bayesian facet preferences, online linear models, diversity re-ranking, exposure tracking, reward handling, runtime controls, diagnostics, and the ranking Room database. It does not own the main catalog database, Podcast Index networking, content retrieval orchestration, playback services, or feature UI.
 
 ## Public API
 
-| Type | Role |
-|---|---|
-| `AdaptiveCandidateScorer` | Score podcasts / episodes for home, explore, queue, downloads |
-| `AdaptiveRankingRepository` | Model state, exposure recording, facet affinities, backup/restore |
-| `RankingFeedbackRepository` | Record actions (play, like, skip, subscribe); implements `RankingResetPort` |
-| `RankingRuntimeControls` | Runtime knobs for ranking surfaces |
-| `RankingObjective` / `RankingSurface` / `CandidateSource` | Scoring context enums |
-| `RankingAction` / `RankingOutcome` / `RankingReward` | Reward calculation |
-| `DiversityPolicy` / `DiversityReranker` | Post-scoring diversity pass |
-| `AdaptiveRankingBackup` | Portable model state for backup/restore |
-| `LearningEventLog` / `RankingShadowDiagnostics` | Session diagnostics |
-
-**Install rule:** `create` + `install` only from `AppContainer`. Workers/services consume ranking via `SharedAppDependenciesHolder.require()`. Do not call production `getInstance` from features.
-
-**Debug surfaces:** `AdaptiveRankingRepository.learnerInspector()`, `RankingShadowDiagnostics.snapshots()`, `LearningEventLog.events`, `RankingRuntimeControls`, `RankingRolloutPolicy`.
+- `AdaptiveCandidateScorer` scores podcasts and episodes for home, explore, queue, and downloads.
+- `AdaptiveRankingRepository` owns ranking state, exposure recording, facet affinities, backup, and restore.
+- `RankingFeedbackRepository` records user actions and implements `RankingResetPort`.
+- `RankingRuntimeControls` exposes runtime toggles for ranking surfaces.
+- `RankingObjective`, `RankingSurface`, and `CandidateSource` define scoring context.
+- `RankingAction`, `RankingOutcome`, and `RankingReward` define feedback and reward semantics.
+- `DiversityPolicy` and `DiversityReranker` shape scored candidate lists.
+- `AdaptiveRankingBackup`, `LearningEventLog`, and `RankingShadowDiagnostics` support backup and diagnostics.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/core/ranking/
   AdaptiveCandidateScorer.kt
-  AdaptiveRankingRepository.kt / AdaptiveLinearModel.kt
-  RankingFeedbackRepository.kt / RankingRuntimeControls.kt
-  BayesianPreferenceFacet.kt / RankingModels.kt / RankingReward.kt
-  LearningEventLog.kt / RankingSerialization.kt
+  AdaptiveLinearModel.kt
+  AdaptiveRankingRepository.kt
+  BayesianPreferenceFacet.kt
+  DiversityReranker.kt
+  LearningEventLog.kt
+  RankingFeedbackRepository.kt
+  RankingModels.kt
+  RankingReward.kt
+  RankingRuntimeControls.kt
+  RankingSerialization.kt
   database/
+    AdaptiveRankingDao.kt
     AdaptiveRankingDatabase.kt
-    AdaptiveRankingDao.kt / AdaptiveRankingEntities.kt
+    AdaptiveRankingEntities.kt
 ```
-
-**Phase 2 target package root:** `cx.aswin.boxlore.core.ranking` (PR8). Transitional sources may still use `cx.aswin.boxlore.core.ranking` until that PR.
 
 ## Dependencies
 
-- → `:core:model` (Episode, Podcast, genres, telemetry)
-- → `:core:database` (scoring helpers / history entities used by scorers)
-- → `:core:domain` (`RankingResetPort`)
-- → `:core:prefs` (`BoxcastPrefs` learner-log gate)
-- Room + KSP (`AdaptiveRankingDatabase`)
-
-Forbidden: ranking ↛ `:core:catalog`, features, designsystem. `:core:catalog` depends on ranking (`api`) and re-exports types.
+- Project dependencies: `:core:model`, `:core:database`, `:core:domain`, and `:core:prefs`.
+- Libraries: Room runtime, Room KTX, Room compiler through KSP, AndroidX core, coroutines, and Gson in tests.
+- Reverse-edge rule: ranking must not depend on catalog, playback, downloads, designsystem, analytics, or feature modules.
 
 ## Threading / lifecycle
 
-- Application-scoped via `AppContainer` create+install
-- Room / model updates on IO; scorers may be called from UI or worker threads — keep calls suspend/`withContext` as existing APIs require
-- `LearningEventLog` is process/session StateFlow (not persisted across process death beyond prefs gate)
+- Production ranking instances are application-scoped and installed from `AppContainer`.
+- Room and model updates use background dispatchers through suspend APIs.
+- Scorers may be called from UI, service, or worker paths; keep scoring APIs suspend where they touch persisted state.
+- `LearningEventLog` is process/session state and is not a durable event log.
 
 ## Persistence & identity
 
-| Stable | Why |
-| :--- | :--- |
-| Room filename `adaptive_ranking_database` | Adaptive models / facets / exposures |
-| SharedPrefs `adaptive_ranking_runtime` | Runtime controls |
-| Package `cx.aswin.boxlore.core.ranking` | Opaque refs / import stability |
-
-**Backup exclusion:** app-level backup rules exclude `adaptive_ranking_database` so stale model parameters are not restored across feature-schema versions. See product context in `docs/recommendation-system.md`.
+- Room filename `adaptive_ranking_database` stores ranking models, facets, and exposures.
+- SharedPreferences file `adaptive_ranking_runtime` stores runtime control values.
+- Package root is `cx.aswin.boxlore.core.ranking`.
+- App backup rules exclude the adaptive database from automatic platform backup; explicit encrypted backup support is handled through ranking backup models.
 
 ## Testing notes
 
-- JVM: `src/test/.../AdaptiveRankingTest.kt` (pure unit; no Robolectric/instrumented suite required)
-- Settings recommendation-reset path covered via `:feature:home` + `RankingResetPort` fakes
+- Unit tests live under `core/ranking/src/test`.
+- `AdaptiveRankingTest` covers cold-start blending, objective behavior, and opposite-outcome learning.
+- Recommendation reset behavior is exercised through `RankingResetPort` fakes in feature tests.
 
 ```bash
 ./gradlew :core:ranking:testDebugUnitTest
@@ -77,13 +68,13 @@ Forbidden: ranking ↛ `:core:catalog`, features, designsystem. `:core:catalog` 
 
 ## CI relevance
 
-Exercised by `unit-tests.yml`. Soft future Kover gates for ranking noted in `docs/TESTING.md`.
+- `unit-tests.yml` runs ranking JVM tests.
+- Ranking participates in app and feature test compilation anywhere scoring or diagnostics are wired.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
 - [`docs/recommendation-system.md`](../../docs/recommendation-system.md)
-- [`docs/PLAN_MODULAR_ANDROID_HARDENING.md`](../../docs/PLAN_MODULAR_ANDROID_HARDENING.md) (Phase A5)
-- [`:app` README](../../app/README.md) — create+install
 - [`:core:catalog` README](../catalog/README.md)
 - [`:core:domain` README](../domain/README.md)

@@ -2,45 +2,55 @@
 
 ## Purpose
 
-Pure domain models and enums shared across network, data, and UI. No Android framework dependencies beyond what the module already declares for serialization. Does **not** own network DTOs (`:core:network`), Room entities (`:core:database`), or Compose.
+Owns shared domain models, enums, and pure value helpers used across network, data, playback, and UI modules. It does not own network DTOs, Room entities, Compose UI, repositories, or Android lifecycle behavior.
 
 ## Public API
 
-- Podcast / Episode / Briefing / Chapter-related models
-- `PlaybackEntryPoint`, `ShareTarget`, `ShareLinkBuilder`
-- `AutoTranscriptState` (playback + player UI)
-- `PodcastGenres`, `RankingAggregateTelemetry`
-- Cross-promotion model types (`CrossPromotion`)
-- `SleepTimerConstants`
-
-Prefer these types at feature/UI boundaries; map network DTOs at repository edges.
+- Podcast, episode, briefing, chapter, person, transcript, and playback-adjacent model types.
+- `PlaybackEntryPoint`, `ShareTarget`, and `ShareLinkBuilder`.
+- `AutoTranscriptState`.
+- `PodcastGenres` and `RankingAggregateTelemetry`.
+- Cross-promotion model types.
+- `SleepTimerConstants`.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/core/model/
-  Podcast.kt / Episode.kt / Briefing.kt / …
+  Briefing.kt
+  Chapter.kt
+  CrossPromotion.kt
+  Episode.kt
+  Podcast.kt
+  PodcastGenres.kt
+  RankingAggregateTelemetry.kt
+  ShareLinkBuilder.kt
+  SleepTimerConstants.kt
+  Transcript.kt
+  ...
 ```
 
 ## Dependencies
 
-- Kotlinx Serialization only (no project deps)
-
-Forbidden reverse edges: nothing should push Android/Room/Retrofit into this module.
+- Project dependencies: none.
+- Libraries: Kotlinx serialization.
+- Reverse-edge rule: Android framework, Room, Retrofit implementation details, repositories, and Compose UI must stay out of this module.
 
 ## Threading / lifecycle
 
-- Immutable / value types; no lifecycle ownership
-- Safe to share across threads when treated as immutable data
+- Types are immutable or treated as immutable value data.
+- No lifecycle owners, singletons, dispatchers, or background work are created here.
 
 ## Persistence & identity
 
-None owned here. ID *schemes* (`rss:`, mediaId prefixes) are documented in owning modules (`:core:rss`, `:core:playback`); model types may carry those string IDs as opaque values.
+- This module owns no persistence files or storage keys.
+- ID schemes carried by model fields are owned by their source modules, such as RSS podcast IDs and playback media IDs.
 
 ## Testing notes
 
-- JVM: `ShareLinkBuilderTest` (share URL invariants)
-- Prefer pure JVM unit tests for formatters/builders when added
+- Unit tests live under `core/model/src/test`.
+- `ShareLinkBuilderTest` covers share URL invariants.
+- Prefer pure JVM tests for additional formatters or value helpers.
 
 ```bash
 ./gradlew :core:model:testDebugUnitTest
@@ -48,10 +58,12 @@ None owned here. ID *schemes* (`rss:`, mediaId prefixes) are documented in ownin
 
 ## CI relevance
 
-Compiled as a dependency of nearly every module in `unit-tests.yml`. No module-specific job.
+- `unit-tests.yml` compiles this module for nearly every test target.
+- No module-specific CI job is required beyond JVM tests.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- [`:core:network` README](../network/README.md) — DTOs that map into these models
-- [`docs/PLAN_MODULAR_ANDROID_HARDENING.md`](../../docs/PLAN_MODULAR_ANDROID_HARDENING.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
+- [`:core:network` README](../network/README.md)
+- [`:core:database` README](../database/README.md)

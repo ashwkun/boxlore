@@ -2,55 +2,76 @@
 
 ## Purpose
 
-Home feed, Settings hub (incl. Add RSS), and Debug tools. Owns presentation only; dependencies are injected from `:app` `AppContainer`. Does not own catalog/ranking engines or Room schemas.
+Owns Home feed presentation, Settings screens, RSS-add UI, and local debug surfaces for ranking diagnostics. It presents data from injected core dependencies and does not own catalog engines, ranking persistence, playback services, download workers, or Room schemas.
 
 ## Public API
 
-- `HomeRoute` / `HomeViewModel` (+ `HomeViewModelAssembler`)
-- `settings.SettingsScreen` / `SettingsViewModel` (RSS add + recommendation reset; `SettingsViewModelAssembler`)
-- `DebugScreen` / `DebugViewModel` (learner inspector / ranking debug surfaces)
-
-Routes owned in `:app` nav: `home`, `settings`, `debug`.
+- `HomeRoute`, `HomeScreen`, `HomeFeed`, `HomeViewModel`, and `HomeViewModelAssembler` for the Home route.
+- `settings.SettingsScreen`, `SettingsViewModel`, and `SettingsViewModelAssembler` for Settings.
+- `DebugScreen` and `DebugViewModel` for local learner and runtime diagnostics.
+- Extracted Home UI pieces such as `LibrarySectionRows`, `LibrarySection`, and section/card components.
+- Pure logic helpers under `logic/` for Home assembly, discovery, hero ordering, selection, playback-state mapping, serial episodes, and affinity behavior.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/feature/home/
-  HomeScreen.kt / HomeViewModel.kt / HomeViewModelAssembler.kt
-  DiscoveryGreeting.kt / HomeListeningHistoryItem.kt
-  DebugScreen.kt / DebugViewModel.kt / AdaptiveLearnerDebugSection.kt
-  components/ settings/ settings/pages/ settings/dialogs/
+  HomeFeed.kt
+  HomeScreen.kt
+  HomeViewModel.kt
+  HomeViewModelAssembler.kt
+  HomeViewModelAdaptive.kt
+  HomeViewModelBecauseYouLike.kt
+  HomeViewModelLoadData.kt
+  HomeViewModelSelected.kt
+  HomeViewModelSerial.kt
+  HomeDataModels.kt
+  HomeUiModels.kt
+  DebugScreen.kt
+  DebugViewModel.kt
+  AdaptiveLearnerDebugSection.kt
+  components/
+    LibrarySection.kt
+    LibrarySectionRows.kt
+    ...
   logic/
-    PodcastAffinityLogic.kt
-    HomeDiscoveryLogic.kt      # adaptiveHistoryMaturityBucket, discoverPodcastsExcluding
-    HomeMappingLogic.kt      # Episode.toRecommendationPodcast
-    SerialEpisodeLogic.kt    # resolveNextSerialEpisode
+  settings/
+    SettingsScreen.kt
+    SettingsViewModel.kt
+    SettingsViewModelAssembler.kt
+    components/
+    dialogs/
+    pages/
 ```
+
+Main Kotlin files should remain below 1000 lines; extracted Home feed, ViewModel, section-row, and logic files keep UI assembly and behavior testable.
 
 ## Dependencies
 
-- → `:core:model`, `:core:catalog` (re-exports `:core:prefs` / ranking / domain), `:core:designsystem`
-- Recommendation / genre caches and learner-log toggle go through `BoxcastPrefs` (no raw `boxcast_prefs`)
-- `HomeViewModel` takes `LocalCatalogPort` (not `BoxLoreDatabase`)
-
-Forbidden: feature → feature Gradle edges; no direct `BoxLoreDatabase` in VMs/assemblers.
+- Project dependencies: `:core:model`, `:core:domain`, `:core:catalog`, `:core:downloads`, `:core:playback`, `:core:network`, `:core:designsystem`, `:core:analytics`, `:core:ranking`, and `:core:rss`.
+- Libraries: Compose, Navigation, lifecycle ViewModel/runtime, Media3, Coil, Kotlin serialization, Roborazzi for local visual capture tests, Turbine, Mockito, and Compose UI test libraries.
+- Reverse-edge rule: feature modules must not depend on other feature modules. ViewModels and assemblers must not directly depend on `BoxLoreDatabase`.
 
 ## Threading / lifecycle
 
-- ViewModels are Activity/Nav back-stack scoped; repos/ports are Application-scoped from the container
-- UI state via `StateFlow` / Compose on Main; network/DB via injected suspend APIs
+- ViewModels are scoped by app navigation or Activity owners.
+- Repositories, ports, playback, downloads, prefs, and ranking dependencies are application-scoped instances supplied by app wiring.
+- UI state is exposed through flows and collected by Compose on the main thread.
+- Network and database operations run through injected suspend APIs.
 
 ## Persistence & identity
 
-None owned. Uses DataStore / `BoxcastPrefs` / ranking DB through core modules — do not invent parallel prefs files.
+- This module owns no storage files or stable preference keys.
+- Settings read and write DataStore and `BoxcastPrefs` through `:core:prefs` APIs.
+- RSS IDs, ranking database rows, download cache entries, and playback media IDs are owned by core modules.
+- Stable Compose test tags include `home_settings_button`, `settings_add_rss_*`, `settings_downloads_smart`, `settings_downloads_auto`, `settings_reset_analytics_confirm`, and `settings_reset_analytics_cancel`.
 
 ## Testing notes
 
-- Assemblers: `HomeViewModelAssembler`, `settings.SettingsViewModelAssembler`
-- JVM: `SettingsViewModelTest`, `SettingsViewModelDialogTest` (Turbine + fake RSS/ranking ports); `DiscoveryGreetingTest`; `logic/PodcastAffinityLogicTest`, `logic/HomeDiscoveryLogicTest`, `logic/HomeMappingLogicTest`, `logic/SerialEpisodeLogicTest`; `HomeListeningHistoryItemTest`
-- Full Home VM construction still needs Application + heavy fakes (deferred)
-- **androidTest:** `AddRssFeedDialogUiTest`; `DownloadsSettingsPageUiTest`; `ResetAnalyticsDialogUiTest`; composition smoke `AddRssFeedDialogScreenshotStubTest` (tags only; **not** a screenshot golden — P26 incomplete)
-- Stable `testTag`s: `home_settings_button`; `settings_add_rss_*`; `settings_downloads_smart` / `settings_downloads_auto`; `settings_reset_analytics_confirm` / `settings_reset_analytics_cancel`
+- Unit tests live under `feature/home/src/test`.
+- Existing coverage includes Settings ViewModel tests, connectivity dependency coverage, Home listening-history formatting, discovery greeting, and pure Home logic helpers.
+- Android UI tests live under `feature/home/src/androidTest` for RSS dialog, downloads settings, reset dialog, and tagged composition smoke.
+- Roborazzi capture tests are local reference aids; no golden comparison is required in CI.
 
 ```bash
 ./gradlew :feature:home:testDebugUnitTest
@@ -60,13 +81,13 @@ None owned. Uses DataStore / `BoxcastPrefs` / ranking DB through core modules �
 
 ## CI relevance
 
-- `unit-tests.yml` — JVM + Kover merged (`:koverVerifyMerged`)
-- `android-instrumented-tests.yml` — `:feature:home:connectedDebugAndroidTest`
-- `scripts/ci/check-feature-no-boxlore-database.sh` guards VMs/assemblers
+- `unit-tests.yml` runs Home JVM tests and includes the module in merged coverage verification.
+- `android-instrumented-tests.yml` runs Home instrumented UI tests.
+- `scripts/ci/check-feature-no-boxlore-database.sh` guards direct database usage in feature ViewModels and assemblers.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
 - [`docs/TESTING.md`](../../docs/TESTING.md)
 - [`docs/screenshots/README.md`](../../docs/screenshots/README.md)
-- [`:app` README](../../app/README.md) — route wiring
+- [`:app` README](../../app/README.md)

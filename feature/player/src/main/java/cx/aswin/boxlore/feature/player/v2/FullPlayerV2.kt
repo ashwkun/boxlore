@@ -138,7 +138,7 @@ data class FullPlayerActions(
 )
 
 @Stable
-private class FullPlayerUiState {
+internal class FullPlayerUiState {
     var showQueueSheet by mutableStateOf(false)
     var showChaptersSheet by mutableStateOf(false)
     var showSpeedSheet by mutableStateOf(false)
@@ -151,7 +151,7 @@ private class FullPlayerUiState {
     var isAudioOnly by mutableStateOf(false)
 }
 
-private val FullPlayerUiStateSaver = listSaver<FullPlayerUiState, Boolean>(
+internal val FullPlayerUiStateSaver = listSaver<FullPlayerUiState, Boolean>(
     save = { state ->
         listOf(
             state.showQueueSheet,
@@ -576,3 +576,20 @@ private fun ArtworkPlayerHero(
             chapterArtFlow = remember(model.state.currentChapters, positionFlow) {
                 chapterArtFlow(positionFlow, model.state.currentChapters)
             }
+        ),
+        playback = PlayerHeroPlayback(
+            isPlaying = model.state.isPlaying,
+            isVideo = model.isVideo,
+            isFullscreenVideo = display.isFullscreenVideo,
+            controller = playbackRepository.controller,
+            isExpanded = display.isExpanded
+        ),
+        dimensions = model.dimensions,
+        colorScheme = display.colorScheme,
+        onSkipNextEpisode = {
+            cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("skip_next_episode")
+            playbackRepository.skipToNextEpisode()
+        },
+        modifier = Modifier.fillMaxWidth()
+    )
+}

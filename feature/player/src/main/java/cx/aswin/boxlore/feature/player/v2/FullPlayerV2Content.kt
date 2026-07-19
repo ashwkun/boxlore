@@ -112,24 +112,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-        ),
-        playback = PlayerHeroPlayback(
-            isPlaying = model.state.isPlaying,
-            isVideo = model.isVideo,
-            isFullscreenVideo = display.isFullscreenVideo,
-            controller = playbackRepository.controller,
-            isExpanded = display.isExpanded
-        ),
-        dimensions = model.dimensions,
-        colorScheme = display.colorScheme,
-        onSkipNextEpisode = {
-            cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("skip_next_episode")
-            playbackRepository.skipToNextEpisode()
-        },
-        modifier = Modifier.fillMaxWidth()
-    )
-}
-
 @Composable
 internal fun PlayerMetadata(
     episode: Episode,

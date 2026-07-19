@@ -2,55 +2,54 @@
 
 ## Purpose
 
-Podcast and episode detail screens (subscribe, RSS refresh, related/similar, cross-promo). Owns presentation; catalog/offline data comes from injected ports/repos. Dual episode routes are wired from `:app`.
+Owns podcast and episode detail presentation: subscribe actions, RSS refresh actions, related and similar content, cross-promotion cards, offline/progress display, and detail-screen layout. It does not own catalog persistence, RSS parsing, download cache behavior, playback services, or app navigation registration.
 
 ## Public API
 
-- `PodcastInfoScreen` / `PodcastInfoViewModel`
-- `EpisodeInfoScreen` / `EpisodeInfoViewModel`
-- `InfoViewModelAssembler` — podcast + episode factories
-- Supporting cards/components (`CrossPromotionCard`, etc.)
-
-ViewModels take a **shared** `PodcastRepository` plus `LocalCatalogPort` / `EpisodeOfflineLookupPort` (no `BoxLoreDatabase`). Resume progress uses `InfoListeningProgressItem` (Room entities only at the mapper).
-
-Routes in `:app`: `podcast/{podcastId}`, `episode/{episodeId}/…`, `episode/{episodeId}`.
+- `PodcastInfoScreen` and `PodcastInfoViewModel`.
+- `EpisodeInfoScreen` and `EpisodeInfoViewModel`.
+- `InfoViewModelAssembler` for podcast and episode ViewModel factories.
+- `InfoListeningProgressItem` and supporting components/sections for detail UI.
+- Logic helpers under `logic/` and component-level formatters used by tests.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/feature/info/
-  PodcastInfoScreen.kt / EpisodeInfoScreen.kt
-  *ViewModel.kt / InfoViewModelAssembler.kt
+  EpisodeInfoScreen.kt
+  EpisodeInfoViewModel.kt
   InfoListeningProgressItem.kt
-  sections/
-    PodcastInfoHeroSection.kt
-    PodcastInfoDescriptionSection.kt
+  InfoViewModelAssembler.kt
+  PodcastInfoScreen.kt
+  PodcastInfoViewModel.kt
   components/
-    PodcastInfoMetadataChips.kt
-    …
   logic/
+  sections/
 ```
 
 ## Dependencies
 
-- → `:core:model`, `:core:domain`, `:core:catalog`, `:core:designsystem`
-
-Forbidden: feature → feature; no `BoxLoreDatabase` in VMs/assemblers.
+- Project dependencies: `:core:model`, `:core:domain`, `:core:catalog`, `:core:downloads`, `:core:playback`, `:core:network`, `:core:designsystem`, `:core:analytics`, and `:core:rss`.
+- Libraries: Compose, Navigation, lifecycle ViewModel/runtime, Coil, Palette, smooth corner rect, coroutines, Kotlin serialization, Turbine, and Compose Material.
+- Reverse-edge rule: feature modules must not depend on other feature modules. ViewModels and assemblers must use ports rather than direct `BoxLoreDatabase` access.
 
 ## Threading / lifecycle
 
-- ViewModels nav-scoped; repositories/ports Application-scoped from `AppContainer`
-- UI on Main; refresh/subscribe via suspend APIs
+- ViewModels are scoped by app navigation.
+- Catalog, local catalog, offline lookup, RSS, download, playback, and analytics dependencies are supplied by app wiring.
+- UI runs on the main thread; refresh, subscribe, lookup, and related-content work use suspend APIs.
 
 ## Persistence & identity
 
-None owned. Respects `rss:` IDs and catalog identity from `:core:rss` / `:core:database`.
+- This module owns no storage files or stable keys.
+- Podcast, episode, RSS, download, and listening-progress identities come from core modules.
+- App navigation owns route patterns and deep links.
 
 ## Testing notes
 
-- JVM: `InfoViewModelAssemblerTest`, `InfoCatalogPortBehaviorTest`, `InfoCatalogPortErrorBehaviorTest`, `logic/EpisodeOfflineMergeLogicTest`, `InfoListeningProgressItemTest`, `EpisodeDurationFormatterTest`
-- Full Info VMs still need Application — prefer port/fake tests
-- Catalog HTTP paths covered in `:core:catalog` `PodcastRepositoryCatalogTest`
+- Unit tests live under `feature/info/src/test`.
+- Existing coverage includes assembler behavior, catalog port behavior and errors, offline merge logic, listening-progress mapping, duration formatting, metadata chip logic, feed grouping, toolbar logic, HTML stripping, and podcast info ViewModel logic.
+- Catalog HTTP paths are covered in `:core:catalog` tests.
 
 ```bash
 ./gradlew :feature:info:testDebugUnitTest
@@ -58,11 +57,12 @@ None owned. Respects `rss:` IDs and catalog identity from `:core:rss` / `:core:d
 
 ## CI relevance
 
-- `unit-tests.yml` — JVM suite
-- `scripts/ci/check-feature-no-boxlore-database.sh` guards VMs/assemblers
+- `unit-tests.yml` runs Info JVM tests with the project suite.
+- `scripts/ci/check-feature-no-boxlore-database.sh` guards direct database usage in feature ViewModels and assemblers.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- [`:core:catalog` README](../../core/catalog/README.md) — catalog MockWebServer tests
-- [`:app` README](../../app/README.md) — deep-link routes
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
+- [`:core:catalog` README](../../core/catalog/README.md)
+- [`:app` README](../../app/README.md)

@@ -62,7 +62,7 @@ internal suspend fun PodcastRepository.searchNetworkEpisodes(feedId: String, que
     emptyList()
 }
 
-override suspend fun getEpisodes(feedId: String): List<Episode> = withContext(Dispatchers.IO) {
+internal suspend fun PodcastRepository.getEpisodesImpl(feedId: String): List<Episode> = withContext(Dispatchers.IO) {
     if (feedId.startsWith("rss:")) {
         return@withContext getAllRssEpisodes(feedId)
     }
@@ -94,7 +94,7 @@ internal suspend fun PodcastRepository.getAllNetworkEpisodes(feedId: String): Li
     emptyList()
 }
 
-override suspend fun getEpisode(episodeId: String): Episode? = withContext(Dispatchers.IO) {
+internal suspend fun PodcastRepository.getEpisodeImpl(episodeId: String): Episode? = withContext(Dispatchers.IO) {
     if (episodeId.toLongOrNull()?.let { it < 0L } == true) {
         return@withContext getRssEpisode(episodeId)
     }
@@ -126,9 +126,9 @@ internal suspend fun PodcastRepository.getNetworkEpisode(episodeId: String): Epi
 /** Resolves url:/guid:/itunes: identifiers to a Podcast Index feed id when needed. */
 internal suspend fun PodcastRepository.resolvePodcastIndexFeedId(feedId: String): String {
     return if (
-        feedId.startsWith(FEED_PREFIX_URL) ||
-        feedId.startsWith(FEED_PREFIX_GUID) ||
-        feedId.startsWith(FEED_PREFIX_ITUNES)
+        feedId.startsWith(PodcastRepository.FEED_PREFIX_URL) ||
+        feedId.startsWith(PodcastRepository.FEED_PREFIX_GUID) ||
+        feedId.startsWith(PodcastRepository.FEED_PREFIX_ITUNES)
     ) {
         getPodcastDetails(feedId)?.id ?: feedId
     } else {

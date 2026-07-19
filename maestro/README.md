@@ -1,6 +1,6 @@
-# Maestro smoke flows (P25)
+# Maestro smoke flows
 
-Device / emulator UI smoke tests for Boxlore. Local runs need a connected device; CI has a **nightly scaffold** that always validates flow files and optionally runs Maestro Cloud when secrets are present.
+Maestro flows provide device or emulator smoke coverage for the installed Boxlore app. Local runs require a connected device or emulator. CI validates flow files and can run Maestro Cloud when the optional secrets are configured.
 
 ## App id
 
@@ -13,7 +13,7 @@ Device / emulator UI smoke tests for Boxlore. Local runs need a connected device
    curl -Ls "https://get.maestro.mobile.dev" | bash
    export PATH="$PATH:$HOME/.maestro/bin"
    ```
-2. Prepare the repo stub config (no secrets required):
+2. Prepare local CI-style configuration:
    ```bash
    ./scripts/ci/write-cloud-agent-local-config.sh
    export ANDROID_HOME="$HOME/Android/Sdk"
@@ -23,17 +23,17 @@ Device / emulator UI smoke tests for Boxlore. Local runs need a connected device
    ```bash
    ./gradlew :app:installDebug
    ```
-4. **First run only:** complete or skip onboarding on the device so the home shell is reachable. `smoke_launch.yaml` treats consent/onboarding taps as optional but **requires** `home_settings_button` after launch.
+4. Complete or skip onboarding on the device when a flow needs the home shell. The launch flow treats consent and onboarding taps as optional but requires the Home settings button after launch.
 
 ## Run
 
-From the repo root:
+From the repository root:
 
 ```bash
 maestro test maestro/
 ```
 
-Or a single flow:
+Run a single flow:
 
 ```bash
 maestro test maestro/smoke_launch.yaml
@@ -45,29 +45,30 @@ maestro test maestro/smoke_home_visible.yaml
 
 | File | Intent |
 | :--- | :--- |
-| `smoke_launch.yaml` | Cold launch; **strict** assert on `home_settings_button` |
-| `smoke_home_visible.yaml` | Cold-start visibility; **strict** on `home_settings_button`, soft nav text |
-| `smoke_settings_rss.yaml` | Settings → Library → Add RSS (optional steps) |
+| `smoke_launch.yaml` | Cold launch with a strict assertion on `home_settings_button` |
+| `smoke_home_visible.yaml` | Home visibility with a strict assertion on `home_settings_button` and soft navigation text checks |
+| `smoke_settings_rss.yaml` | Settings to Library to Add RSS, with optional steps for device state variance |
 
-Flows prefer Compose `testTag`s (`home_settings_button`, `settings_add_rss_*`) and fall back to visible text where noted. Flaky first-run taps use `optional: true` so onboarding/consent does not hard-fail the suite on every machine.
+Flows prefer Compose `testTag`s such as `home_settings_button` and `settings_add_rss_*`, with visible text fallback where noted. Optional first-run taps keep flows usable across devices with different onboarding or consent state.
 
-## CI — Maestro nightlies
+## CI
 
 Workflow: [`.github/workflows/maestro-nightly.yml`](../.github/workflows/maestro-nightly.yml)
 
 | Trigger | Behavior |
 | :--- | :--- |
-| Cron (nightly UTC) / `workflow_dispatch` | Always validates `maestro/*.yaml` presence + lightweight syntax (`appId`, `---`, non-empty steps) |
-| Same workflow, optional job | Runs `mobile-dev-inc/action-maestro-cloud` against `:app:assembleDebug` **only if** secrets are set |
+| Cron or `workflow_dispatch` | Validates `maestro/*.yaml` presence and basic syntax |
+| Optional device-farm job | Builds `:app:assembleDebug` and runs Maestro Cloud when secrets are set |
 
-**Required for full device-farm runs (optional secrets):**
+Optional secrets for full device-farm runs:
 
-- `MAESTRO_CLOUD_API_KEY` — Maestro Cloud API key
-- `MAESTRO_PROJECT_ID` — Maestro Cloud project id
+- `MAESTRO_CLOUD_API_KEY`
+- `MAESTRO_PROJECT_ID`
 
-Without those secrets the nightly still passes on flow validation and prints a blocker note. It is **not** a required PR check. See also `docs/TESTING.md`.
+Without those secrets, the workflow still validates flow files and reports that the device-farm job is skipped.
 
 ## Notes
 
-- Complete or skip onboarding once on the test device for more stable Settings navigation.
+- Complete or skip onboarding once on a local test device for more stable Settings navigation.
 - Do not commit secrets or production `google-services.json` for Maestro runs.
+- See [`docs/TESTING.md`](../docs/TESTING.md) for the broader test strategy.

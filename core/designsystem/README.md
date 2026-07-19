@@ -2,45 +2,49 @@
 
 ## Purpose
 
-Shared Compose theme, shapes, motion/typography helpers, loaders, image helpers, navigation chrome constants, and share-card UI (`ShareManager`). No feature navigation, repositories, network, or Room.
+Owns shared Compose visual primitives: theme, typography, shapes, motion, loaders, image helpers, navigation chrome constants, and share-card UI. It does not own feature navigation, repositories, network clients, Room access, or business workflows.
 
 ## Public API
 
-- Theme: `BoxLoreTheme` / expressive theme pieces (`ExpressiveShapes`, `ExpressiveMotion`, typography, dynamic color helpers)
-- Components: `OptimizedImage`, `BoxLoreLoader`, `AdvancedPlayerControls`, bottom-nav height / sleep-timer chrome as used by `:app`
-- `share.ShareManager` — composite share cards / system share sheet
-
-Callers must not recreate a parallel theme stack inside features.
+- `BoxLoreTheme` and theme helpers such as expressive shapes, motion, typography, and dynamic color utilities.
+- Shared components including `OptimizedImage`, loaders, player-control primitives used by UI modules, bottom navigation chrome constants, and sleep-timer chrome.
+- `share.ShareManager` for composite share cards and the system share sheet.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/core/designsystem/
-  components/ theme/ share/ component/
-src/main/res/ drawable/ font/
+  component/
+  components/
+  share/
+  theme/
+src/main/res/
+  drawable/
+  font/
 ```
 
 ## Dependencies
 
-- → `:core:model`, `:core:analytics` (proxy-fallback tracking via façade)
-- Compose Material3, Coil (api), coroutines
-
-Forbidden: designsystem ↛ `:core:catalog`, `:core:network`, `:core:database`, or any `:feature:*`. Architecture guards enforce `:core:catalog` ↛ designsystem. Do not import PostHog — use `AnalyticsHelper`.
+- Project dependencies: `:core:model`, `:core:analytics`.
+- Libraries: Compose Material, Material icons, graphics shapes, Coil, AndroidX activity/core, smooth corner rect, and coroutines.
+- Reverse-edge rule: designsystem must not depend on catalog, network, database, playback, downloads, or feature modules.
 
 ## Threading / lifecycle
 
-- Compose UI on Main
-- Image loading via Coil (background); no Application-scoped repositories here
-- Theme is applied from `:app` / feature composition roots
+- Compose UI work runs on the main thread.
+- Coil performs image loading on background dispatchers.
+- The theme is applied by `:app` and feature composition roots; this module owns no application-scoped repositories.
 
 ## Persistence & identity
 
-None. Visual resources (fonts/drawables) may change; no user-data keys or DB filenames.
+- No user data, database files, DataStore names, or SharedPreferences files are owned here.
+- Resource names are app-internal UI contracts and should be changed with normal Android resource migration care.
 
 ## Testing notes
 
-- JVM: `ThemeBrandTokensTest` (`BrandSeeds`, custom hex detection, contrast helpers)
-- Screenshot / Compose UI tests remain at app or feature level
+- Unit tests live under `core/designsystem/src/test`.
+- `ThemeBrandTokensTest` covers brand seed and contrast helper behavior.
+- Screenshot and Compose UI tests live in app or feature modules.
 
 ```bash
 ./gradlew :core:designsystem:testDebugUnitTest
@@ -48,10 +52,11 @@ None. Visual resources (fonts/drawables) may change; no user-data keys or DB fil
 
 ## CI relevance
 
-Compiled as a dependency of app/features in `unit-tests.yml` / instrumented jobs. No module-specific CI job.
+- Compiled by app and feature test jobs whenever UI modules build.
+- Module JVM tests run with `unit-tests.yml`.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- [`docs/PLAN_MODULAR_ANDROID_HARDENING.md`](../../docs/PLAN_MODULAR_ANDROID_HARDENING.md)
-- [`:app` README](../../app/README.md) — theme + nav chrome composition
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
+- [`:app` README](../../app/README.md)
