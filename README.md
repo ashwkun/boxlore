@@ -55,9 +55,13 @@ The smart layer runs on a search index that is rebuilt daily and covers popular 
 
 <details open>
 <summary><b>🔮 Upcoming in the Next Release</b></summary>
+<b>🆕 New features:</b>
+<ul align="left">
+<li>New listening history view shows your sessions, calendar overview, and stats, letting you see what you’ve played over time. <a href="https://github.com/boxcreate/boxlore/pull/932"><img src="https://img.shields.io/badge/PR-932-6750A4?style=flat-square" alt="PR #932" height="18"/></a></li>
+</ul>
 <b>🐛 Fixes:</b>
 <ul align="left">
-<li>When you reopen Boxlore, the player now correctly remembers whether it was playing, keeping the mini and full player in sync. <a href="https://github.com/boxcreate/boxlore/pull/904"><img src="https://img.shields.io/badge/PR-904-6750A4?style=flat-square" alt="PR #904" height="18"/></a></li>
+<li>When you reopen the app, the mini and full player stay in sync, preserving playback state correctly. <a href="https://github.com/boxcreate/boxlore/pull/904"><img src="https://img.shields.io/badge/PR-904-6750A4?style=flat-square" alt="PR #904" height="18"/></a></li>
 </ul>
 <p align="center"><sub><sub>AI-generated summary; may contain mistakes.<br/>Verify details in the <a href="CHANGELOG.md">changelog</a> and linked pull requests.</sub></sub></p>
 </details>
