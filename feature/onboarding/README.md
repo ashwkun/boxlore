@@ -2,44 +2,65 @@
 
 ## Purpose
 
-First-run onboarding flows (genre, search, import, AI suggestions). Completes via `:core:prefs` (`BoxcastPrefs` / `UserPreferencesRepository`). Does not own prefs storage or catalog engines.
+Owns first-run onboarding presentation: genre selection, search-based onboarding, import prompts, AI-guided onboarding, suggestion cards, and completion actions. It does not own preference storage, catalog engines, network client construction, or app navigation registration.
 
 ## Public API
 
-- `OnboardingScreen` / `OnboardingViewModel`
-- Supporting screens: `GenreOnboardingScreen`, `SearchOnboardingScreen`, `ImportOnboardingScreen`, `AiOnboardingScreen`, `AiSuggestionsScreen`
-
-Route in `:app`: `onboarding`. Deep-link skip path is owned by `:app`.
+- `OnboardingScreen` and `OnboardingViewModel` for the flow shell.
+- `GenreOnboardingScreen`, `SearchOnboardingScreen`, `ImportOnboardingScreen`, `AiOnboardingScreen`, `AiChatOnboardingScreen`, and `AiSuggestionsScreen`.
+- `AiSuggestionCards`, AI onboarding components, option icons, chat input, and chat message list logic.
+- Pure helpers including `OnboardingGenreLimits`, `OnboardingSearchBackStep`, and `OnboardingCurriculumLogic`.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/feature/onboarding/
-  OnboardingScreen.kt / OnboardingViewModel.kt
-  OnboardingGenreLimits.kt / OnboardingSearchBackStep.kt
-  GenreOnboardingScreen.kt / SearchOnboardingScreen.kt
-  ImportOnboardingScreen.kt / AiOnboardingScreen.kt / AiSuggestionsScreen.kt
+  AiChatInputPanel.kt
+  AiChatMessageListLogic.kt
+  AiChatOnboardingScreen.kt
+  AiOnboardingComponents.kt
+  AiOnboardingOptionIcons.kt
+  AiOnboardingScreen.kt
+  AiSuggestionCards.kt
+  AiSuggestionsScreen.kt
+  GenreOnboardingScreen.kt
+  ImportOnboardingScreen.kt
+  OnboardingCurriculumLogic.kt
+  OnboardingGenreLimits.kt
+  OnboardingScreen.kt
+  OnboardingSearchBackStep.kt
+  OnboardingUiModels.kt
+  OnboardingViewModel.kt
+  OnboardingViewModelAi.kt
+  OnboardingViewModelGenre.kt
+  OnboardingViewModelSearch.kt
+  SearchOnboardingScreen.kt
 ```
 
 ## Dependencies
 
-- → `:core:model`, `:core:catalog` (prefs re-export), `:core:designsystem`
-
-Forbidden: feature → feature; do not read `boxcast_prefs` raw — use `BoxcastPrefs`.
+- Project dependencies: `:core:model`, `:core:catalog`, `:core:designsystem`, `:core:network`, and `:core:analytics`.
+- Libraries: Compose, Navigation, lifecycle ViewModel/runtime, Coil, coroutines, Retrofit, Kotlin serialization, and Material icons.
+- Reverse-edge rule: feature modules must not depend on other feature modules or read raw preference files.
 
 ## Threading / lifecycle
 
-- ViewModel nav/Activity-scoped for the first-run flow
-- Prefs writes go through Application-scoped `UserPreferencesRepository` / `BoxcastPrefs`
+- `OnboardingViewModel` is scoped to the onboarding route or host owner.
+- Preference completion writes go through `UserPreferencesRepository` and `BoxcastPrefs` supplied by app wiring.
+- Catalog and network actions use injected dependencies and suspend APIs.
+- UI runs on the main thread.
 
 ## Persistence & identity
 
-None owned. Onboarding completion flags live in DataStore / `boxcast_prefs` via `:core:prefs` — key names must stay stable.
+- This module owns no storage files.
+- Onboarding completion flags, selected genres, and recommendation/onboarding caches are owned by `:core:prefs`.
+- Preference key names must remain stable in the prefs module.
 
 ## Testing notes
 
-- JVM: `OnboardingGenreLimitsTest`, `OnboardingSearchBackStepTest` (pure helpers extracted from VM navigation / chart caps)
-- Full `OnboardingViewModel` still needs Application + repositories (deferred)
+- Unit tests live under `feature/onboarding/src/test`.
+- Existing coverage includes genre limits, search back-step behavior, curriculum logic, AI option icons, and AI chat message list logic.
+- ViewModel tests should use fakes for prefs, catalog, network, and analytics dependencies.
 
 ```bash
 ./gradlew :feature:onboarding:testDebugUnitTest
@@ -47,10 +68,12 @@ None owned. Onboarding completion flags live in DataStore / `boxcast_prefs` via 
 
 ## CI relevance
 
-Compiled in `unit-tests.yml` with the project suite. No module-specific instrumented job.
+- `unit-tests.yml` runs onboarding JVM tests with the project suite.
+- No dedicated instrumented job is configured for this module.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
 - [`:core:prefs` README](../../core/prefs/README.md)
 - [`:app` README](../../app/README.md)

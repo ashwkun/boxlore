@@ -1,29 +1,15 @@
 package cx.aswin.boxlore.feature.player.v2
 
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.MarqueeAnimationMode
-import androidx.compose.foundation.MarqueeSpacing
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -32,39 +18,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.rounded.FastForward
-import androidx.compose.material.icons.rounded.FullscreenExit
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.Replay
-import androidx.compose.material.icons.rounded.ScreenRotation
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
-import androidx.compose.material3.SheetState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
@@ -77,18 +39,10 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import cx.aswin.boxlore.core.playback.PlaybackRepository
@@ -97,20 +51,10 @@ import cx.aswin.boxlore.core.model.AutoTranscriptState
 import cx.aswin.boxlore.core.designsystem.theme.LocalEffectiveDarkTheme
 import cx.aswin.boxlore.core.model.Episode
 import cx.aswin.boxlore.core.model.Podcast
-import cx.aswin.boxlore.feature.player.ChaptersSheetContent
-import cx.aswin.boxlore.feature.player.FullscreenTranscriptScreen
-import cx.aswin.boxlore.feature.player.QueueSheetActions
-import cx.aswin.boxlore.feature.player.QueueSheetContent
-import cx.aswin.boxlore.feature.player.formatTime
-import cx.aswin.boxlore.feature.player.v2.logic.ResponsiveHeroLayout
 import cx.aswin.boxlore.feature.player.v2.logic.calculateResponsiveHeroLayout
-import cx.aswin.boxlore.feature.player.v2.logic.resolveQueuePodcast
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 /**
  * v2 full player: immersive artwork-tinted canvas, wavy seekbar, expressive control
@@ -138,7 +82,7 @@ data class FullPlayerActions(
 )
 
 @Stable
-private class FullPlayerUiState {
+internal class FullPlayerUiState {
     var showQueueSheet by mutableStateOf(false)
     var showChaptersSheet by mutableStateOf(false)
     var showSpeedSheet by mutableStateOf(false)
@@ -151,7 +95,7 @@ private class FullPlayerUiState {
     var isAudioOnly by mutableStateOf(false)
 }
 
-private val FullPlayerUiStateSaver = listSaver<FullPlayerUiState, Boolean>(
+internal val FullPlayerUiStateSaver = listSaver<FullPlayerUiState, Boolean>(
     save = { state ->
         listOf(
             state.showQueueSheet,
@@ -315,12 +259,12 @@ fun FullPlayerV2(
     )
 }
 
-private data class FullPlayerDownloadState(
+internal data class FullPlayerDownloadState(
     val isDownloaded: Boolean,
     val isDownloading: Boolean
 )
 
-private data class FullPlayerModalModel(
+internal data class FullPlayerModalModel(
     val state: PlayerState,
     val episode: Episode,
     val podcast: Podcast,
@@ -329,250 +273,11 @@ private data class FullPlayerModalModel(
     val canGenerateTranscript: Boolean
 )
 
-private data class FullPlayerOverlayModel(
+internal data class FullPlayerOverlayModel(
     val state: PlayerState,
     val episode: Episode,
     val colorScheme: ColorScheme,
     val positionFlow: Flow<Long>
-)
-
-@Composable
-private fun FullPlayerFullscreenOverlays(
-    dependencies: FullPlayerDependencies,
-    model: FullPlayerOverlayModel,
-    display: FullPlayerDisplay,
-    actions: FullPlayerActions,
-    ui: FullPlayerUiState
-) {
-    FullPlayerTranscriptOverlay(dependencies.playbackRepository, model, ui)
-    VideoFullscreenOverlay(
-        content = VideoFullscreenContent(
-            visible = display.isFullscreenVideo,
-            episodeTitle = model.episode.title,
-            isPlaying = model.state.isPlaying,
-            durationMs = model.state.duration,
-            seekBackwardSeconds = (model.state.seekBackwardMs / 1_000L).toInt(),
-            seekForwardSeconds = (model.state.seekForwardMs / 1_000L).toInt(),
-            positionFlow = model.positionFlow,
-            controller = dependencies.playbackRepository.controller
-        ),
-        colorScheme = model.colorScheme,
-        actions = VideoFullscreenActions(
-            onExit = { actions.onFullscreenVideoChange(false) },
-            onPlayPause = { togglePlayback(model.state, dependencies.playbackRepository) },
-            onReplay = dependencies.playbackRepository::skipBackward,
-            onForward = dependencies.playbackRepository::skipForward,
-            onSeek = dependencies.playbackRepository::seekTo
-        )
-    )
-}
-
-@Composable
-private fun FullPlayerTranscriptOverlay(
-    playbackRepository: PlaybackRepository,
-    model: FullPlayerOverlayModel,
-    ui: FullPlayerUiState
-) {
-    AnimatedVisibility(
-        visible = ui.showFullscreenTranscript,
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it })
-    ) {
-        FullscreenTranscriptScreen(
-            transcript = model.state.currentTranscript,
-            positionFlow = model.positionFlow,
-            isPlaying = model.state.isPlaying,
-            isLoading = model.state.isLoading,
-            durationMs = model.state.duration,
-            seekBackwardMs = model.state.seekBackwardMs,
-            seekForwardMs = model.state.seekForwardMs,
-            colorScheme = model.colorScheme,
-            isSyncEnabled = ui.isSyncEnabled,
-            onSyncEnabledChange = { ui.isSyncEnabled = it },
-            onSeek = { seekPosition ->
-                cx.aswin.boxlore.core.analytics.AnalyticsHelper.setSeekSource("transcript_tap")
-                playbackRepository.seekTo(seekPosition)
-            },
-            onPlayPause = { togglePlayback(model.state, playbackRepository) },
-            onClose = { ui.showFullscreenTranscript = false },
-            transcriptUrl = model.episode.transcriptUrl
-        )
-    }
-}
-
-private fun togglePlayback(state: PlayerState, playbackRepository: PlaybackRepository) {
-    if (state.isPlaying) playbackRepository.pause() else playbackRepository.resume()
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-private data class FullPlayerModalResources(
-    val scope: CoroutineScope,
-    val snackbarHostState: SnackbarHostState,
-    val queueSheetState: SheetState,
-    val chaptersSheetState: SheetState,
-    val context: android.content.Context
-)
-
-@Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun FullPlayerModalSheets(
-    dependencies: FullPlayerDependencies,
-    model: FullPlayerModalModel,
-    ui: FullPlayerUiState,
-    resources: FullPlayerModalResources
-) {
-    if (ui.showQueueSheet) {
-        PlayerQueueSheet(
-            playbackRepository = dependencies.playbackRepository,
-            model = PlayerQueueSheetModel(model.state, model.podcast, model.colorScheme),
-            resources = PlayerQueueSheetResources(
-                resources.scope,
-                resources.snackbarHostState,
-                resources.queueSheetState
-            ),
-            ui = ui
-        )
-    }
-    if (ui.showChaptersSheet) {
-        PlayerChaptersSheet(
-            playbackRepository = dependencies.playbackRepository,
-            state = model.state,
-            episode = model.episode,
-            positionFlow = model.positionFlow,
-            colorScheme = model.colorScheme,
-            sheetState = resources.chaptersSheetState,
-            ui = ui
-        )
-    }
-    if (ui.showSpeedSheet) {
-        PlayerSpeedSheet(dependencies.playbackRepository, model, ui)
-    }
-    if (ui.showSleepSheet) {
-        PlayerSleepSheet(dependencies.playbackRepository, model, ui)
-    }
-    if (ui.showGenerateDialog && model.canGenerateTranscript) {
-        PlayerGenerateTranscriptDialog(dependencies.playbackRepository, model, ui)
-    }
-    if (ui.showShareSheet) {
-        PlayerShareSheet(model, ui, resources.context)
-    }
-}
-
-@Composable
-private fun PlayerSpeedSheet(
-    playbackRepository: PlaybackRepository,
-    model: FullPlayerModalModel,
-    ui: FullPlayerUiState
-) {
-    SpeedSheet(
-        currentSpeed = model.state.playbackSpeed,
-        colorScheme = model.colorScheme,
-        onSpeedSelected = { speed ->
-            cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction(
-                "speed_change",
-                value = speed.toString()
-            )
-            playbackRepository.setPlaybackSpeed(speed)
-            ui.showSpeedSheet = false
-        },
-        onDismiss = { ui.showSpeedSheet = false }
-    )
-}
-
-@Composable
-private fun PlayerSleepSheet(
-    playbackRepository: PlaybackRepository,
-    model: FullPlayerModalModel,
-    ui: FullPlayerUiState
-) {
-    SleepSheet(
-        sleepTimerEnd = model.state.sleepTimerEnd,
-        colorScheme = model.colorScheme,
-        onDurationSelected = { minutes ->
-            cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction(
-                "sleep_timer",
-                value = minutes.toString()
-            )
-            playbackRepository.setSleepTimer(minutes)
-            ui.showSleepSheet = false
-        },
-        onDismiss = { ui.showSleepSheet = false }
-    )
-}
-
-@Composable
-private fun PlayerGenerateTranscriptDialog(
-    playbackRepository: PlaybackRepository,
-    model: FullPlayerModalModel,
-    ui: FullPlayerUiState
-) {
-    val durationSeconds = if (model.state.duration > 0) {
-        model.state.duration / 1000
-    } else {
-        model.episode.duration.toLong()
-    }
-    GenerateTranscriptDialog(
-        episodeDurationSec = durationSeconds,
-        autoTranscriptLimitLeft = model.state.autoTranscriptLimitLeft,
-        colorScheme = model.colorScheme,
-        onConfirm = {
-            ui.showGenerateDialog = false
-            playbackRepository.generateAutoTranscript()
-        },
-        onDismiss = { ui.showGenerateDialog = false }
-    )
-}
-
-@Composable
-private fun PlayerShareSheet(
-    model: FullPlayerModalModel,
-    ui: FullPlayerUiState,
-    context: android.content.Context
-) {
-    val currentPosition by model.positionFlow.collectAsStateWithLifecycle(initialValue = 0L)
-    cx.aswin.boxlore.core.designsystem.components.ShareBottomSheet(
-        id = model.episode.id,
-        type = "episode",
-        title = model.episode.title,
-        subtitle = model.podcast.title,
-        imageUrl = model.episode.imageUrl ?: model.podcast.imageUrl,
-        onDismissRequest = { ui.showShareSheet = false },
-        durationMs = model.episode.duration * 1000L,
-        currentPositionMs = currentPosition,
-        showTimestampOption = true,
-        onShare = { _, _, timestamp, target ->
-            cx.aswin.boxlore.core.designsystem.share.ShareManager.shareEpisode(
-                context = context,
-                episode = model.episode,
-                podcastTitle = model.podcast.title,
-                timestampMs = timestamp,
-                target = target
-            )
-        }
-    )
-}
-
-private data class FullPlayerBodyModel(
-    val state: PlayerState,
-    val episode: Episode,
-    val podcast: Podcast,
-    val nextEpisode: Episode?,
-    val isVideo: Boolean,
-    val isVideoPodcast: Boolean,
-    val download: FullPlayerDownloadState
-)
-
-private data class FullPlayerBodyResources(
-    val scope: CoroutineScope,
-    val snackbarHostState: SnackbarHostState,
-    val statusBarPadding: Dp,
-    val navBarPadding: Dp,
-    val modifier: Modifier
-)
-
-private data class FullPlayerScrollResources(
-    val scope: CoroutineScope,
-    val layout: ResponsiveHeroLayout
 )
 
 @Composable
@@ -725,12 +430,12 @@ private data class FullPlayerHeroModel(
     val dimensions: HeroDimensions
 )
 
-private data class FullPlayerFlows(
+internal data class FullPlayerFlows(
     val position: Flow<Long>,
     val bufferedPosition: Flow<Long>
 )
 
-private data class FullPlayerControlModel(
+internal data class FullPlayerControlModel(
     val state: PlayerState,
     val episode: Episode,
     val podcast: Podcast,
@@ -832,485 +537,3 @@ private fun ArtworkPlayerHero(
         modifier = Modifier.fillMaxWidth()
     )
 }
-
-@Composable
-private fun PlayerMetadata(
-    episode: Episode,
-    podcast: Podcast,
-    colorScheme: ColorScheme,
-    actions: FullPlayerActions
-) {
-    MarqueeMetadataText(
-        text = episode.title.replace("+", " "),
-        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-        color = colorScheme.onSurface,
-        velocity = 26.dp,
-        onClick = {
-            cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("episode_info")
-            actions.onCollapse()
-            actions.onEpisodeInfoClick(episode)
-        }
-    )
-    Spacer(modifier = Modifier.height(3.dp))
-    MarqueeMetadataText(
-        text = podcast.title.replace("+", " "),
-        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-        color = colorScheme.onSurfaceVariant,
-        velocity = 24.dp,
-        onClick = {
-            cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("podcast_info")
-            actions.onCollapse()
-            actions.onPodcastInfoClick(podcast)
-        }
-    )
-}
-
-@Composable
-private fun MarqueeMetadataText(
-    text: String,
-    style: androidx.compose.ui.text.TextStyle,
-    color: Color,
-    velocity: androidx.compose.ui.unit.Dp,
-    onClick: () -> Unit
-) {
-    Text(
-        text = text,
-        style = style,
-        color = color,
-        maxLines = 1,
-        overflow = TextOverflow.Clip,
-        textAlign = TextAlign.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .clipToBounds()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
-            )
-            .basicMarquee(
-                iterations = Int.MAX_VALUE,
-                animationMode = MarqueeAnimationMode.Immediately,
-                repeatDelayMillis = 1_600,
-                initialDelayMillis = 1_800,
-                spacing = MarqueeSpacing.fractionOfContainer(0.18f),
-                velocity = velocity
-            )
-    )
-}
-
-@Composable
-private fun FullPlayerControls(
-    model: FullPlayerControlModel,
-    dependencies: FullPlayerDependencies,
-    flows: FullPlayerFlows,
-    ui: FullPlayerUiState,
-    scope: CoroutineScope
-) {
-    if (model.state.duration > 0) {
-        PlayerSeekbar(
-            progressFlows = PlayerProgressFlows(flows.position, flows.bufferedPosition),
-            durationMs = model.state.duration,
-            isPlaying = model.state.isPlaying,
-            colorScheme = model.colorScheme,
-            onSeek = {
-                cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("seek")
-                dependencies.playbackRepository.seekTo(it)
-            },
-            chapters = model.state.currentChapters
-        )
-    }
-    Spacer(modifier = Modifier.height(if (model.isCompact) 14.dp else 18.dp))
-    FullPlayerPrimaryControls(model, dependencies.playbackRepository)
-    Spacer(modifier = Modifier.height(if (model.isCompact) 14.dp else 18.dp))
-    FullPlayerSecondaryControls(model, dependencies, ui, scope)
-}
-
-@Composable
-private fun FullPlayerPrimaryControls(
-    model: FullPlayerControlModel,
-    playbackRepository: PlaybackRepository
-) {
-    PrimaryControls(
-        isPlaying = model.state.isPlaying,
-        isLoading = model.state.isLoading,
-        colorScheme = model.colorScheme,
-        actions = PrimaryControlActions(
-            onPlayPause = {
-                cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("play_pause")
-                if (model.state.isPlaying) playbackRepository.pause() else playbackRepository.resume()
-            },
-            onReplay = {
-                cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("previous")
-                playbackRepository.skipBackward()
-            },
-            onForward = {
-                cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("next")
-                playbackRepository.skipForward()
-            },
-        ),
-        seekDurations = cx.aswin.boxlore.feature.player.SeekControlDurations(
-            backwardSeconds = (model.state.seekBackwardMs / 1_000L).toInt(),
-            forwardSeconds = (model.state.seekForwardMs / 1_000L).toInt(),
-        ),
-    )
-}
-
-@Composable
-private fun FullPlayerSecondaryControls(
-    model: FullPlayerControlModel,
-    dependencies: FullPlayerDependencies,
-    ui: FullPlayerUiState,
-    scope: CoroutineScope
-) {
-    SecondaryRail(
-        playback = SecondaryPlaybackState(
-            model.state.playbackSpeed,
-            model.state.sleepTimerEnd,
-            model.state.sleepAtEndOfEpisode
-        ),
-        availability = SecondaryAvailabilityState(
-            hasChapters = !model.episode.chaptersUrl.isNullOrEmpty() || model.state.currentChapters.isNotEmpty(),
-            hasTranscript = model.state.currentTranscript.isNotEmpty(),
-            isTranscriptVisible = ui.showInlineTranscript,
-            isChaptersLoading = model.state.isChaptersLoading,
-            autoTranscriptState = model.state.autoTranscriptState,
-            autoChaptersState = model.state.autoChaptersState
-        ),
-        library = SecondaryLibraryState(
-            model.state.isLiked,
-            model.isDownloaded,
-            model.isDownloading,
-            model.state.isCompleted
-        ),
-        colorScheme = model.colorScheme,
-        selectionActions = fullPlayerSelectionActions(dependencies.playbackRepository),
-        clickActions = fullPlayerClickActions(model, dependencies, ui, scope)
-    )
-}
-
-private fun fullPlayerSelectionActions(
-    playbackRepository: PlaybackRepository
-) = SecondarySelectionActions(
-    onSpeedSelected = { speed ->
-        cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction(
-            "speed_change",
-            value = speed.toString()
-        )
-        playbackRepository.setPlaybackSpeed(speed)
-    },
-    onSleepTimerSelected = { minutes ->
-        cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction(
-            "sleep_timer",
-            value = minutes.toString()
-        )
-        playbackRepository.setSleepTimer(minutes)
-    }
-)
-
-private fun fullPlayerClickActions(
-    model: FullPlayerControlModel,
-    dependencies: FullPlayerDependencies,
-    ui: FullPlayerUiState,
-    scope: CoroutineScope
-) = SecondaryClickActions(
-    onQueueClick = {
-        cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("queue")
-        ui.showQueueSheet = true
-    },
-    onChaptersClick = {
-        cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("chapters_sheet")
-        ui.showChaptersSheet = true
-    },
-    onTranscriptClick = {
-        if (model.state.currentTranscript.isNotEmpty()) {
-            cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction(
-                if (ui.showInlineTranscript) "transcript_hide" else "transcript_inline"
-            )
-            ui.showInlineTranscript = !ui.showInlineTranscript
-        }
-    },
-    onLikeClick = {
-        cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("like")
-        scope.launch { dependencies.playbackRepository.toggleLike() }
-    },
-    onDownloadClick = {
-        cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("download")
-        scope.launch { toggleEpisodeDownload(model, dependencies.downloadRepository) }
-    },
-    onMarkPlayedClick = {
-        cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("mark_played")
-        scope.launch {
-            dependencies.playbackRepository.toggleCompletion(
-                episode = model.episode,
-                podcastId = model.podcast.id,
-                podcastTitle = model.podcast.title,
-                podcastImageUrl = model.podcast.imageUrl
-            )
-        }
-    }
-)
-
-private suspend fun toggleEpisodeDownload(
-    model: FullPlayerControlModel,
-    downloadRepository: cx.aswin.boxlore.core.downloads.DownloadRepository
-) {
-    if (model.isDownloaded || model.isDownloading) {
-        downloadRepository.removeDownload(model.episode.id)
-    } else {
-        downloadRepository.addDownload(model.episode, model.podcast)
-    }
-}
-
-@Composable
-private fun FullPlayerSupportingContent(
-    state: PlayerState,
-    episode: Episode,
-    nextEpisode: Episode?,
-    colorScheme: ColorScheme,
-    playbackRepository: PlaybackRepository,
-    actions: FullPlayerActions,
-    ui: FullPlayerUiState
-) {
-    if (nextEpisode != null) {
-        UpNextCard(
-            queuedEpisodes = state.queue.drop(1),
-            colorScheme = colorScheme,
-            onOpenQueue = {
-                cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("queue")
-                ui.showQueueSheet = true
-            },
-            onPlayNext = {
-                cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("skip_next_episode")
-                playbackRepository.skipToNextEpisode()
-            }
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-    }
-    NotesPreviewCard(
-        description = episode.description,
-        colorScheme = colorScheme,
-        onOpenEpisodeInfo = {
-            cx.aswin.boxlore.core.analytics.PlayerSessionAggregator.logAction("episode_info")
-            actions.onCollapse()
-            actions.onEpisodeInfoClick(episode)
-        }
-    )
-}
-
-private data class PlayerQueueSheetModel(
-    val state: PlayerState,
-    val podcast: Podcast,
-    val colorScheme: ColorScheme
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
-private data class PlayerQueueSheetResources(
-    val scope: CoroutineScope,
-    val snackbarHostState: SnackbarHostState,
-    val sheetState: SheetState
-)
-
-@Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun PlayerQueueSheet(
-    playbackRepository: PlaybackRepository,
-    model: PlayerQueueSheetModel,
-    resources: PlayerQueueSheetResources,
-    ui: FullPlayerUiState
-) {
-    ModalBottomSheet(
-        onDismissRequest = { ui.showQueueSheet = false },
-        sheetState = resources.sheetState,
-        containerColor = model.colorScheme.surface,
-        contentColor = model.colorScheme.onSurface,
-        dragHandle = { SheetDragHandle(model.colorScheme) }
-    ) {
-        QueueSheetContent(
-            queue = model.state.queue.drop(1),
-            currentPodcast = model.podcast,
-            colorScheme = model.colorScheme,
-            actions = queueSheetActions(playbackRepository, model.podcast, resources, ui)
-        )
-    }
-}
-
-private fun queueSheetActions(
-    playbackRepository: PlaybackRepository,
-    podcast: Podcast,
-    resources: PlayerQueueSheetResources,
-    ui: FullPlayerUiState
-) = QueueSheetActions(
-    onPlayEpisode = { episode ->
-        resources.scope.launch {
-            val freshQueue = playbackRepository.playerState.value.queue
-            val episodePodcast = resolveQueuePodcast(episode, podcast)
-            playbackRepository.playFromQueueIndex(episode.id, freshQueue, episodePodcast)
-            ui.showQueueSheet = false
-        }
-    },
-    onRemoveEpisode = { episode ->
-        resources.scope.launch {
-            handleQueueRemoval(playbackRepository, episode.id, resources.snackbarHostState)
-        }
-    },
-    onClose = { ui.showQueueSheet = false },
-    onMove = { fromUi, toUi ->
-        playbackRepository.moveQueueItem(
-            cx.aswin.boxlore.core.playback.QueueMath.uiIndexToQueueIndex(fromUi),
-            cx.aswin.boxlore.core.playback.QueueMath.uiIndexToQueueIndex(toUi)
-        )
-    },
-    onDragEnd = { episodeId, fromUi, toUi ->
-        resources.scope.launch {
-            playbackRepository.persistQueueOrder(
-                movedEpisodeId = episodeId,
-                fromQueueIndex = cx.aswin.boxlore.core.playback.QueueMath.uiIndexToQueueIndex(fromUi),
-                toQueueIndex = cx.aswin.boxlore.core.playback.QueueMath.uiIndexToQueueIndex(toUi)
-            )
-        }
-    }
-)
-
-private suspend fun handleQueueRemoval(
-    playbackRepository: PlaybackRepository,
-    episodeId: String,
-    snackbarHostState: SnackbarHostState
-) {
-    val removed = playbackRepository.removeFromQueue(episodeId, deferSkipSignal = true) ?: return
-    val result = snackbarHostState.showSnackbar(
-        message = "Removed from queue",
-        actionLabel = "Undo",
-        duration = SnackbarDuration.Short
-    )
-    if (result == SnackbarResult.ActionPerformed) {
-        playbackRepository.undoQueueRemoval(removed)
-    } else {
-        playbackRepository.confirmQueueRemoval(removed)
-    }
-}
-
-@Composable
-@OptIn(ExperimentalMaterial3Api::class)
-private fun PlayerChaptersSheet(
-    playbackRepository: PlaybackRepository,
-    state: PlayerState,
-    episode: Episode,
-    positionFlow: Flow<Long>,
-    colorScheme: ColorScheme,
-    sheetState: SheetState,
-    ui: FullPlayerUiState
-) {
-    ModalBottomSheet(
-        onDismissRequest = { ui.showChaptersSheet = false },
-        sheetState = sheetState,
-        containerColor = colorScheme.surface,
-        contentColor = colorScheme.onSurface,
-        dragHandle = { SheetDragHandle(colorScheme) }
-    ) {
-        ChaptersSheetContent(
-            chapters = state.currentChapters,
-            positionFlow = positionFlow,
-            colorScheme = colorScheme,
-            onSeek = { seekPosition ->
-                cx.aswin.boxlore.core.analytics.AnalyticsHelper.setSeekSource("chapters_list")
-                playbackRepository.seekTo(seekPosition)
-                ui.showChaptersSheet = false
-            },
-            onClose = { ui.showChaptersSheet = false },
-            chaptersUrl = episode.chaptersUrl,
-            isChaptersLoading = state.isChaptersLoading,
-            hasTranscript = state.autoTranscriptState == AutoTranscriptState.NONE ||
-                state.autoTranscriptState == AutoTranscriptState.COMPLETED,
-            onGenerateChapters = playbackRepository::generateAutoChapters
-        )
-    }
-}
-
-@Composable
-private fun SheetDragHandle(colorScheme: ColorScheme) {
-    Box(
-        modifier = Modifier
-            .padding(vertical = 10.dp)
-            .size(width = 36.dp, height = 4.dp)
-            .clip(MaterialTheme.shapes.extraLarge)
-            .background(colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-    )
-}
-
-@Composable
-private fun PlayerTopBar(
-    colorScheme: ColorScheme,
-    showSwipeMinimizeTip: Boolean,
-    isExpanded: Boolean,
-    onSwipeMinimizeTipDismissed: () -> Unit,
-    onCollapse: () -> Unit,
-    onShare: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(colorScheme.onSurface.copy(alpha = 0.1f))
-                .clickable(onClick = onCollapse),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Rounded.KeyboardArrowDown,
-                contentDescription = "Collapse",
-                tint = colorScheme.onSurface
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        var tipVisible by remember { mutableStateOf(showSwipeMinimizeTip) }
-        LaunchedEffect(showSwipeMinimizeTip, isExpanded) {
-            if (showSwipeMinimizeTip && isExpanded) {
-                tipVisible = true
-                delay(3500)
-                tipVisible = false
-                onSwipeMinimizeTipDismissed()
-            } else {
-                tipVisible = false
-            }
-        }
-        AnimatedContent(
-            targetState = tipVisible && isExpanded,
-            transitionSpec = { fadeIn(tween(300)) togetherWith fadeOut(tween(300)) },
-            label = "topBarLabel"
-        ) { isShowingTip ->
-            Text(
-                text = if (isShowingTip) "↓ Swipe down to minimize" else "Now Playing",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = if (isShowingTip) colorScheme.primary.copy(alpha = 0.8f) else colorScheme.onSurface.copy(alpha = 0.7f)
-            )
-        }
-
-        Spacer(modifier = Modifier.weight(1f))
-
-        Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(colorScheme.onSurface.copy(alpha = 0.1f))
-                .clickable(onClick = onShare),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Share,
-                contentDescription = "Share",
-                tint = colorScheme.onSurface,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-

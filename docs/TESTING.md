@@ -1,183 +1,183 @@
 # Testing
 
-Further modularization + automation program: [`PLAN_MODULAR_ANDROID_HARDENING.md`](PLAN_MODULAR_ANDROID_HARDENING.md).  
-Module-local test notes live in each folder `README.md` (see [`MODULE_README_TEMPLATE.md`](MODULE_README_TEMPLATE.md)).
+End-state testing contract for Boxlore. Status tags are truthful: **Done** = verified in-repo; **WIP** = partial; **Yet to start** = aspirational for a later testing phase.
+
+Implementing **Yet to start** rows is out of scope for architecture/docs/LOC work. This file is the map.
+
+Module-local notes live in each folder `README.md` (see [`docs/MODULE_README_TEMPLATE.md`](MODULE_README_TEMPLATE.md)). Architecture: [`ARCHITECTURE.md`](../ARCHITECTURE.md).
+
+## Status legend
+
+| Status | Meaning |
+| :--- | :--- |
+| **Done** | Present and exercised |
+| **WIP** | Exists but shallow or incomplete |
+| **Yet to start** | Target for a later testing phase |
 
 ## Layers
 
-| Layer | Command / location | Catches |
-| :--- | :--- | :--- |
-| JVM unit | `./gradlew testDebugUnitTest` | Logic / state bugs |
-| Architecture-as-code | `:core:testing` Konsist / filesystem guards (part of unit tests) | Feature→feature deps, `getInstance` allowlist, data↛designsystem, module READMEs |
-| Static analysis | `./gradlew detekt`; `./gradlew ktlintCheck` | New Kotlin quality/style issues beyond committed baselines |
-| Android lint | `./gradlew lintDebug` (CI blocking) | Manifest / resource / API lint debt |
-| Coverage | `./gradlew :koverVerifyMerged` (also in unit-tests CI) | Soft line-coverage gate |
-| Compose UI | `androidTest` (P24) | Dead controls, nav wiring |
-| Maestro | device flows (P25) + nightly workflow | Real-device glitches |
-| Screenshots | optional (P26) — **not complete** | Visual regressions (no goldens / no Roborazzi yet) |
+| Layer | Command / location | Catches | Status |
+| :--- | :--- | :--- | :--- |
+| JVM unit | `./gradlew testDebugUnitTest` | Logic / state bugs | WIP |
+| Architecture-as-code | `:core:testing` Konsist / filesystem guards | Feature isolation, allowlists, README presence | Done |
+| Static analysis | `./gradlew detekt`; `./gradlew ktlintCheck` | New quality/style issues beyond baselines | Done |
+| Android lint | `./gradlew lintDebug` | Manifest / resource / API lint | Done |
+| Coverage (Kover) | `./gradlew :koverVerifyMerged` | Soft line-coverage floor on merged modules | WIP |
+| Compose UI | `androidTest` (primarily `:feature:home`) | Dead controls, dialog wiring | WIP |
+| Maestro | `maestro/` + nightly validate | Real-device flow regressions | WIP |
+| Screenshots | `screenshots/baselines/` + Roborazzi | Visual regressions | Yet to start |
 
 ## Stack
 
-- **JUnit 5** (+ Vintage during migration leftovers)
-- **Turbine**, **MockWebServer**, **Robolectric**
-- **Konsist** (architecture guards in `:core:testing`)
-- **Kover** (merged reports for `:core:catalog`, `:core:domain`, `:feature:home`, `:core:analytics`, `:core:rss`, `:core:downloads`, `:core:playback`)
+- JUnit 5 (+ Vintage where leftovers remain)
+- Turbine, MockWebServer, Robolectric
+- Konsist (architecture guards in `:core:testing`)
+- Kover merged report for `:core:catalog`, `:core:domain`, `:feature:home`, `:core:analytics`, `:core:rss`, `:core:downloads`, `:core:playback`
 - Shared fixtures: `:core:testing` (`TestFixtures`, `MainDispatcherExtension`)
-- **B1 network contracts:** MockWebServer tests in `:core:network` (`BoxLoreApiContractTest`) — run `./gradlew :core:network:testDebugUnitTest`
-- **B2/B3 hard slices:** Settings Turbine suite; Home `DiscoveryGreetingTest` + `PodcastAffinityLogicTest`; Info catalog/offline merge tests; domain local/offline port fakes; Learn `LearnDeckLogicTest` + `LearnCuriosityCard` UI model (no network DTO in UI state); Explore `ExploreBrowseLogicTest`; playback `HistoryRecommendationLogic` / `AutoVoiceSearchLogic` / `SmartQueueRefillPolicy` / `MixtapeResumePolicy` / `NightWindowLogic` / `ListeningHistoryUpsertLogic` tests; downloads `SmartDownloadCandidateLogicTest` + worker tests. Full Home/Info VMs still deferred (Application + heavy deps).
-- **B4:** `:core:database` has minimal `PodcastDaoInMemoryTest` with `unitTests.isIncludeAndroidResources = true` — see `core/database/README.md` for residual AAPT pitfalls on dependents.
-- **No MockK / Hilt**
-- Compose **androidTest** uses **JUnit4** + `AndroidJUnitRunner` (androidx.test)
+- No MockK / Hilt
+- Compose `androidTest` uses JUnit4 + `AndroidJUnitRunner`
 
-## Coverage (Kover)
+## Coverage targets
 
-Plugin applied on the root project plus `:core:catalog`, `:core:domain`, `:feature:home`, `:core:analytics`, `:core:rss`, `:core:downloads`, and `:core:playback`. Those modules contribute a shared Kover report variant `merged` (maps to each module’s `debug` unit tests). Root merges them and enforces a **modest** line-coverage floor (**20%**, Phase 2 PR3). Fat Media3/Auto orchestrators (`PlaybackRepository`, `core.data.service*`) are excluded from the gate so pure playback helpers remain measurable; PR4 extracts/tests those classes.
-
-**Ratchet path:** 8 → 10 → 12 → 15 → **20** → 25 on the merged variant. Optional later: soft module-specific gates for `:core:ranking` once denser.
+| Target | Status |
+| :--- | :--- |
+| Merged Kover floor ≥ 20% on gated modules | Done |
+| Include analytics / rss / downloads / playback in merge | Done |
+| Ratchet floor toward 25% with measured headroom | Yet to start |
+| Optional soft gates for `:core:ranking` | Yet to start |
 
 ```bash
-# Unit tests only (CI default)
 ./gradlew testDebugUnitTest
-
-# Architecture guards only
 ./gradlew :core:testing:testDebugUnitTest
-
-# Coverage verify (runs merged-module debug unit tests, then checks the gate)
 ./gradlew :koverVerifyMerged
-
-# HTML / XML reports (merged variant at root)
 ./gradlew :koverHtmlReportMerged
 ./gradlew :koverXmlReportMerged
 ```
 
-Reports land under `build/reports/kover/` (root). Raise the threshold only after more suites land — avoid an aggressive gate that flakes CI.
+Reports: `build/reports/kover/`.
 
-## Static analysis (detekt + ktlint)
-
-Plain detekt runs from the root project against Android/Kotlin source directories. It uses `config/detekt/detekt.yml` and the committed baseline at `config/detekt/baseline.xml`, so CI fails only for new findings beyond the current debt.
-
-ktlint uses `org.jlleitschuh.gradle.ktlint` from the root build and is applied to the root project plus real Android/Kotlin subprojects. The plugin generates one baseline per Gradle project under `config/ktlint/`, so `ktlintCheck` fails only for new style issues beyond the current debt. Format tasks exist by plugin convention but are not wired into build or CI.
+## Static analysis
 
 ```bash
 ./gradlew detekt
 ./gradlew ktlintCheck
-```
-
-### Android lint (fail-on-error)
-
-`unit-tests.yml` runs `./gradlew lintDebug` as a **blocking** step (no `continue-on-error`). Blockers fixed in PR5: missing `consumer-rules.pro` stubs for feature libraries, WorkManager on-demand initializer manifest merge, player `BoxWithConstraints` lint, and app root nav/scaffold lint fixes.
-
-```bash
 ./gradlew lintDebug
 ```
 
-### Dependency Guard
+Detekt: `config/detekt/{detekt.yml,baseline.xml}`.  
+ktlint: per-project baselines under `config/ktlint/`.
 
-`unit-tests.yml` also runs Dependency Guard on `:app`, `:core:catalog`, and `:core:playback` (`releaseRuntimeClasspath` baselines under each module’s `dependencies/`). Re-baseline intentionally with:
+Dependency Guard baselines (`:app`, `:core:catalog`, `:core:playback`):
 
 ```bash
 ./gradlew :app:dependencyGuardBaseline :core:catalog:dependencyGuardBaseline :core:playback:dependencyGuardBaseline
 ```
 
-## Compose UI tests (P24)
+## JVM / network / DAO coverage
 
-Hosted in `:feature:home` so dialogs can be composed without app DI.
+| Area | Status |
+| :--- | :--- |
+| `:core:network` MockWebServer contracts (`BoxLoreApiContractTest`) | Done |
+| Settings assembler / Turbine suites | Done |
+| Home pure helpers (greeting, affinity, online) | Done |
+| Info catalog / offline merge port tests | Done |
+| Playback pure helpers (queue, night window, history upsert, etc.) | Done |
+| Downloads worker + candidate logic tests | Done |
+| `:core:database` minimal DAO in-memory test | Done |
+| Full Application-backed `HomeViewModel` suite | Yet to start |
+| Full Application-backed Info / Episode ViewModel suites | Yet to start |
+| Hermetic alternative covering the same Home/Info behaviors without Application | Yet to start |
 
-Stable `testTag`s:
+```bash
+./gradlew :core:network:testDebugUnitTest
+./gradlew :feature:home:testDebugUnitTest
+./gradlew :feature:info:testDebugUnitTest
+./gradlew :core:playback:testDebugUnitTest
+./gradlew :core:downloads:testDebugUnitTest
+./gradlew :core:database:testDebugUnitTest
+```
 
-- `home_settings_button` — home top-bar Settings
-- `settings_add_rss_url` / `settings_add_rss_confirm` / `settings_add_rss_cancel` — Add RSS dialog
+## Compose UI (`androidTest`)
 
-Instrumented coverage includes empty-url disable, typing enables confirm, cancel dismiss, error text display, and `isAdding` disables controls.
+| Target | Status |
+| :--- | :--- |
+| Hermetic Add RSS dialog tests in `:feature:home` | Done |
+| Hermetic Downloads settings page tests | Done |
+| Additional hermetic Settings / Home surfaces | WIP |
+| Instrumented coverage in other feature modules | Yet to start |
+| Full-app navigation instrumentation | Yet to start |
 
-Compile instrumentation sources (no emulator required):
+Stable `testTag`s (non-exhaustive):
+
+- `home_settings_button`
+- `settings_add_rss_url` / `settings_add_rss_confirm` / `settings_add_rss_cancel`
+- `settings_downloads_*` (see `feature/home/README.md`)
 
 ```bash
 ./gradlew :feature:home:compileDebugAndroidTestKotlin
-```
-
-Run on a connected device/emulator:
-
-```bash
 ./gradlew :feature:home:connectedDebugAndroidTest
 ```
 
-CI runs the same task via `android-instrumented-tests.yml` (API 34 emulator + KVM).
+## Maestro
 
-## Maestro smoke (P25)
-
-See `maestro/README.md`.
+| Target | Status |
+| :--- | :--- |
+| Flow YAML present under `maestro/` | Done |
+| Nightly workflow validates YAML without Cloud secrets | Done |
+| At least one locally strict smoke flow | Done |
+| Additional strict flows (subscribe→library, play→mini player, Learn, Settings RSS entry) | Yet to start |
+| Maestro Cloud required CI | Out of scope (local-only; no Cloud secrets) |
 
 ```bash
 ./gradlew :app:installDebug
 maestro test maestro/
 ```
 
-**Nightly CI:** `.github/workflows/maestro-nightly.yml` (cron UTC + `workflow_dispatch`) always validates that `maestro/*.yaml` flows exist and pass lightweight syntax checks. Full remote device runs use `mobile-dev-inc/action-maestro-cloud` only when repository secrets `MAESTRO_CLOUD_API_KEY` and `MAESTRO_PROJECT_ID` are configured; otherwise the workflow documents the blocker and still passes on flow validation.
+See [`maestro/README.md`](../maestro/README.md).
 
-## Screenshot baselines (P26)
+## Screenshots
 
-**P26 is not complete.** No PNG goldens are checked in. Roborazzi has a **local spike** on `:feature:home` (`AddRssFeedDialogRoborazziSpikeTest` — ephemeral `build/outputs/roborazzi/` only); screenshot capture is **not** a CI gate. Reserved path: `screenshots/baselines/` + [`docs/screenshots/README.md`](screenshots/README.md). `:feature:home` androidTest includes composition smokes for Add RSS + Reset analytics tags — those are not screenshot goldens.
+| Target | Status |
+| :--- | :--- |
+| Reserved `screenshots/baselines/` path | Done |
+| Checked-in PNG goldens | Yet to start |
+| Roborazzi/Paparazzi CI gate | Yet to start |
+
+See [`docs/screenshots/README.md`](screenshots/README.md).
 
 ## CI
 
-| Workflow | What it runs | When |
-| :--- | :--- | :--- |
-| `unit-tests.yml` | Architecture boundary script + detekt + ktlint + `testDebugUnitTest` (includes Konsist) + `:koverVerifyMerged` + **blocking** `lintDebug` + Dependency Guard (`:app`, `:core:catalog`, `:core:playback`) | **`merge-ci` label** on the PR (and later pushes while labeled), or **Actions → Run workflow**. Merge queue is **not** available on this user-owned repo. |
-| `android-instrumented-tests.yml` | `:feature:home:connectedDebugAndroidTest` on an API 34 emulator | Same merge-gate as unit tests |
-| `maestro-nightly.yml` | Validate `maestro/*.yaml`; optional Maestro Cloud when secrets present | Nightly cron (UTC) / manual |
+| Workflow | Runs | When | Status |
+| :--- | :--- | :--- | :--- |
+| `unit-tests.yml` | Architecture scripts + detekt + ktlint + unit tests + Kover + lint + Dependency Guard | `merge-ci` label or workflow_dispatch | Done |
+| `android-instrumented-tests.yml` | `:feature:home:connectedDebugAndroidTest` (API 34 emulator) | Same merge gate | Done |
+| `maestro-nightly.yml` | Validate Maestro YAML; optional Cloud if secrets present | Nightly / manual | Done |
 
-Architecture boundary: `scripts/ci/check-feature-no-boxlore-database.sh` fails if Home/Info ViewModels or assemblers re-introduce `BoxLoreDatabase`. `scripts/ci/check-feature-no-posthog.sh` fails if feature modules import PostHog or call `PostHog.capture` (use `:core:analytics`). Konsist/filesystem guards in `:core:testing` additionally enforce feature isolation, `getInstance` allowlist, `:core:catalog` ↛ designsystem, and module README presence.
+Architecture scripts:
 
-**Merge CI (label gate, not a GitHub ruleset):** Unit + Instrumented run when the PR has the **`merge-ci`** label. Honor that process before merging.
+- `scripts/ci/check-feature-no-boxlore-database.sh`
+- `scripts/ci/check-feature-no-posthog.sh`
 
-```bash
-# Ensures the merge-ci label exists and removes any master rulesets that
-# accidentally block github-actions[bot] data pushes (user-owned repos cannot
-# grant Actions a ruleset bypass).
-./scripts/ci/configure-master-merge-queue.sh
-```
-
-> **Do not** put `required_status_checks` on `master` on this user-owned repo. GitHub Actions cannot bypass that ruleset, so scheduled bots (`new-episode-check`, sync jobs) fail with `GH013` when committing tracker state. Merge-queue is also unavailable here. After a move to an **organization**, enforced checks + Actions bypass become possible.
-
-Maestro device-farm stays **optional** (needs `MAESTRO_CLOUD_API_KEY` + `MAESTRO_PROJECT_ID`). Screenshots stay local (manual capture).
+**Merge gate:** add `merge-ci` only when ready to merge. Do not put `required_status_checks` on `master` on this user-owned repo (blocks Actions bots with `GH013`).
 
 Protected inputs:
-- `app/google-services.json` is **gitignored** and must never be committed.
-- The real file is a **release-environment** secret (`GOOGLE_SERVICES_JSON_BASE64` on GitHub Environment `release`). Ordinary CI jobs cannot read it.
-- The unit-test workflow writes a non-secret CI stub only so the Google Services plugin can configure `:app`, then deletes it. Release workflows keep using the real secret.
-- Locally, keep using your usual `.env` / local `app/google-services.json` — unchanged.
 
-### Cursor Cloud Agents (stub-only build)
-
-Cloud agents **do not** need Firebase, proxy, PostHog, signing, or Maestro secrets in the Cursor Secrets dashboard for compile / unit / instrumented work. Leave those empty.
-
-A fresh clone has no `app/google-services.json` (gitignored). Before `./gradlew assembleDebug` or local tests on the VM, run:
-
-```bash
-./scripts/ci/write-cloud-agent-local-config.sh
-```
-
-That script writes the **same non-secret CI stub** as `.github/actions/write-ci-google-services` plus a minimal `local.properties` with `sdk.dir` only (no API keys). BuildConfig fields default to empty strings when keys are absent. If `app/google-services.json` or `local.properties` already exist, they are left alone (`FORCE=1` overwrites).
-
-[`.cursor/environment.json`](../.cursor/environment.json) sets this as the environment `install` hook so new cloud VMs get the stub automatically. GitHub **`merge-ci`** checks still write the stub themselves on Actions runners — Cursor Secrets do not feed GitHub, and PRs do not fail merge checks for lack of laptop secrets.
-
-## README checklist
-
-Every Gradle module under `app/`, `core/*/`, and `feature/*/` must keep a folder `README.md` aligned with [`MODULE_README_TEMPLATE.md`](MODULE_README_TEMPLATE.md). Treat the template’s **Testing notes** section as mandatory for modules that own logic under test:
-
-- Document the primary Gradle test command (`./gradlew :<module>:testDebugUnitTest` or instrumented equivalent).
-- Note participation in Kover merged coverage when applicable.
-- Link shared fixtures in `:core:testing` when used.
-- Konsist CI fails if an included app/core/feature module is missing `README.md`.
-
-Quick audit: open each module README’s Testing notes, then cross-check commands against this file’s Layers / CI tables.
+- `app/google-services.json` is gitignored.
+- CI writes a non-secret stub via workflow action / `scripts/ci/write-cloud-agent-local-config.sh`.
 
 ## Conventions
 
-- Prefer constructor injection + fakes over `getInstance` in new tests
-- Hard ViewModels (Home/Settings/Info) use assemblers + thin ports from `:core:domain` (`RssSubscriptionPort`, `RankingResetPort`, `PodcastCatalogPort`) and Turbine
-- Do not rewrite `feature/player` `v2/logic` behavior when migrating runners
-- Keep DataStore name `user_preferences`, DB filename, and `rss:` / negative IDs stable in fixtures
-- Room/Robolectric DAO tests need `unitTests.isIncludeAndroidResources = true` (enabled on `:core:database` for `PodcastDaoInMemoryTest`); watch AAPT/`includeAndroidResources` pitfalls when enabling on other modules — see `core/database/README.md`
-- Workers that need listen history for recommendations use `HistoryRecommendationSource` / `DefaultSmartQueueSources`, not a second `PlaybackRepository`
+- Prefer constructor injection + fakes over `getInstance` in new tests.
+- Hard ViewModels use assemblers + ports from `:core:domain` and Turbine.
+- Do not rewrite `feature/player` `v2/logic` behavior when migrating runners.
+- Keep DataStore name `user_preferences`, DB filename, and `rss:` / negative IDs stable in fixtures.
+- Room/Robolectric DAO tests need `unitTests.isIncludeAndroidResources = true` where required.
+- Workers that need listen history use `HistoryRecommendationSource` / ports — not a second `PlaybackRepository`.
+
+## Module README checklist
+
+Every `app/`, `core/*/`, and `feature/*/` module must keep a folder README aligned with [`MODULE_README_TEMPLATE.md`](MODULE_README_TEMPLATE.md), including Testing notes and the primary Gradle test command. Konsist fails if an included module lacks `README.md`.
+
+## Next phase
+
+A later testing phase owns implementation of every **Yet to start** row above (Application-backed Home/Info suites or hermetic equivalents, broader androidTest, additional strict Maestro flows, screenshot goldens, Kover ratchet). This document is the aspirational map; do not claim those rows Done until verified.

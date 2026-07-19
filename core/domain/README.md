@@ -2,24 +2,17 @@
 
 ## Purpose
 
-Owns thin domain ports (interfaces) and small result types that feature ViewModels and workers depend on for fakes/tests — without pulling in full repositories. Deliberately does **not** own Room entities, Retrofit clients, ranking engines, Compose, or production implementations.
+Owns thin domain ports and small result types used by ViewModels, repositories, workers, and tests without pulling in production repository graphs. It does not own Room entities, Retrofit DTOs beyond existing edge types, ranking engines, Compose UI, managers, or production implementations.
 
 ## Public API
 
-Stable ports/results other modules may depend on:
-
-- `ports.RssSubscriptionPort` / `RssSubscriptionResult`
-- `ports.RankingResetPort`
-- `ports.PodcastCatalogPort`
-- `ports.HistoryRecommendationSource` (uses network `HistoryItem`)
-- `ports.LocalCatalogPort` — local podcast get / linked RSS / subscribed upsert (domain `Podcast` only)
-- `ports.EpisodeOfflineLookupPort` + `OfflineEpisodeSnapshot` — download/history hydration for Episode Info
-
-**Must not live here:** Room entities, Retrofit DTOs beyond tiny shared network types already on the edge, Compose, managers, or WorkManager workers.
-
-`ListeningHistoryBackupPort` stays in `:core:catalog` (uses Room `ListeningHistoryEntity` to avoid a domain → database edge).
-
-Production impls: `RoomLocalCatalog` / `RoomEpisodeOfflineLookup` in `:core:catalog`; RSS port in `:core:rss`; ranking reset in `:core:ranking` — wired from `AppContainer`.
+- `RssSubscriptionPort` and `RssSubscriptionResult`.
+- `RankingResetPort`.
+- `PodcastCatalogPort`.
+- `HistoryRecommendationSource`.
+- `LocalCatalogPort` for local podcast lookup and subscribed podcast upsert.
+- `EpisodeOfflineLookupPort` and `OfflineEpisodeSnapshot` for episode-detail download/history hydration.
+- `ConnectivityStatusPort` and connectivity status types.
 
 ## Internal structure
 
@@ -27,39 +20,37 @@ Production impls: `RoomLocalCatalog` / `RoomEpisodeOfflineLookup` in `:core:cata
 src/main/java/cx/aswin/boxlore/core/domain/
   RssSubscriptionResult.kt
   ports/
-    RssSubscriptionPort.kt
-    RankingResetPort.kt
-    PodcastCatalogPort.kt
+    ConnectivityStatusPort.kt
+    EpisodeOfflineLookupPort.kt
     HistoryRecommendationSource.kt
     LocalCatalogPort.kt
-    EpisodeOfflineLookupPort.kt
+    PodcastCatalogPort.kt
+    RankingResetPort.kt
+    RssSubscriptionPort.kt
 ```
 
 ## Dependencies
 
-- → `:core:model` (api)
-- → `:core:network` (api; `HistoryItem` only)
-- kotlinx-coroutines
-
-Forbidden: domain ↛ `:core:catalog`, `:core:database`, `:core:playback`, features, or designsystem.
+- Project dependencies: `:core:model`, `:core:network`.
+- Libraries: coroutines.
+- Reverse-edge rule: domain must not depend on catalog, database, playback, downloads, designsystem, or feature modules.
 
 ## Threading / lifecycle
 
-- Ports are suspend / Flow contracts; callers choose dispatchers
-- No Application-scoped objects in this module — inject implementations from `AppContainer`
+- Ports expose suspend functions or flows; implementations choose dispatchers.
+- No application-scoped objects are created in this module.
+- Production implementations are wired from `AppContainer` in owning data modules.
 
 ## Persistence & identity
 
-None owned here. Ports may mention `rss:` IDs or episode IDs in docs/contracts; persistence ownership stays in `:core:rss` / `:core:database`.
+- No persistence is owned here.
+- Port contracts may carry stable IDs such as `rss:` podcast IDs or episode IDs, but those schemes are owned by RSS, database, and playback modules.
 
 ## Testing notes
 
-JVM under `src/test`:
-
-- `RssSubscriptionResultTest`
-- `ports/LocalCatalogPortTest`, `EpisodeOfflineLookupPortTest`, `HistoryRecommendationSourceTest`, `RankingResetPortTest`
-
-Prefer constructor injection + fakes over full repository graphs. Shared builders: `:core:testing` `TestFixtures`.
+- Unit tests live under `core/domain/src/test`.
+- Existing tests cover subscription results and port contract behavior.
+- Use constructor-injected fakes or helpers from `:core:testing` when testing callers.
 
 ```bash
 ./gradlew :core:domain:testDebugUnitTest
@@ -67,11 +58,13 @@ Prefer constructor injection + fakes over full repository graphs. Shared builder
 
 ## CI relevance
 
-Exercised by `unit-tests.yml`. Included in Kover merged coverage gate.
+- `unit-tests.yml` runs domain JVM tests.
+- The root Kover merged verification includes this module.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
 - [`docs/TESTING.md`](../../docs/TESTING.md)
-- [`:core:catalog` README](../catalog/README.md) — production implementations
-- [`docs/PLAN_MODULAR_ANDROID_HARDENING.md`](../../docs/PLAN_MODULAR_ANDROID_HARDENING.md)
+- [`:core:catalog` README](../catalog/README.md)
+- [`:core:rss` README](../rss/README.md)
+- [`:core:ranking` README](../ranking/README.md)

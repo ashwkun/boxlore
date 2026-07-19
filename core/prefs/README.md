@@ -2,43 +2,66 @@
 
 ## Purpose
 
-Owns user preference persistence: DataStore `user_preferences` via `UserPreferencesRepository`, theme fast-cache SharedPreferences (`boxlore_theme_fast_cache`, migrated from `boxcast_theme_fast_cache`), and the typed façade `BoxcastPrefs` over `boxlore_prefs` (migrated from `boxcast_prefs`).
-
-Also owns [`PrefsFileMigrator`](src/main/java/cx/aswin/boxlore/core/prefs/PrefsFileMigrator.kt) — dual-read SharedPreferences file migration used by prefs, analytics, playback, catalog, and app.
-
-Does **not** own analytics prefs file writers (analytics module), player prefs writers (playback/catalog), privacy consent DataStore, ranking runtime SharedPreferences, or catalog cache files — those call `PrefsFileMigrator.open` where applicable.
+Owns user preference persistence and migration helpers: DataStore-backed user preferences, theme fast-cache preferences, the `BoxcastPrefs` facade over app preferences, and SharedPreferences file migration. It does not own analytics event storage, playback session behavior, ranking model storage, catalog cache contents, or feature UI.
 
 ## Public API
 
-Stable types other modules may depend on:
-
-- `UserPreferencesRepository` — DataStore-backed settings (theme, region, smart downloads, skip, etc.)
-- `Context.userPreferencesDataStore` — named DataStore delegate (`user_preferences`)
-- `BoxcastPrefs` — typed API for `boxlore_prefs` keys (onboarding, genres, recommendation caches, learn curiosity, learner-log gate)
-- `PrefsFileMigrator` — migrate/open helper for `boxcast_*` → `boxlore_*` files
-- `PlaybackSkipBounds` / `EngagementPromptConstants` — shared sanitize/threshold constants
-
-**Package root:** `cx.aswin.boxlore.core.prefs` (matches module). Pref **keys** stay stable; **files** migrate via dual-read failsafe — do not blind-rename strings. Do **not** recreate a parallel SharedPreferences client in features — call the prefs façade.
+- `UserPreferencesRepository` exposes DataStore-backed settings such as theme, region, skip durations, smart downloads, and playback preferences.
+- `Context.userPreferencesDataStore` defines the `user_preferences` DataStore delegate.
+- `BoxcastPrefs` is the typed facade for `boxlore_prefs` values such as onboarding, genres, recommendation caches, Learn history, and learner-log gates.
+- `UserPreferenceKeys` centralizes DataStore preference keys.
+- `PrefsFileMigrator` opens canonical SharedPreferences files and migrates from legacy file names.
+- `PlaybackSkipBounds` and `EngagementPromptConstants` provide shared preference-related bounds and thresholds.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/core/prefs/
-  UserPreferencesRepository.kt
   BoxcastPrefs.kt
+  EngagementPromptConstants.kt
+  PlaybackSkipBounds.kt
   PrefsFileMigrator.kt
-  …
+  UserPreferenceKeys.kt
+  UserPreferencesRepository.kt
 ```
 
 ## Dependencies
 
-- → `:core:model` (api)
+- Project dependencies: `:core:model`.
+- Libraries: AndroidX core, DataStore Preferences, and coroutines.
+- Reverse-edge rule: prefs must not depend on catalog, playback, downloads, analytics, designsystem, or feature modules.
 
-## Identity / migration
+## Threading / lifecycle
 
-| File | Status |
-|:--|:--|
-| `boxlore_prefs` / `boxlore_theme_fast_cache` | Canonical (migrated from `boxcast_*`) |
-| DataStore `user_preferences` | Unchanged |
+- DataStore flows are cold streams collected by repositories, ViewModels, or app wiring.
+- Preference reads and writes should use the repository or facade APIs instead of raw file access from feature modules.
+- `PrefsFileMigrator` performs file migration during SharedPreferences open paths.
 
-See [`docs/PACKAGE_MIGRATION_MAP.md`](../../docs/PACKAGE_MIGRATION_MAP.md).
+## Persistence & identity
+
+- DataStore name `user_preferences` must remain stable.
+- Canonical SharedPreferences files include `boxlore_prefs` and `boxlore_theme_fast_cache`.
+- Legacy file names beginning with `boxcast_` are migrated through `PrefsFileMigrator`.
+- Preference keys defined in `UserPreferenceKeys` and `BoxcastPrefs` are persisted user identity and must not be renamed casually.
+
+## Testing notes
+
+- Unit tests live under `core/prefs/src/test`.
+- `BoxcastPrefsTest` covers facade behavior.
+- `PrefsFileMigratorTest` covers legacy-to-canonical file migration behavior.
+
+```bash
+./gradlew :core:prefs:testDebugUnitTest
+```
+
+## CI relevance
+
+- `unit-tests.yml` runs prefs JVM tests.
+- App and feature tests depend on this module for stable preference behavior.
+
+## See also
+
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
+- [`:core:catalog` README](../catalog/README.md)
+- [`:core:analytics` README](../analytics/README.md)

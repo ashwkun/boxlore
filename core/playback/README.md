@@ -2,78 +2,74 @@
 
 ## Purpose
 
-Owns playback session control, queue orchestration, Media3 services (player + offline download foreground service + Android Auto collage provider), and **smart-queue ownership** (`SmartQueueEngine`, `SmartQueueSources`, `QueueMath`, `QueueSkipMemory`, `MixtapeEngine`). Deliberately does **not** own Room schemas, prefs DataStore, ranking Room, RSS, or smart-download workers (those live in `:core:database` / `:core:prefs` / `:core:ranking` / `:core:rss` / `:core:downloads`).
+Owns playback session control, queue orchestration, smart queue logic, Media3 playback services, the offline download foreground service, and Android Auto browse/collage support. It does not own Room schemas, preference storage, RSS parsing, ranking persistence, smart-download workers, or feature UI.
 
 ## Public API
 
-Stable types/entry points other modules may depend on:
-
-- `PlaybackRepository` — one UI/session instance; ctor-injected `RankingFeedbackRepository` (never call ranking `getInstance` here)
-- `QueueRepository` / `QueueManager` — queue persistence + explicit play/add orchestration
-- `QueueMath` / `QueueSkipMemory` / `SmartQueueEngine` / `SmartQueueSources` / `MixtapeEngine` — smart-queue helpers (`cx.aswin.boxlore.core.playback`)
-- `PlaybackMediaIdPolicy` / `PlaybackArtworkResolver` — media-id encoding and artwork URL resolution
-- `PlaybackSkipPolicy` — intro/outro trim and seek policy
-- `HistoryRecommendationLogic` — pure eligibility filter for recommendation history
-- `AutoVoiceSearchLogic` / `SmartQueueRefillPolicy` / `MixtapeResumePolicy` / `NightWindowLogic` / `ListeningHistoryUpsertLogic`
-- `PlaybackIntroOutroController` — intro skip / outro trim lifecycle
-- `service.SmartQueueRefillCoordinator` — service-owned Smart Queue auto-refill
-- `service.auto.AutoBrowseLibraryCallback` + `AutoBrowseLibraryHost` — Android Auto browse
-- `PlaybackRepository.getRecentHistoryList(limit)` — scoring/history slices without feature → DAO access
-- `service.CoilBitmapLoader` — Media3 bitmap loader (extracted from the playback service)
-- Services (Manifest uses new FQCNs; old FQCNs keep permanent stubs):
-  - `cx.aswin.boxlore.core.playback.service.BoxLorePlaybackService` — uses `SharedAppDependenciesHolder.require()` for podcast/ranking/download/prefs (no parallel graph)
-  - `cx.aswin.boxlore.core.playback.service.MediaDownloadService`
-  - `cx.aswin.boxlore.core.playback.service.AutoCollageProvider`
-
-**Package root:** `cx.aswin.boxlore.core.playback` (matches module). Permanent stubs remain at `cx.aswin.boxlore.core.data.service.*`.
+- `PlaybackRepository` exposes player/session operations to app and feature UI.
+- `QueueRepository` and `QueueManager` persist and orchestrate explicit queue operations.
+- `QueueMath`, `QueueSkipMemory`, `SmartQueueEngine`, `SmartQueueSources`, and `MixtapeEngine` implement queue and mixtape logic.
+- `PlaybackMediaIdPolicy`, `PlaybackArtworkResolver`, and `PlaybackSkipPolicy` define session IDs, artwork, and skip behavior.
+- `HistoryRecommendationLogic`, `AutoVoiceSearchLogic`, `SmartQueueRefillPolicy`, `MixtapeResumePolicy`, `NightWindowLogic`, and `ListeningHistoryUpsertLogic` are JVM-testable playback helpers.
+- `PlaybackIntroOutroController` manages intro-skip and outro-trim playback lifecycle.
+- `service.BoxLorePlaybackService`, `service.MediaDownloadService`, and `service.AutoCollageProvider` are manifest-facing services.
+- `service.SmartQueueRefillCoordinator`, `service.CoilBitmapLoader`, and `service.auto.*` support service internals and Android Auto.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/core/playback/
   PlaybackRepository.kt
-  QueueManager.kt / QueueRepository.kt
-  QueueMath.kt / QueueSkipMemory.kt
-  SmartQueueEngine.kt / SmartQueueSources.kt / MixtapeEngine.kt
-  PlaybackSkipPolicy.kt, HistoryRecommendationLogic.kt, …
-  service/      # BoxLorePlaybackService, MediaDownloadService, AutoCollage*, SmartQueueRefillCoordinator
-  service/auto/ # Android Auto browse helpers
-src/main/java/cx/aswin/boxlore/core/data/service/  # permanent old-FQCN stubs
+  QueueManager.kt
+  QueueRepository.kt
+  QueueMath.kt
+  QueueSkipMemory.kt
+  SmartQueueEngine.kt
+  SmartQueueSources.kt
+  MixtapeEngine.kt
+  PlaybackMediaIdPolicy.kt
+  PlaybackArtworkResolver.kt
+  PlaybackSkipPolicy.kt
+  ...
+  service/
+    BoxLorePlaybackService.kt
+    MediaDownloadService.kt
+    AutoCollageProvider.kt
+    SmartQueueRefillCoordinator.kt
+    auto/
+src/main/java/cx/aswin/boxlore/core/data/service/
+  AutoCollageProvider.kt
+  BoxLorePlaybackService.kt
+  MediaDownloadService.kt
 ```
 
-Android Auto browse session callbacks live in `service/auto/`; `BoxLorePlaybackService` implements `AutoBrowseLibraryHost` and delegates `MediaLibrarySession.Callback` behavior to `AutoBrowseLibraryCallback`.
+Files under `core/data/service` are compatibility stubs for old service class names.
 
 ## Dependencies
 
-Gradle edges (project + notable libs):
-
-- → `:core:catalog` (api), `:core:database`, `:core:network`, `:core:model`
-- → `:core:ranking` (implementation), `:core:analytics` (implementation), `:core:downloads` (implementation)
-- Media3 exoplayer / session / ui
-- Coil (session artwork), coroutines (+ guava await)
-
-Forbidden reverse edges: `:core:catalog` ↛ `:core:playback`; `:core:downloads` ↛ `:core:playback` (`:core:downloads` starts `MediaDownloadService` via `DownloadServiceLauncherHolder` installed by `:app`, not a Gradle edge). Backup/history seams use `ports.ListeningHistoryBackupPort`.
+- Project dependencies: `:core:model`, `:core:network`, `:core:database`, `:core:catalog`, `:core:downloads`, `:core:ranking`, `:core:analytics`, and `:core:prefs`.
+- Libraries: Media3 ExoPlayer, Media3 Session, Media3 UI, Coil, Palette, Gson, OkHttp, coroutines, and AndroidX core.
+- Reverse-edge rule: catalog and downloads must not depend back on playback. Downloads launch `MediaDownloadService` through the app-installed launcher port.
 
 ## Threading / lifecycle
 
-- `PlaybackRepository` is Application-scoped via `AppContainer`
-- `BoxLorePlaybackService` is a Media3 `MediaLibraryService`; it resolves shared deps lazily on first use (holder must be installed in `Application.onCreate`)
-- Player callbacks on main; IO work via service coroutine scopes
+- `PlaybackRepository`, `QueueRepository`, and `QueueManager` are application-scoped through `AppContainer`.
+- `BoxLorePlaybackService` is a Media3 `MediaLibraryService` and resolves shared dependencies lazily after application startup.
+- Player callbacks run on the main thread; database, artwork, and recommendation work use coroutine scopes and background dispatchers.
 
 ## Persistence & identity
 
-| Stable | Why |
-| :--- | :--- |
-| `BoxLorePlaybackService` / `MediaDownloadService` Manifest names | System bindings |
-| mediaId prefixes (`episode:`, `queue:`, `learn:`) | Session / Auto contracts |
-| SharedPrefs `boxcast_player` | Player session flags |
-| Device UUID prefs key `device_uuid` | Stable install id — **do not log the raw value** |
+- Manifest-facing service class names are system identities.
+- Media ID prefixes such as `episode:`, `queue:`, and `learn:` are session and Android Auto contracts.
+- SharedPreferences file `boxcast_player` stores playback session flags.
+- Preference key `device_uuid` is a stable install identifier and must not be logged raw.
+- Queue, history, and download rows are persisted by `:core:database` and `:core:downloads`.
 
 ## Testing notes
 
-- JVM unit tests under `src/test` (`PlaybackSkipPolicyTest`, `PlaybackMediaIdPolicyTest`, `PlaybackArtworkResolverTest`, `HistoryRecommendationLogicTest`, `AutoVoiceSearchLogicTest`, `SmartQueueRefillPolicyTest`, `MixtapeResumePolicyTest`, `NightWindowLogicTest`, `ListeningHistoryUpsertLogicTest`, `QueueMathTest`, `QueueSkipMemoryTest`, `SmartQueueEngineTest`)
-- Prefer fakes from `:core:testing` for broader playback graph tests in later phases
-- Service depends on holder install for process-level tests
+- Unit tests live under `core/playback/src/test`.
+- Existing coverage includes skip policy, media ID policy, artwork resolution, history recommendation filtering, voice search, smart-queue refill policy, mixtape resume policy, night-window logic, listening-history upsert logic, queue math, skip memory, smart queue, and playback session mapping.
+- Service-level tests must install shared dependency holders before exercising service code.
 
 ```bash
 ./gradlew :core:playback:testDebugUnitTest
@@ -81,13 +77,14 @@ Forbidden reverse edges: `:core:catalog` ↛ `:core:playback`; `:core:downloads`
 
 ## CI relevance
 
-Unit tests run with the project suite in CI. Service/Auto paths are primarily device/emulator exercised.
+- `unit-tests.yml` runs playback JVM tests.
+- Service and Android Auto behavior are primarily validated by app assembly, emulator/device smoke, and manual checks.
+- Dependency guard tracks release runtime dependencies for this module.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
 - [`docs/TESTING.md`](../../docs/TESTING.md)
-- [`docs/PLAN_MODULAR_ANDROID_HARDENING.md`](../../docs/PLAN_MODULAR_ANDROID_HARDENING.md) (Phase A1, A3)
 - [`:core:downloads` README](../downloads/README.md)
 - [`:core:catalog` README](../catalog/README.md)
 - [`:app` README](../../app/README.md)

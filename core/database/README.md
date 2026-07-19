@@ -2,16 +2,14 @@
 
 ## Purpose
 
-Owns the main Room database (`BoxLoreDatabase`), entities, DAOs, type converters, and migrations for podcasts, queue, history, downloads, and RSS episodes. Does **not** own repositories, ranking’s separate adaptive Room DB (`:core:ranking`), playback, or workers.
+Owns the main Room database, entities, DAOs, type converters, and migrations for podcasts, queue items, listening history, downloads, and RSS episodes. It does not own repositories, ranking's separate Room database, playback services, download workers, or feature UI.
 
 ## Public API
 
-- `BoxLoreDatabase` (+ migrations / `getDatabase` factory)
-- Entities: `PodcastEntity`, `ListeningHistoryEntity`, `DownloadedEpisodeEntity`, `RssEpisodeEntity`, `entities.QueueItem`
-- DAOs: `PodcastDao`, `ListeningHistoryDao`, `DownloadedEpisodeDao`, `RssEpisodeDao`, `dao.QueueDao`
-- `Converters` (Room type converters)
-
-Package names stay `cx.aswin.boxlore.core.database` (no import renames). Do not rename the on-disk Room DB filename.
+- `BoxLoreDatabase` and its `getDatabase` factory.
+- Entities: `PodcastEntity`, `ListeningHistoryEntity`, `DownloadedEpisodeEntity`, `RssEpisodeEntity`, and `entities.QueueItem`.
+- DAOs: `PodcastDao`, `ListeningHistoryDao`, `DownloadedEpisodeDao`, `RssEpisodeDao`, and `dao.QueueDao`.
+- `Converters` for Room type conversion.
 
 ## Internal structure
 
@@ -19,56 +17,58 @@ Package names stay `cx.aswin.boxlore.core.database` (no import renames). Do not 
 src/main/java/cx/aswin/boxlore/core/data/database/
   BoxLoreDatabase.kt
   Converters.kt
-  *Entity.kt / *Dao.kt
-  entities/   # QueueItem
-  dao/        # QueueDao
+  DownloadedEpisodeDao.kt
+  DownloadedEpisodeEntity.kt
+  ListeningHistoryDao.kt
+  ListeningHistoryEntity.kt
+  PodcastDao.kt
+  PodcastEntity.kt
+  RssEpisodeDao.kt
+  RssEpisodeEntity.kt
+  dao/
+    QueueDao.kt
+  entities/
+    QueueItem.kt
 ```
 
 ## Dependencies
 
-- → `:core:model`
-- → `:core:network` (`QueueItem` ↔ `EpisodeItem` debt)
-- Room (api runtime + ktx; ksp compiler), Gson
-
-Forbidden: database ↛ `:core:catalog`, features, or designsystem.
+- Project dependencies: `:core:model`, `:core:network`.
+- Libraries: Room runtime, Room KTX, Room compiler through KSP, and Gson.
+- Reverse-edge rule: database must not depend on catalog, playback, downloads, designsystem, or feature modules.
 
 ## Threading / lifecycle
 
-- `BoxLoreDatabase.getDatabase` is process-singleton (Room builder exception to the no-`getInstance` rule — documented in architecture)
-- DAO calls are suspend / Flow; run off Main when touching large result sets
-- Application constructs via `AppContainer`; features must use ports (`LocalCatalogPort`, etc.), not inject the DB
+- `BoxLoreDatabase.getDatabase` is a process singleton created from application wiring.
+- DAO operations expose suspend functions and flows; callers should keep large database work off the main thread.
+- Feature modules should depend on ports or repositories rather than injecting `BoxLoreDatabase` directly.
 
 ## Persistence & identity
 
-| Stable | Why |
-| :--- | :--- |
-| Filename `boxlore_database` | User data (legacy `boxcast_database` auto-renamed on first open) |
-| Entity / table schemas + migrations | Install continuity |
-| Package `cx.aswin.boxlore.core.database` | Import / FQCN stability |
-
-Ranking DB (`adaptive_ranking_database`) is **not** in this module — see `:core:ranking`.
+- Room filename `boxlore_database` stores user data and must remain stable.
+- Legacy database rename behavior preserves installs that used `boxcast_database`.
+- Entity/table schemas and migrations are release-critical persisted contracts.
+- Package root is `cx.aswin.boxlore.core.database`.
+- Ranking persistence is owned by `:core:ranking` in `adaptive_ranking_database`.
 
 ## Testing notes
 
-### B4 — Room DAO / `includeAndroidResources`
-
-This module sets `unitTests.isIncludeAndroidResources = true` and ships `PodcastDaoInMemoryTest` (upsert/get round-trip).
-
-**If that suite fails to configure or run in CI**, documentation + RSS ID fixtures (`:core:rss` `RssIdGeneratorTest`) remain the B4 exit — do not force flaky Room JVM tests. `:core:catalog` keeps `includeAndroidResources = false` and uses Mockito DB doubles for catalog HTTP tests.
+- Unit tests live under `core/database/src/test`.
+- `PodcastDaoInMemoryTest` verifies the in-memory Room DAO path when Android resources are available to JVM tests.
+- Prefer repository or port fakes for feature tests instead of depending on Room directly.
 
 ```bash
 ./gradlew :core:database:testDebugUnitTest
 ```
 
-Prefer fakes at repository/port boundaries for feature tests.
-
 ## CI relevance
 
-Exercised by `unit-tests.yml` when DAO tests stay green.
+- `unit-tests.yml` runs database JVM tests with the project suite.
+- Compile and KSP failures in this module block app and repository tests that depend on entities or DAOs.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- [`docs/TESTING.md`](../../docs/TESTING.md) — Room / Robolectric constraints
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
 - [`:core:catalog` README](../catalog/README.md)
-- [`:core:ranking` README](../ranking/README.md) — separate adaptive DB
+- [`:core:ranking` README](../ranking/README.md)

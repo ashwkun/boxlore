@@ -2,14 +2,14 @@
 
 ## Purpose
 
-Shared JVM test fixtures and JUnit 5 helpers for feature/core unit tests. Hosts **architecture-as-code** (Konsist / filesystem) guards. Not shipped in the app APK.
+Owns shared JVM test fixtures, dispatcher helpers, and architecture guards used by core and feature modules. It is a test-support module and is not shipped in the app APK.
 
 ## Public API
 
-- `MainDispatcherExtension` — installs a test Main dispatcher per test
-- `TestFixtures` — minimal `Podcast` / `Episode` builders
-
-Architecture guards live under `src/test` (`ArchitectureGuardTest`) — run via this module’s unit-test task, not as production API.
+- `MainDispatcherExtension` installs a test main dispatcher for a test scope.
+- `TestFixtures` provides minimal podcast and episode builders.
+- Test dependencies such as JUnit Jupiter, coroutines-test, Turbine, and MockWebServer are exposed for modules that declare `testImplementation(projects.core.testing)`.
+- Architecture guards under `src/test` validate project structure and dependency rules.
 
 ## Internal structure
 
@@ -18,31 +18,30 @@ src/main/java/cx/aswin/boxlore/core/testing/
   MainDispatcherExtension.kt
   TestFixtures.kt
 src/test/java/cx/aswin/boxlore/core/testing/architecture/
-  ArchitectureGuardTest.kt   # Konsist + filesystem rules
+  ArchitectureGuardTest.kt
 ```
 
 ## Dependencies
 
-- → `:core:model`
-- JUnit Jupiter, coroutines-test, Turbine, MockWebServer (api)
-- Test-only: Konsist
-
-Consumed as `testImplementation(projects.core.testing)` from other modules.
+- Project dependencies: `:core:model`.
+- Libraries exposed for tests: JUnit Jupiter, coroutines-test, Turbine, and MockWebServer.
+- Test-only libraries: Konsist.
+- Reverse-edge rule: production modules may use this only from test configurations.
 
 ## Threading / lifecycle
 
-- `MainDispatcherExtension` swaps `Dispatchers.Main` for the duration of each test
-- No Application / Android lifecycle objects
+- `MainDispatcherExtension` swaps `Dispatchers.Main` for the duration of each test and restores it afterward.
+- No Android application or activity lifecycle objects are owned here.
 
 ## Persistence & identity
 
-None. Guards may *read* `settings.gradle.kts` / module folders / README presence; they do not own prefs or DBs.
+- No app persistence is owned here.
+- Architecture tests read project files such as `settings.gradle.kts` and module README locations but do not define app storage identity.
 
 ## Testing notes
 
-- Architecture guards: feature isolation, `getInstance` allowlist, `:core:catalog` ↛ designsystem, every included app/core/feature module has `README.md`
-- Unit tests set working directory to the Gradle root so Konsist/filesystem rules can read project files
-- No MockK
+- Run this module to execute architecture guards.
+- Guards cover feature isolation, selected singleton allowlists, catalog-to-designsystem boundaries, direct database access restrictions, and README presence for included app/core/feature modules.
 
 ```bash
 ./gradlew :core:testing:testDebugUnitTest
@@ -50,10 +49,11 @@ None. Guards may *read* `settings.gradle.kts` / module folders / README presence
 
 ## CI relevance
 
-Runs in `unit-tests.yml` as part of root `testDebugUnitTest` (and via `:core:testing:testDebugUnitTest`). Complements `scripts/ci/check-feature-no-boxlore-database.sh`.
+- `unit-tests.yml` runs the architecture guards with the root JVM suite.
+- The guards complement shell-based architecture checks under `scripts/ci`.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
 - [`docs/TESTING.md`](../../docs/TESTING.md)
-- [`docs/PLAN_MODULAR_ANDROID_HARDENING.md`](../../docs/PLAN_MODULAR_ANDROID_HARDENING.md) (Phase B8)
+- [`:core:model` README](../model/README.md)

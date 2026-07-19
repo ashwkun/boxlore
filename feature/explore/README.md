@@ -2,48 +2,55 @@
 
 ## Purpose
 
-Explore discovery and **Learn** bottom-nav tab (curiosity card stack + Learn history). Presentation only; not a Gradle dependency of other features.
+Owns Explore discovery and the Learn tab presentation: browse/search discovery, Learn curiosity cards, Learn history, and local UI state for those surfaces. It does not own recommendation engines, network clients, preference storage, playback services, or other feature screens.
 
 ## Public API
 
-- `ExploreScreen` / `ExploreViewModel`
-- `LearnScreen` / `LearnViewModel`
-- `LearnHistoryScreen` / `LearnHistoryViewModel`
-- `LearnCuriosityHistoryStore`
-- `LearnCuriosityCard` — feature UI model for Learn cards (not network DTOs)
-
-Routes in `:app`: `explore`, `learn`, `learn/history`.
+- `ExploreScreen` and `ExploreViewModel` for the Explore route.
+- `LearnScreen` and `LearnViewModel` for the Learn route.
+- `LearnHistoryScreen` and `LearnHistoryViewModel` for Learn history.
+- `LearnCuriosityHistoryStore` for Learn history persistence through prefs APIs.
+- `LearnCuriosityCard` as the feature UI model for curiosity cards.
 
 ## Internal structure
 
 ```text
 src/main/java/cx/aswin/boxlore/feature/explore/
-  ExploreScreen.kt / LearnScreen.kt / LearnHistoryScreen.kt
-  *ViewModel.kt / LearnCuriosityHistoryStore.kt / LearnCuriosityCard.kt
-  CuriosityCardStack.kt / components/ logic/
+  ExploreScreen.kt
+  ExploreViewModel.kt
+  LearnCuriosityCard.kt
+  LearnCuriosityHistoryStore.kt
+  LearnHistoryScreen.kt
+  LearnHistoryViewModel.kt
+  LearnScreen.kt
+  LearnViewModel.kt
+  components/
+  logic/
 ```
 
 ## Dependencies
 
-- → `:core:model`, `:core:catalog` (re-exports `:core:prefs`), `:core:designsystem`, `:core:network` as needed
-- `LearnCuriosityHistoryStore` and Explore recommendation reads use `BoxcastPrefs` (no raw `boxcast_prefs`)
-- Network `DailyCuriosityDto` maps to `LearnCuriosityCard` at the boundary — UI state must not hold DTOs
-
-Forbidden: feature → feature.
+- Project dependencies: `:core:designsystem`, `:core:catalog`, `:core:playback`, `:core:model`, `:core:network`, `:core:analytics`, `:core:ranking`, and `:core:prefs`.
+- Libraries: Compose, Navigation, Coil, lifecycle runtime/ViewModel Compose, Palette, Turbine and coroutines-test for tests.
+- Reverse-edge rule: feature modules must not depend on other feature modules.
 
 ## Threading / lifecycle
 
-- ViewModels nav-scoped; prefs/repos Application-scoped from the container
-- UI on Main
+- ViewModels are scoped by app navigation.
+- Catalog, playback, ranking, analytics, and prefs access come through injected application-scoped dependencies.
+- UI runs on the main thread; search, recommendation, and history work use suspend APIs.
 
 ## Persistence & identity
 
-None owned. Learn curiosity history keys live in `BoxcastPrefs` / `:core:prefs` — do not open `boxcast_prefs` raw.
+- This module owns no raw storage files.
+- Learn history and recommendation caches are accessed through `BoxcastPrefs` in `:core:prefs`.
+- Network DTOs map to feature UI models before entering UI state.
 
 ## Testing notes
 
-- JVM: `LearnPaginationTest`, `logic/LearnDeckLogicTest`, `logic/ExploreBrowseLogicTest`
-- UI/Maestro Learn-tab coverage is optional follow-up (see `maestro/`)
+- Unit tests live under `feature/explore/src/test`.
+- Existing coverage includes Learn pagination, Learn deck logic, and Explore browse logic.
+- Prefer fakes for repository and prefs dependencies when expanding ViewModel coverage.
 
 ```bash
 ./gradlew :feature:explore:testDebugUnitTest
@@ -51,10 +58,12 @@ None owned. Learn curiosity history keys live in `BoxcastPrefs` / `:core:prefs` 
 
 ## CI relevance
 
-Exercised by `unit-tests.yml`. No dedicated instrumented job.
+- `unit-tests.yml` runs Explore JVM tests with the project suite.
+- No dedicated instrumented job is configured for this module.
 
 ## See also
 
-- Root [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
-- [`:app` README](../../app/README.md) — Explore/Learn route ownership
+- [`ARCHITECTURE.md`](../../ARCHITECTURE.md)
+- [`docs/TESTING.md`](../../docs/TESTING.md)
+- [`:app` README](../../app/README.md)
 - [`:core:prefs` README](../../core/prefs/README.md)
