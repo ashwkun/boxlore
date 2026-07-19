@@ -29,7 +29,7 @@ Examples:
 
 ## Merge queue gate — required before merge
 
-Unit CI (and detekt/ktlint/Kover in the unit job) runs **only** on `merge_group` (and optional `workflow_dispatch`). It does **not** run on every PR push or via a `merge-ci` label.
+Unit CI (and detekt/ktlint/Kover in the unit job) runs **only** on `merge_group` (and optional `workflow_dispatch`). It does **not** run on every PR push.
 
 Master is protected by a **merge queue** ruleset. Required checks:
 

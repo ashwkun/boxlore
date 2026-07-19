@@ -3,7 +3,7 @@ name: Unit Tests
 # Merge queue only (plus manual dispatch):
 # - `merge_group` runs the suite inside the master merge queue.
 # - `workflow_dispatch` for a manual full gate.
-# Unit tests do NOT run on pull_request / merge-ci label.
+# Unit tests do NOT run on pull_request (merge queue / workflow_dispatch only).
 # Bot pushes to master use boxlore-master-pusher (ruleset Integration bypass).
 on:
   merge_group:
