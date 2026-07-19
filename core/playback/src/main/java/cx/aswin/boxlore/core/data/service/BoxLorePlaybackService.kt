@@ -316,6 +316,7 @@ class BoxLorePlaybackService :
                                 toPositionSeconds = newPosition.positionMs / 1000f,
                                 totalDurationSeconds = telemetrySession.totalDurationMs / 1000f,
                                 seekSource = source,
+                                entryPoint = telemetrySession.entryPoint,
                             )
                         }
                     }
