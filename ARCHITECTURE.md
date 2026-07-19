@@ -1,6 +1,6 @@
 # Boxlore architecture
 
-Reference for how the Android app is structured: module boundaries, dependency direction, composition root, and upgrade-safe identity. Module-local detail lives in each folder’s `README.md`. Testing is documented in [`docs/TESTING.md`](docs/TESTING.md). Analytics events are listed in [`docs/ANALYTICS_EVENT_GLOSSARY.md`](docs/ANALYTICS_EVENT_GLOSSARY.md).
+Reference for how the Android app is structured: module boundaries, dependency direction, composition root, and upgrade-safe identity. Module-local detail lives in each folder’s `README.md`.
 
 ## Overview
 
@@ -51,7 +51,7 @@ On disk, the folder path matches the Gradle id (`core/playback` → `:core:playb
 | `:core:domain` | Thin ports and small result types (no Room or repositories) | [`core/domain/README.md`](core/domain/README.md) |
 | `:core:database` | Main Room database, entities, DAOs, migrations | [`core/database/README.md`](core/database/README.md) |
 | `:core:prefs` | DataStore and SharedPreferences façades (`UserPreferencesRepository`, `BoxcastPrefs`) | [`core/prefs/README.md`](core/prefs/README.md) |
-| `:core:analytics` | Analytics façade (`AnalyticsHelper`, `Analytics`, `RecordingAnalytics`); PostHog init stays in `:app` | [`core/analytics/README.md`](core/analytics/README.md) |
+| `:core:analytics` | Analytics façade (`AnalyticsHelper`, `Analytics`, `RecordingAnalytics`); PostHog init stays in `:app`. Event names and properties: [`docs/ANALYTICS_EVENT_GLOSSARY.md`](docs/ANALYTICS_EVENT_GLOSSARY.md) | [`core/analytics/README.md`](core/analytics/README.md) |
 | `:core:catalog` | Catalog orchestration: `PodcastRepository`, subscriptions, content sections, backup/restore | [`core/catalog/README.md`](core/catalog/README.md) |
 | `:core:rss` | RSS fetch/parse, `RssPodcastRepository`, `rss:` / negative IDs | [`core/rss/README.md`](core/rss/README.md) |
 | `:core:ranking` | Adaptive scoring, LinUCB, feedback, `AdaptiveRankingDatabase` | [`core/ranking/README.md`](core/ranking/README.md) |
@@ -223,6 +223,8 @@ Kotlin sources under `*/src/main/**` stay under **1000 lines**. Larger units are
 
 ## Verification
 
+How the tree is tested — commands, coverage floors, and layer status — is in [`docs/TESTING.md`](docs/TESTING.md).
+
 | Layer | Role | Where |
 | :--- | :--- | :--- |
 | JVM unit | Logic, ports, ViewModel slices | [`docs/TESTING.md`](docs/TESTING.md) |
@@ -237,8 +239,6 @@ Shared test fixtures live in `:core:testing`. The project does not use MockK or 
 
 | Document | Contents |
 | :--- | :--- |
-| [`docs/TESTING.md`](docs/TESTING.md) | Test layers, commands, and coverage |
-| [`docs/ANALYTICS_EVENT_GLOSSARY.md`](docs/ANALYTICS_EVENT_GLOSSARY.md) | Analytics event names, meanings, and properties |
 | [`docs/MODULE_README_TEMPLATE.md`](docs/MODULE_README_TEMPLATE.md) | Module README shape |
 | [`docs/recommendation-system.md`](docs/recommendation-system.md) | Ranking and recommendation behavior |
 | [`maestro/README.md`](maestro/README.md) | Local Maestro flows |
