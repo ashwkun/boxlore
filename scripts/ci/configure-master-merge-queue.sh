@@ -14,7 +14,7 @@
 #   ./scripts/ci/configure-master-merge-queue.sh
 set -euo pipefail
 
-OWNER="${OWNER:-ashwkun}"
+OWNER="${OWNER:-boxcreate}"
 REPO="${REPO:-boxlore}"
 
 echo "Checking auth can administer ${OWNER}/${REPO}..."

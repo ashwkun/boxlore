@@ -39,7 +39,7 @@ README_GROUP_EMOJI = {
     "Security": "🔒",
     "Other": "📦",
 }
-DEFAULT_GITHUB_REPOSITORY = "ashwkun/boxlore"
+DEFAULT_GITHUB_REPOSITORY = "boxcreate/boxlore"
 
 # Required: exactly one user-impact level. Optional: backend-change (pairable).
 USER_IMPACT_LABELS = (

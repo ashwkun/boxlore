@@ -459,7 +459,7 @@ private fun openChangelog(context: Context) {
         context.startActivity(
             Intent(
                 Intent.ACTION_VIEW,
-                Uri.parse("https://github.com/ashwkun/boxlore/blob/master/CHANGELOG.md"),
+                Uri.parse("https://github.com/boxcreate/boxlore/blob/master/CHANGELOG.md"),
             ),
         )
     }

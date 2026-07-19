@@ -8,7 +8,7 @@
 
 <br/>
 
-<a href="https://github.com/ashwkun/boxlore/releases/latest/download/boxlore-v0.0.10.apk">
+<a href="https://github.com/boxcreate/boxlore/releases/latest/download/boxlore-v0.0.10.apk">
   <img src="docs/images/card_github_v6.svg" height="72" alt="Download boxlore podcast app APK on GitHub"/>
 </a>
 &nbsp;&nbsp;
@@ -19,7 +19,7 @@
 <br/><br/>
 
 <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm%20Strict-4F378B?style=flat-square&logo=lock&logoColor=EADDFF" alt="PolyForm Strict License"/></a>
-<img src="https://img.shields.io/github/downloads/ashwkun/boxlore/total?style=flat-square&logo=github&logoColor=white&color=6750A4" alt="Total downloads"/>
+<img src="https://img.shields.io/github/downloads/boxcreate/boxlore/total?style=flat-square&logo=github&logoColor=white&color=6750A4" alt="Total downloads"/>
 <img src="https://img.shields.io/badge/Material%203-You-D0BCFF?style=flat-square&labelColor=4F378B&color=D0BCFF" alt="Material 3"/>
 <img src="https://img.shields.io/badge/Android-Podcast%20Player-1C1B1F?style=flat-square&logo=android&logoColor=D0BCFF" alt="Android podcast player"/>
 
@@ -57,7 +57,7 @@ The smart layer runs on a search index that is rebuilt daily and covers popular 
 <summary><b>🔮 Upcoming in the Next Release</b></summary>
 <b>🐛 Fixes:</b>
 <ul align="left">
-<li>When you reopen Boxlore, the player now correctly remembers whether it was playing, keeping the mini and full player in sync. <a href="https://github.com/ashwkun/boxlore/pull/904"><img src="https://img.shields.io/badge/PR-904-6750A4?style=flat-square" alt="PR #904" height="18"/></a></li>
+<li>When you reopen Boxlore, the player now correctly remembers whether it was playing, keeping the mini and full player in sync. <a href="https://github.com/boxcreate/boxlore/pull/904"><img src="https://img.shields.io/badge/PR-904-6750A4?style=flat-square" alt="PR #904" height="18"/></a></li>
 </ul>
 <p align="center"><sub><sub>AI-generated summary; may contain mistakes.<br/>Verify details in the <a href="CHANGELOG.md">changelog</a> and linked pull requests.</sub></sub></p>
 </details>
@@ -68,11 +68,11 @@ The smart layer runs on a search index that is rebuilt daily and covers popular 
 <summary><b>🎉 What's New (v0.0.10) - 2026-07-17</b></summary>
 <b>🆕 New features:</b>
 <ul align="left">
-<li>New personalized discovery sections on Home, showing recommendations based on your listening habits, with faster loading and clearer layout. <a href="https://github.com/ashwkun/boxlore/pull/882"><img src="https://img.shields.io/badge/PR-882-6750A4?style=flat-square" alt="PR #882" height="18"/></a></li>
+<li>New personalized discovery sections on Home, showing recommendations based on your listening habits, with faster loading and clearer layout. <a href="https://github.com/boxcreate/boxlore/pull/882"><img src="https://img.shields.io/badge/PR-882-6750A4?style=flat-square" alt="PR #882" height="18"/></a></li>
 </ul>
 <b>⚡ Improvements:</b>
 <ul align="left">
-<li>Library import flow now has smoother animation and clearer screens, making it easier to add podcasts to your collection. <a href="https://github.com/ashwkun/boxlore/pull/883"><img src="https://img.shields.io/badge/PR-883-6750A4?style=flat-square" alt="PR #883" height="18"/></a></li>
+<li>Library import flow now has smoother animation and clearer screens, making it easier to add podcasts to your collection. <a href="https://github.com/boxcreate/boxlore/pull/883"><img src="https://img.shields.io/badge/PR-883-6750A4?style=flat-square" alt="PR #883" height="18"/></a></li>
 </ul>
 <p align="center"><sub><sub>AI-generated summary; may contain mistakes.<br/>Verify details in the <a href="CHANGELOG.md">changelog</a> and linked pull requests.</sub></sub></p>
 </details>
@@ -256,7 +256,7 @@ Subscriptions, downloads, history, and liked episodes in one place. Launch offli
 <a id="install--build"></a>
 
 <div align="center">
-  <a href="https://github.com/ashwkun/boxlore/releases/latest/download/boxlore-v0.0.10.apk">
+  <a href="https://github.com/boxcreate/boxlore/releases/latest/download/boxlore-v0.0.10.apk">
     <img src="docs/images/card_github_v6.svg" height="72" alt="Download boxlore podcast app APK on GitHub"/>
   </a>
   &nbsp;&nbsp;
@@ -272,7 +272,7 @@ Enable *Install from unknown sources* in Android settings for sideloading.
 **Build from source**
 
 ```bash
-git clone https://github.com/ashwkun/boxlore.git
+git clone https://github.com/boxcreate/boxlore.git
 cd boxlore
 ./gradlew assembleDebug
 ./gradlew installDebug
@@ -332,8 +332,8 @@ cd boxlore
 
 Contributions welcome.
 
-1. **Report bugs** — [Open an issue](https://github.com/ashwkun/boxlore/issues) with steps to reproduce
-2. **Suggest features** — [Discussions](https://github.com/ashwkun/boxlore/discussions)
+1. **Report bugs** — [Open an issue](https://github.com/boxcreate/boxlore/issues) with steps to reproduce
+2. **Suggest features** — [Discussions](https://github.com/boxcreate/boxlore/discussions)
 3. **Submit PRs** — Fork, code, open a pull request
 
 <p align="center">
@@ -345,8 +345,8 @@ boxlore is source-available under the [PolyForm Strict License 1.0.0](LICENSE). 
 ## Contributors
 
 <div align="center">
-  <a href="https://github.com/ashwkun/boxlore/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=ashwkun/boxlore" alt="Contributors"/>
+  <a href="https://github.com/boxcreate/boxlore/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=boxcreate/boxlore" alt="Contributors"/>
   </a>
 </div>
 

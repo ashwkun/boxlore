@@ -43,5 +43,17 @@ jobs:
               --verbose \
               --redact
           else
-            gitleaks detect --source . --verbose --redact
+            # Push: only scan commits in this push (not full history).
+            # All-zero "before" means a new/orphan branch tip — scan the tip tree only.
+            BEFORE="${{ github.event.before }}"
+            ZERO="0000000000000000000000000000000000000000"
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "$ZERO" ]; then
+              gitleaks detect --source . --no-git --verbose --redact
+            else
+              gitleaks detect \
+                --source . \
+                --log-opts="${BEFORE}..${{ github.sha }}" \
+                --verbose \
+                --redact
+            fi
           fi
