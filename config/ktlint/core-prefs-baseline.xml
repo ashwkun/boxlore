@@ -31,62 +31,62 @@
     </file>
     <file name="src/main/java/cx/aswin/boxlore/core/prefs/PrefsFileMigrator.kt">
         <error line="17" column="1" source="standard:no-empty-first-line-in-class-body" />
-        <error line="109" column="32" source="standard:function-signature" />
-        <error line="109" column="50" source="standard:function-signature" />
-        <error line="109" column="62" source="standard:function-signature" />
-        <error line="109" column="71" source="standard:function-signature" />
-        <error line="112" column="65" source="standard:function-signature" />
-        <error line="116" column="24" source="standard:function-signature" />
-        <error line="116" column="58" source="standard:function-signature" />
-        <error line="116" column="71" source="standard:function-signature" />
-        <error line="116" column="81" source="standard:function-signature" />
-        <error line="136" column="1" source="standard:no-empty-first-line-in-class-body" />
-        <error line="144" column="28" source="standard:function-signature" />
-        <error line="144" column="42" source="standard:function-signature" />
-        <error line="144" column="59" source="standard:function-signature" />
-        <error line="146" column="43" source="standard:if-else-wrapping" />
-        <error line="146" column="43" source="standard:multiline-if-else" />
-        <error line="147" column="14" source="standard:if-else-wrapping" />
-        <error line="147" column="14" source="standard:multiline-if-else" />
-        <error line="150" column="31" source="standard:function-signature" />
-        <error line="150" column="45" source="standard:function-signature" />
-        <error line="150" column="75" source="standard:function-signature" />
-        <error line="152" column="43" source="standard:if-else-wrapping" />
-        <error line="152" column="43" source="standard:multiline-if-else" />
-        <error line="153" column="14" source="standard:if-else-wrapping" />
-        <error line="153" column="14" source="standard:multiline-if-else" />
-        <error line="156" column="25" source="standard:function-signature" />
-        <error line="156" column="39" source="standard:function-signature" />
-        <error line="156" column="52" source="standard:function-signature" />
+        <error line="110" column="61" source="standard:function-signature" />
+        <error line="113" column="38" source="standard:function-signature" />
+        <error line="113" column="56" source="standard:function-signature" />
+        <error line="113" column="68" source="standard:function-signature" />
+        <error line="114" column="23" source="standard:multiline-expression-wrapping" />
+        <error line="128" column="24" source="standard:function-signature" />
+        <error line="128" column="58" source="standard:function-signature" />
+        <error line="128" column="71" source="standard:function-signature" />
+        <error line="128" column="81" source="standard:function-signature" />
+        <error line="148" column="1" source="standard:no-empty-first-line-in-class-body" />
+        <error line="156" column="28" source="standard:function-signature" />
+        <error line="156" column="42" source="standard:function-signature" />
+        <error line="156" column="59" source="standard:function-signature" />
         <error line="158" column="43" source="standard:if-else-wrapping" />
         <error line="158" column="43" source="standard:multiline-if-else" />
         <error line="159" column="14" source="standard:if-else-wrapping" />
         <error line="159" column="14" source="standard:multiline-if-else" />
-        <error line="162" column="26" source="standard:function-signature" />
-        <error line="162" column="40" source="standard:function-signature" />
-        <error line="162" column="54" source="standard:function-signature" />
+        <error line="162" column="31" source="standard:function-signature" />
+        <error line="162" column="45" source="standard:function-signature" />
+        <error line="162" column="75" source="standard:function-signature" />
         <error line="164" column="43" source="standard:if-else-wrapping" />
         <error line="164" column="43" source="standard:multiline-if-else" />
         <error line="165" column="14" source="standard:if-else-wrapping" />
         <error line="165" column="14" source="standard:multiline-if-else" />
-        <error line="168" column="27" source="standard:function-signature" />
-        <error line="168" column="41" source="standard:function-signature" />
-        <error line="168" column="56" source="standard:function-signature" />
+        <error line="168" column="25" source="standard:function-signature" />
+        <error line="168" column="39" source="standard:function-signature" />
+        <error line="168" column="52" source="standard:function-signature" />
         <error line="170" column="43" source="standard:if-else-wrapping" />
         <error line="170" column="43" source="standard:multiline-if-else" />
         <error line="171" column="14" source="standard:if-else-wrapping" />
         <error line="171" column="14" source="standard:multiline-if-else" />
-        <error line="174" column="29" source="standard:function-signature" />
-        <error line="174" column="43" source="standard:function-signature" />
-        <error line="174" column="60" source="standard:function-signature" />
+        <error line="174" column="26" source="standard:function-signature" />
+        <error line="174" column="40" source="standard:function-signature" />
+        <error line="174" column="54" source="standard:function-signature" />
         <error line="176" column="43" source="standard:if-else-wrapping" />
         <error line="176" column="43" source="standard:multiline-if-else" />
         <error line="177" column="14" source="standard:if-else-wrapping" />
         <error line="177" column="14" source="standard:multiline-if-else" />
-        <error line="188" column="9" source="standard:function-signature" />
-        <error line="188" column="71" source="standard:function-signature" />
-        <error line="195" column="9" source="standard:function-signature" />
-        <error line="195" column="71" source="standard:function-signature" />
+        <error line="180" column="27" source="standard:function-signature" />
+        <error line="180" column="41" source="standard:function-signature" />
+        <error line="180" column="56" source="standard:function-signature" />
+        <error line="182" column="43" source="standard:if-else-wrapping" />
+        <error line="182" column="43" source="standard:multiline-if-else" />
+        <error line="183" column="14" source="standard:if-else-wrapping" />
+        <error line="183" column="14" source="standard:multiline-if-else" />
+        <error line="186" column="29" source="standard:function-signature" />
+        <error line="186" column="43" source="standard:function-signature" />
+        <error line="186" column="60" source="standard:function-signature" />
+        <error line="188" column="43" source="standard:if-else-wrapping" />
+        <error line="188" column="43" source="standard:multiline-if-else" />
+        <error line="189" column="14" source="standard:if-else-wrapping" />
+        <error line="189" column="14" source="standard:multiline-if-else" />
+        <error line="200" column="9" source="standard:function-signature" />
+        <error line="200" column="71" source="standard:function-signature" />
+        <error line="207" column="9" source="standard:function-signature" />
+        <error line="207" column="71" source="standard:function-signature" />
     </file>
     <file name="src/main/java/cx/aswin/boxlore/core/prefs/UserPreferencesRepository.kt">
         <error line="3" column="1" source="standard:import-ordering" />

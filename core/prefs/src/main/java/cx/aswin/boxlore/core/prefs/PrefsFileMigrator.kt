@@ -52,7 +52,7 @@ object PrefsFileMigrator {
         newName: String,
         oldName: String,
     ): SharedPreferences {
-        val app = context.applicationContext
+        val app = resolvedContext(context)
         migrateIfNeeded(app, oldName, newName)
         val neu = app.getSharedPreferences(newName, Context.MODE_PRIVATE)
         if (neu.contains(MARKER_KEY) || hasUserKeys(neu)) {
@@ -74,21 +74,21 @@ object PrefsFileMigrator {
         oldName: String,
         newName: String,
     ): Boolean {
-        val app = context.applicationContext
+        val app = resolvedContext(context)
         val neu = app.getSharedPreferences(newName, Context.MODE_PRIVATE)
         if (neu.contains(MARKER_KEY) || hasUserKeys(neu)) {
             return true
         }
 
-        val oldXml = sharedPrefsXml(app, oldName)
         val old = app.getSharedPreferences(oldName, Context.MODE_PRIVATE)
-        if (!oldXml.exists() && !hasUserKeys(old)) {
+        val oldXmlExists = sharedPrefsXmlExists(app, oldName)
+        if (!oldXmlExists && !hasUserKeys(old)) {
             return true
         }
 
         return try {
             val editor = neu.edit()
-            for ((key, value) in old.all) {
+            for ((key, value) in (old.all ?: emptyMap())) {
                 if (key == null || value == null || key == MARKER_KEY) continue
                 putAny(editor, key, value)
             }
@@ -106,11 +106,23 @@ object PrefsFileMigrator {
         }
     }
 
-    private fun sharedPrefsXml(context: Context, name: String): File =
-        File(context.applicationInfo.dataDir, "shared_prefs/$name.xml")
+    /** Prefer applicationContext; fall back for Mockito fakes where it is null. */
+    private fun resolvedContext(context: Context): Context =
+        context.applicationContext ?: context
 
-    private fun hasUserKeys(prefs: SharedPreferences): Boolean =
-        prefs.all.keys.any { it != MARKER_KEY }
+    private fun sharedPrefsXmlExists(context: Context, name: String): Boolean {
+        val dataDir = try {
+            context.applicationInfo?.dataDir
+        } catch (_: Throwable) {
+            null
+        } ?: return false
+        return File(dataDir, "shared_prefs/$name.xml").exists()
+    }
+
+    private fun hasUserKeys(prefs: SharedPreferences): Boolean {
+        val all = prefs.all ?: return false
+        return all.keys.any { it != MARKER_KEY }
+    }
 
     @Suppress("UNCHECKED_CAST")
     private fun putAny(editor: SharedPreferences.Editor, key: String, value: Any) {
