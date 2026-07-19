@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -39,6 +40,11 @@ import androidx.compose.ui.unit.sp
 import cx.aswin.boxlore.core.designsystem.components.OptimizedImage
 import cx.aswin.boxlore.core.designsystem.theme.expressiveClickable
 import cx.aswin.boxlore.core.model.Podcast
+
+/** Stable Compose [testTag] ids for onboarding suggestion instrumentation / Maestro. */
+internal object SuggestedPodcastTestTags {
+    const val TOGGLE = "onboarding_subscribe_toggle"
+}
 
 @Composable
 internal fun SuggestedPodcastRowItem(
@@ -192,6 +198,7 @@ private fun SuggestedPodcastToggle(
             Modifier
                 .padding(top = 4.dp)
                 .size(40.dp)
+                .testTag(SuggestedPodcastTestTags.TOGGLE)
                 .expressiveClickable(shape = androidx.compose.foundation.shape.CircleShape) {
                     onToggleSubscription(podcastId)
                 },
