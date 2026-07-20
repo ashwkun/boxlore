@@ -261,6 +261,11 @@ internal class PlaybackQueueCoordinator(
                 // MediaController callback, so the onIsPlayingChanged edge-trigger below
                 // won't see a false->true transition for this path. Trigger explicitly.
                 val wasPlaying = playerStateFlow.value.isPlaying
+                val syncedSpeed =
+                    PlaybackControlSync.resolvePlaybackSpeed(
+                        controllerSpeed = controller.playbackParameters.speed,
+                        stateSpeed = playerStateFlow.value.playbackSpeed,
+                    )
                 playerStateFlow.value =
                     playerStateFlow.value.copy(
                         currentEpisode = currentEp,
@@ -270,6 +275,7 @@ internal class PlaybackQueueCoordinator(
                         duration = currentEp.duration.toLong() * 1000,
                         queue = uniqueEpisodes,
                         isLiked = initialLikeState,
+                        playbackSpeed = syncedSpeed,
                     )
                 if (!wasPlaying) {
                     onPlaybackStarted()
@@ -705,10 +711,14 @@ internal class PlaybackQueueCoordinator(
      * the user confirms starting a fresh Lore queue over an existing normal queue.
      */
     suspend fun stopAndClearQueue() {
+        val previous = playerStateFlow.value
+        val controllerSpeed = mediaHandle.controller?.playbackParameters?.speed
         mediaHandle.controller?.stop()
         mediaHandle.controller?.clearMediaItems()
         stopProgressTicker()
-        playerStateFlow.value = PlayerState()
+        // Preserve speed / seek sizes — ExoPlayer still holds the persisted rate.
+        playerStateFlow.value =
+            PlaybackControlSync.clearedStatePreservingControls(previous, controllerSpeed)
         // A new queue is about to start; don't block session restore on next launch.
         prefs.edit().putBoolean(playerDismissedKey, false).apply()
         try {

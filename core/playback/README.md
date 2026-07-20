@@ -10,6 +10,7 @@ Owns playback session control, queue orchestration, smart queue logic, Media3 pl
 - `QueueRepository` and `QueueManager` persist and orchestrate explicit queue operations.
 - `QueueMath`, `QueueSkipMemory`, `SmartQueueEngine`, `SmartQueueSources`, and `MixtapeEngine` implement queue and mixtape logic.
 - `PlaybackMediaIdPolicy`, `PlaybackArtworkResolver`, and `PlaybackSkipPolicy` define session IDs, artwork, and skip behavior.
+- `PlaybackControlSync` keeps UI playback speed / seek sizes aligned with Media3 when a session is cleared or a new queue starts.
 - `HistoryRecommendationLogic`, `AutoVoiceSearchLogic`, `SmartQueueRefillPolicy`, `MixtapeResumePolicy`, `NightWindowLogic`, and `ListeningHistoryUpsertLogic` are JVM-testable playback helpers.
 - `PlaybackIntroOutroController` manages intro-skip and outro-trim playback lifecycle.
 - `service.BoxLorePlaybackService`, `service.MediaDownloadService`, and `service.AutoCollageProvider` are manifest-facing services.
@@ -29,6 +30,7 @@ src/main/java/cx/aswin/boxlore/core/playback/
   MixtapeEngine.kt
   PlaybackMediaIdPolicy.kt
   PlaybackArtworkResolver.kt
+  PlaybackControlSync.kt
   PlaybackSkipPolicy.kt
   ...
   service/
@@ -68,7 +70,7 @@ Files under `core/data/service` are compatibility stubs for old service class na
 ## Testing notes
 
 - Unit tests live under `core/playback/src/test`.
-- Existing coverage includes skip policy, media ID policy, artwork resolution, history recommendation filtering, voice search, smart-queue refill policy, mixtape resume policy, night-window logic, listening-history upsert logic, queue math, skip memory, smart queue, and playback session mapping.
+- Existing coverage includes skip policy, media ID policy, artwork resolution, control sync (speed/seek preserve on clear), history recommendation filtering, voice search, smart-queue refill policy, mixtape resume policy, night-window logic, listening-history upsert logic, queue math, skip memory, smart queue, and playback session mapping.
 - Service-level tests must install shared dependency holders before exercising service code.
 
 ```bash

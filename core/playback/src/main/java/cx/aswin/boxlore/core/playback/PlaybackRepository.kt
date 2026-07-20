@@ -257,13 +257,18 @@ class PlaybackRepository(
         mediaHandle.future = MediaController.Builder(context, sessionToken).buildAsync()
         mediaHandle.future?.addListener({
             mediaHandle.controller = mediaHandle.future?.get()
-            // Restore the persisted playback speed so it survives app restarts.
+            // Restore the persisted playback speed so UI and ExoPlayer stay aligned
+            // across process death and session clears (even when the rate is already 1×).
             repositoryScope.launch {
-                val savedSpeed = userPreferencesRepository.playbackSpeedStream.first()
-                if (savedSpeed != 1.0f && mediaHandle.controller?.playbackParameters?.speed != savedSpeed) {
-                    mediaHandle.controller?.playbackParameters = PlaybackParameters(savedSpeed)
-                    _playerState.value = _playerState.value.copy(playbackSpeed = savedSpeed)
+                val savedSpeed =
+                    userPreferencesRepository.playbackSpeedStream
+                        .first()
+                        .coerceIn(0.5f, 3.0f)
+                val controller = mediaHandle.controller
+                if (controller != null && controller.playbackParameters.speed != savedSpeed) {
+                    controller.playbackParameters = PlaybackParameters(savedSpeed)
                 }
+                _playerState.value = _playerState.value.copy(playbackSpeed = savedSpeed)
             }
             mediaHandle.controller?.addListener(
                 PlaybackMediaControllerBridge(
@@ -598,7 +603,12 @@ class PlaybackRepository(
 
     suspend fun hasNonLoreQueue(): Boolean = queueCoordinator.hasNonLoreQueue()
 
-    suspend fun stopAndClearQueue() = queueCoordinator.stopAndClearQueue()
+    suspend fun stopAndClearQueue() {
+        sleepTimerJob?.cancel()
+        SleepTimerHolder.activeSleepTimerEndMs = null
+        SleepTimerHolder.sleepAtEndOfEpisode = false
+        queueCoordinator.stopAndClearQueue()
+    }
 
     suspend fun playEpisode(
         episode: Episode,
@@ -691,6 +701,11 @@ class PlaybackRepository(
                 duration = controllerDuration ?: lastSession.durationMs,
                 isLiked = lastSession.isLiked,
                 queue = restoredQueue,
+                playbackSpeed =
+                    PlaybackControlSync.resolvePlaybackSpeed(
+                        controllerSpeed = controller?.playbackParameters?.speed,
+                        stateSpeed = _playerState.value.playbackSpeed,
+                    ),
             )
 
         // Re-sync after metadata restore in case the controller connected first and
@@ -706,10 +721,17 @@ class PlaybackRepository(
      * Clear the current session (for swipe-to-dismiss)
      */
     fun clearSession() {
+        val previous = _playerState.value
+        val controllerSpeed = mediaHandle.controller?.playbackParameters?.speed
         mediaHandle.controller?.stop()
         mediaHandle.controller?.clearMediaItems()
         stopProgressTicker()
-        _playerState.value = PlayerState()
+        sleepTimerJob?.cancel()
+        SleepTimerHolder.activeSleepTimerEndMs = null
+        SleepTimerHolder.sleepAtEndOfEpisode = false
+        // Keep speed / seek sizes so the next episode's UI matches ExoPlayer + prefs.
+        _playerState.value =
+            PlaybackControlSync.clearedStatePreservingControls(previous, controllerSpeed)
         // Mark as dismissed so we don't restore on next app launch
         prefs.edit().putBoolean(KEY_PLAYER_DISMISSED, true).apply()
     }
