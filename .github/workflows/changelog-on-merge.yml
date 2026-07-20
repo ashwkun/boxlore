@@ -224,6 +224,7 @@ jobs:
           git push --set-upstream origin "$BRANCH"
 
       - name: Open release PR
+        id: open_pr
         env:
           # GITHUB_TOKEN has pull-requests:write; the pusher app does not.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -266,7 +267,10 @@ jobs:
           )"
 
       - name: Cleanup orphan release branch on failure
-        if: failure() && steps.push_release.outcome == 'success'
+        # Only clean up when the Open PR step never ran successfully *and* we
+        # are not blocked solely by org policy on Actions creating PRs.
+        # Prefer leaving the branch so a human/app with PR rights can open it.
+        if: failure() && steps.push_release.outcome == 'success' && steps.open_pr.outcome != 'failure'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
