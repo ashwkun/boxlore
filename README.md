@@ -8,7 +8,7 @@
 
 <br/>
 
-<a href="https://github.com/boxcreate/boxlore/releases/latest/download/boxlore-v0.0.10.apk">
+<a href="https://github.com/boxcreate/boxlore/releases/latest/download/boxlore-v0.0.11.apk">
   <img src="docs/images/card_github_v6.svg" height="72" alt="Download boxlore podcast app APK on GitHub"/>
 </a>
 &nbsp;&nbsp;
@@ -53,30 +53,29 @@ The smart layer runs on a search index that is rebuilt daily and covers popular 
 <!-- upcoming-changes:start -->
 <div align="center">
 
-<details open>
+<details>
 <summary><b>🔮 Upcoming in the Next Release</b></summary>
-<b>🆕 New features:</b>
-<ul align="left">
-<li>New listening history view shows your sessions, calendar and stats at a glance <a href="https://github.com/boxcreate/boxlore/pull/932"><img src="https://img.shields.io/badge/PR-932-6750A4?style=flat-square" alt="PR #932" height="18"/></a></li>
-</ul>
-<b>🐛 Fixes:</b>
-<ul align="left">
-<li>Your playback resumes where you left off when reopening the app <a href="https://github.com/boxcreate/boxlore/pull/904"><img src="https://img.shields.io/badge/PR-904-6750A4?style=flat-square" alt="PR #904" height="18"/></a></li>
-</ul>
+<p align="left">
+New features and improvements for the next release are currently in development.
+</p>
 <p align="center"><sub><sub>AI-generated summary; may contain mistakes.<br/>Verify details in the <a href="CHANGELOG.md">changelog</a> and linked pull requests.</sub></sub></p>
 </details>
 
 <br/>
 
 <details open>
-<summary><b>🎉 What's New (v0.0.10) - 2026-07-17</b></summary>
+<summary><b>🎉 What's New (v0.0.11) - 2026-07-20</b></summary>
 <b>🆕 New features:</b>
 <ul align="left">
-<li>New personalized discovery sections on Home, showing recommendations based on your listening habits, with faster loading and clearer layout. <a href="https://github.com/boxcreate/boxlore/pull/882"><img src="https://img.shields.io/badge/PR-882-6750A4?style=flat-square" alt="PR #882" height="18"/></a></li>
+<li>Explore a new Listening History screen with daily, weekly and monthly stats, plus a calendar view of your episodes. <a href="https://github.com/boxcreate/boxlore/pull/932"><img src="https://img.shields.io/badge/PR-932-6750A4?style=flat-square" alt="PR #932" height="18"/></a></li>
 </ul>
 <b>⚡ Improvements:</b>
 <ul align="left">
-<li>Library import flow now has smoother animation and clearer screens, making it easier to add podcasts to your collection. <a href="https://github.com/boxcreate/boxlore/pull/883"><img src="https://img.shields.io/badge/PR-883-6750A4?style=flat-square" alt="PR #883" height="18"/></a></li>
+<li>Playback speed and position stay saved when you clear the queue or stop, and album art colors persist after app restarts. <a href="https://github.com/boxcreate/boxlore/pull/933"><img src="https://img.shields.io/badge/PR-933-6750A4?style=flat-square" alt="PR #933" height="18"/></a></li>
+</ul>
+<b>🐛 Fixes:</b>
+<ul align="left">
+<li>Your player now remembers whether you were playing when you reopen the app, keeping mini and full screens in sync. <a href="https://github.com/boxcreate/boxlore/pull/904"><img src="https://img.shields.io/badge/PR-904-6750A4?style=flat-square" alt="PR #904" height="18"/></a></li>
 </ul>
 <p align="center"><sub><sub>AI-generated summary; may contain mistakes.<br/>Verify details in the <a href="CHANGELOG.md">changelog</a> and linked pull requests.</sub></sub></p>
 </details>
@@ -260,7 +259,7 @@ Subscriptions, downloads, history, and liked episodes in one place. Launch offli
 <a id="install--build"></a>
 
 <div align="center">
-  <a href="https://github.com/boxcreate/boxlore/releases/latest/download/boxlore-v0.0.10.apk">
+  <a href="https://github.com/boxcreate/boxlore/releases/latest/download/boxlore-v0.0.11.apk">
     <img src="docs/images/card_github_v6.svg" height="72" alt="Download boxlore podcast app APK on GitHub"/>
   </a>
   &nbsp;&nbsp;
