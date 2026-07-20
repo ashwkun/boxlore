@@ -276,7 +276,7 @@ class BoxLoreFcmService : FirebaseMessagingService() {
         }
     }
 
-    @Suppress("LongParameterList")
+    @Suppress("LongParameterList", "kotlin:S107")
     private fun showPushNotification(
         title: String, 
         body: String, 
