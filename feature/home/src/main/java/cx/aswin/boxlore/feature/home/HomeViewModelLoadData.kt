@@ -35,6 +35,14 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+private data class PersonalizationGate(
+    val meaningfulCount: Int,
+    val hasEligiblePositiveShow: Boolean,
+    val attemptPersonalized: Boolean,
+    val hiddenShows: Set<String>,
+    val showBeliefs: List<Pair<String, cx.aswin.boxlore.core.ranking.FacetBelief>>,
+)
+
 internal fun HomeViewModel.fetchPersonalizedRecommendations(region: String) {
     viewModelScope.launch {
         _isRecommendationsLoaded.value = false
@@ -42,155 +50,197 @@ internal fun HomeViewModel.fetchPersonalizedRecommendations(region: String) {
         try {
             val interests = boxcastPrefs.getUserGenres().toList()
             val history = playbackRepository.getHistoryForRecommendations(15)
-            val meaningfulCount = HomeMeaningfulPlayLogic.countMeaningfulPlays(history)
             val subscribedIds = subscriptionRepository.subscribedPodcastIds.first().toList()
             val subscribedGenres =
                 subscriptionRepository.subscribedPodcasts
                     .first()
                     .mapNotNull { it.genre }
                     .distinct()
-            val hiddenShows = adaptiveRankingRepository.hardExcludedPodcastIds()
-            val showBeliefs = adaptiveRankingRepository.showFacetBeliefs()
-            val hasEligiblePositiveShow =
-                showBeliefs.any { (podcastId, belief) ->
-                    podcastId !in hiddenShows &&
-                        belief.affinity >= HomeAnchorSelectionLogic.MIN_AFFINITY &&
-                        belief.confidence >= HomeAnchorSelectionLogic.MIN_CONFIDENCE &&
-                        belief.evidence >= HomeAnchorSelectionLogic.MIN_EVIDENCE
-                }
-            val attemptPersonalized =
-                meaningfulCount >= HomePersonalizationModeLogic.MEANINGFUL_PLAYS_TO_ATTEMPT &&
-                    (
-                        meaningfulCount < HomePersonalizationModeLogic.MEANINGFUL_PLAYS_TO_REQUIRE_ANCHOR ||
-                            hasEligiblePositiveShow
-                        )
+            val gate = resolvePersonalizationGate(history)
             _personalizationMode.value =
                 HomePersonalizationModeLogic.derive(
-                    meaningfulPlayCount = meaningfulCount,
-                    hasEligiblePositiveShow = hasEligiblePositiveShow,
+                    meaningfulPlayCount = gate.meaningfulCount,
+                    hasEligiblePositiveShow = gate.hasEligiblePositiveShow,
                     personalizedCandidatesLoaded = false,
                     personalizedRequestFailed = false,
                 )
 
-            if (attemptPersonalized) {
-                val missionId = _uiState.value.activeDiscoveryMissionId
-                val manualAnchor = userPrefs.overriddenRecPodcastIdStream.first()
-                val autoAnchor =
-                    HomeAnchorSelectionLogic.selectAutomatic(
-                        candidates =
-                            showBeliefs.map { (podcastId, belief) ->
-                                HomeAnchorSelectionLogic.ShowCandidate(
-                                    podcastId = podcastId,
-                                    affinity = belief.affinity,
-                                    confidence = belief.confidence,
-                                    evidence = belief.evidence,
-                                    isHidden = podcastId in hiddenShows,
-                                )
-                            },
-                        currentAnchorId = _seemsToLikePodcast.value?.id,
-                        manualOverrideId = manualAnchor,
-                    )?.podcastId
-                val slate =
-                    homePersonalizationCoordinator.loadSlate(
-                        HomePersonalizationCoordinator.SlateRequest(
-                            modules = listOf("taste", "because_you_like", "mission", "regional"),
-                            country = region,
-                            languages =
-                                cx.aswin.boxlore.core.catalog.recommendationLanguagesForCountry(region),
-                            history = history,
-                            anchorPodcastId = autoAnchor,
-                            missionId = missionId,
-                            excludedPodcastIds = (subscribedIds + hiddenShows).distinct(),
-                            excludedEpisodeIds = history.mapNotNull { it.episodeId },
-                            noveltyPreference = null,
-                            daypart = clockContextFlow.value.daypart.name.lowercase(),
-                            revision = "home-v1",
-                        ),
+            if (gate.attemptPersonalized) {
+                val applied =
+                    tryApplyCandidateSlate(
+                        region = region,
+                        history = history,
+                        subscribedIds = subscribedIds,
+                        gate = gate,
                     )
-                if (slate.taste.isNotEmpty() || slate.regional.isNotEmpty()) {
-                    val tasteItems = slate.taste.ifEmpty { slate.regional }
-                    val distinctRecs =
-                        tasteItems
-                            .distinctBy { it.id }
-                            .distinctBy { it.title.lowercase().trim() }
-                    _recommendations.value = distinctRecs
-                    _isRecommendationsFallback.value = slate.isFallback
-                    _personalizedCandidatesLoaded.value = !slate.isFallback && slate.taste.isNotEmpty()
-                    _personalizedRequestFailed.value = false
-                    if (slate.becauseYouLikeEpisodes.isNotEmpty() || slate.becauseYouLikePodcasts.isNotEmpty()) {
-                        _becauseYouLikeRecommendations.value = slate.becauseYouLikeEpisodes
-                        _becauseYouLikePodcasts.value = slate.becauseYouLikePodcasts
-                        if (autoAnchor != null) {
-                            localCatalog.getLocalPodcast(autoAnchor)?.let {
-                                _seemsToLikePodcast.value = it
-                            }
-                        }
-                    }
-                    try {
-                        val json = Json { ignoreUnknownKeys = true }
-                        boxcastPrefs.saveRecommendationsCache(
-                            json.encodeToString(distinctRecs),
-                            slate.isFallback,
-                        )
-                    } catch (ce: Exception) {
-                        android.util.Log.e("HomeViewModel", "Failed to cache recommendations", ce)
-                    }
-                    _personalizationMode.value =
-                        HomePersonalizationModeLogic.derive(
-                            meaningfulPlayCount = meaningfulCount,
-                            hasEligiblePositiveShow = hasEligiblePositiveShow,
-                            personalizedCandidatesLoaded = _personalizedCandidatesLoaded.value,
-                            personalizedRequestFailed = false,
-                        )
-                    cx.aswin.boxlore.core.analytics.AnalyticsHelper.trackHomePersonalizationMode(
-                        mode = _personalizationMode.value.name,
-                        meaningfulPlayCount = meaningfulCount,
-                        isFallback = slate.isFallback,
-                        candidateRequestOk = true,
-                    )
-                    return@launch
-                }
+                if (applied) return@launch
                 _personalizedRequestFailed.value = true
             }
 
-            // Regional / legacy path (cold start or candidate failure).
-            val recs =
-                podcastRepository.getPersonalizedRecommendations(
-                    history = history,
-                    interests = interests,
-                    country = region,
-                    subscribedPodcastIds = subscribedIds,
-                    subscribedGenres = subscribedGenres,
-                )
-            val distinctRecs =
-                recs
-                    .distinctBy { it.id }
-                    .distinctBy { it.title.lowercase().trim() }
-            _recommendations.value = distinctRecs
-            _isRecommendationsFallback.value = true
-            _personalizedCandidatesLoaded.value = false
-            try {
-                val json = Json { ignoreUnknownKeys = true }
-                boxcastPrefs.saveRecommendationsCache(
-                    json.encodeToString(distinctRecs),
-                    isFallback = true,
-                )
-            } catch (ce: Exception) {
-                android.util.Log.e("HomeViewModel", "Failed to cache recommendations", ce)
-            }
-            _personalizationMode.value =
-                HomePersonalizationModeLogic.derive(
-                    meaningfulPlayCount = meaningfulCount,
-                    hasEligiblePositiveShow = hasEligiblePositiveShow,
-                    personalizedCandidatesLoaded = false,
-                    personalizedRequestFailed = _personalizedRequestFailed.value,
-                )
+            applyRegionalRecommendations(
+                region = region,
+                history = history,
+                interests = interests,
+                subscribedIds = subscribedIds,
+                subscribedGenres = subscribedGenres,
+                gate = gate,
+            )
         } catch (e: Exception) {
             android.util.Log.e("HomeViewModel", "Failed to fetch personalized recommendations", e)
             _personalizedRequestFailed.value = true
         } finally {
             _isRecommendationsLoaded.value = true
         }
+    }
+}
+
+private suspend fun HomeViewModel.resolvePersonalizationGate(
+    history: List<cx.aswin.boxlore.core.network.model.HistoryItem>,
+): PersonalizationGate {
+    val meaningfulCount = HomeMeaningfulPlayLogic.countMeaningfulPlays(history)
+    val hiddenShows = adaptiveRankingRepository.hardExcludedPodcastIds()
+    val showBeliefs = adaptiveRankingRepository.showFacetBeliefs()
+    val hasEligiblePositiveShow =
+        showBeliefs.any { (podcastId, belief) ->
+            podcastId !in hiddenShows &&
+                belief.affinity >= HomeAnchorSelectionLogic.MIN_AFFINITY &&
+                belief.confidence >= HomeAnchorSelectionLogic.MIN_CONFIDENCE &&
+                belief.evidence >= HomeAnchorSelectionLogic.MIN_EVIDENCE
+        }
+    val attemptPersonalized =
+        meaningfulCount >= HomePersonalizationModeLogic.MEANINGFUL_PLAYS_TO_ATTEMPT &&
+            (
+                meaningfulCount < HomePersonalizationModeLogic.MEANINGFUL_PLAYS_TO_REQUIRE_ANCHOR ||
+                    hasEligiblePositiveShow
+                )
+    return PersonalizationGate(
+        meaningfulCount = meaningfulCount,
+        hasEligiblePositiveShow = hasEligiblePositiveShow,
+        attemptPersonalized = attemptPersonalized,
+        hiddenShows = hiddenShows,
+        showBeliefs = showBeliefs,
+    )
+}
+
+private suspend fun HomeViewModel.tryApplyCandidateSlate(
+    region: String,
+    history: List<cx.aswin.boxlore.core.network.model.HistoryItem>,
+    subscribedIds: List<String>,
+    gate: PersonalizationGate,
+): Boolean {
+    val missionId = _uiState.value.activeDiscoveryMissionId
+    val manualAnchor = userPrefs.overriddenRecPodcastIdStream.first()
+    val autoAnchor =
+        HomeAnchorSelectionLogic.selectAutomatic(
+            candidates =
+                gate.showBeliefs.map { (podcastId, belief) ->
+                    HomeAnchorSelectionLogic.ShowCandidate(
+                        podcastId = podcastId,
+                        affinity = belief.affinity,
+                        confidence = belief.confidence,
+                        evidence = belief.evidence,
+                        isHidden = podcastId in gate.hiddenShows,
+                    )
+                },
+            currentAnchorId = _seemsToLikePodcast.value?.id,
+            manualOverrideId = manualAnchor,
+        )?.podcastId
+    val slate =
+        homePersonalizationCoordinator.loadSlate(
+            HomePersonalizationCoordinator.SlateRequest(
+                modules = listOf("taste", "because_you_like", "mission", "regional"),
+                country = region,
+                languages = cx.aswin.boxlore.core.catalog.recommendationLanguagesForCountry(region),
+                history = history,
+                anchorPodcastId = autoAnchor,
+                missionId = missionId,
+                excludedPodcastIds = (subscribedIds + gate.hiddenShows).distinct(),
+                excludedEpisodeIds = history.mapNotNull { it.episodeId },
+                noveltyPreference = null,
+                daypart = clockContextFlow.value.daypart.name.lowercase(),
+                revision = "home-v1",
+            ),
+        )
+    if (slate.taste.isEmpty() && slate.regional.isEmpty()) return false
+
+    val tasteItems = slate.taste.ifEmpty { slate.regional }
+    val distinctRecs =
+        tasteItems
+            .distinctBy { it.id }
+            .distinctBy { it.title.lowercase().trim() }
+    _recommendations.value = distinctRecs
+    _isRecommendationsFallback.value = slate.isFallback
+    _personalizedCandidatesLoaded.value = !slate.isFallback && slate.taste.isNotEmpty()
+    _personalizedRequestFailed.value = false
+    if (slate.becauseYouLikeEpisodes.isNotEmpty() || slate.becauseYouLikePodcasts.isNotEmpty()) {
+        _becauseYouLikeRecommendations.value = slate.becauseYouLikeEpisodes
+        _becauseYouLikePodcasts.value = slate.becauseYouLikePodcasts
+        if (autoAnchor != null) {
+            localCatalog.getLocalPodcast(autoAnchor)?.let { _seemsToLikePodcast.value = it }
+        }
+    }
+    cacheRecommendations(distinctRecs, slate.isFallback)
+    _personalizationMode.value =
+        HomePersonalizationModeLogic.derive(
+            meaningfulPlayCount = gate.meaningfulCount,
+            hasEligiblePositiveShow = gate.hasEligiblePositiveShow,
+            personalizedCandidatesLoaded = _personalizedCandidatesLoaded.value,
+            personalizedRequestFailed = false,
+        )
+    cx.aswin.boxlore.core.analytics.AnalyticsHelper.trackHomePersonalizationMode(
+        mode = _personalizationMode.value.name,
+        meaningfulPlayCount = gate.meaningfulCount,
+        isFallback = slate.isFallback,
+        candidateRequestOk = true,
+    )
+    return true
+}
+
+private suspend fun HomeViewModel.applyRegionalRecommendations(
+    region: String,
+    history: List<cx.aswin.boxlore.core.network.model.HistoryItem>,
+    interests: List<String>,
+    subscribedIds: List<String>,
+    subscribedGenres: List<String>,
+    gate: PersonalizationGate,
+) {
+    val recs =
+        podcastRepository.getPersonalizedRecommendations(
+            history = history,
+            interests = interests,
+            country = region,
+            subscribedPodcastIds = subscribedIds,
+            subscribedGenres = subscribedGenres,
+        )
+    val distinctRecs =
+        recs
+            .distinctBy { it.id }
+            .distinctBy { it.title.lowercase().trim() }
+    _recommendations.value = distinctRecs
+    _isRecommendationsFallback.value = true
+    _personalizedCandidatesLoaded.value = false
+    cacheRecommendations(distinctRecs, isFallback = true)
+    _personalizationMode.value =
+        HomePersonalizationModeLogic.derive(
+            meaningfulPlayCount = gate.meaningfulCount,
+            hasEligiblePositiveShow = gate.hasEligiblePositiveShow,
+            personalizedCandidatesLoaded = false,
+            personalizedRequestFailed = _personalizedRequestFailed.value,
+        )
+}
+
+private fun HomeViewModel.cacheRecommendations(
+    distinctRecs: List<cx.aswin.boxlore.core.model.Episode>,
+    isFallback: Boolean,
+) {
+    try {
+        val json = Json { ignoreUnknownKeys = true }
+        boxcastPrefs.saveRecommendationsCache(
+            json.encodeToString(distinctRecs),
+            isFallback,
+        )
+    } catch (ce: Exception) {
+        android.util.Log.e("HomeViewModel", "Failed to cache recommendations", ce)
     }
 }
 

@@ -14,31 +14,33 @@ import cx.aswin.boxlore.core.network.model.HistoryItem
 object HomeCandidatesRequestBuilder {
     const val CACHE_TTL_MILLIS: Long = 4L * 60L * 60L * 1_000L
 
-    fun build(
-        modules: List<String>,
-        country: String,
-        languages: List<String>,
-        history: List<HistoryItem>,
-        anchorPodcastId: String?,
-        missionId: String?,
-        excludedPodcastIds: List<String>,
-        excludedEpisodeIds: List<String>,
-        noveltyPreference: Double?,
-        daypart: String?,
-        revision: String?,
-    ): HomeCandidatesV1Request {
+    data class BuildInput(
+        val modules: List<String>,
+        val country: String,
+        val languages: List<String>,
+        val history: List<HistoryItem>,
+        val anchorPodcastId: String?,
+        val missionId: String?,
+        val excludedPodcastIds: List<String>,
+        val excludedEpisodeIds: List<String>,
+        val noveltyPreference: Double?,
+        val daypart: String?,
+        val revision: String?,
+    )
+
+    fun build(input: BuildInput): HomeCandidatesV1Request {
         return HomeCandidatesV1Request(
-            requestedModules = modules.distinct().take(4),
-            country = country.lowercase().takeIf { it.length in 2..3 } ?: "us",
-            languages = languages,
-            seeds = buildSeeds(history),
-            anchorPodcastId = anchorPodcastId,
-            missionId = missionId,
-            excludedPodcastIds = excludedPodcastIds.distinct().take(250),
-            excludedEpisodeIds = excludedEpisodeIds.distinct().take(250),
-            noveltyPreference = noveltyPreference,
-            daypart = daypart,
-            revision = revision,
+            requestedModules = input.modules.distinct().take(4),
+            country = input.country.lowercase().takeIf { it.length in 2..3 } ?: "us",
+            languages = input.languages,
+            seeds = buildSeeds(input.history),
+            anchorPodcastId = input.anchorPodcastId,
+            missionId = input.missionId,
+            excludedPodcastIds = input.excludedPodcastIds.distinct().take(250),
+            excludedEpisodeIds = input.excludedEpisodeIds.distinct().take(250),
+            noveltyPreference = input.noveltyPreference,
+            daypart = input.daypart,
+            revision = input.revision,
         )
     }
 

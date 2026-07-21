@@ -53,17 +53,19 @@ class HomePersonalizationCoordinator(
             }
         val body =
             HomeCandidatesRequestBuilder.build(
-                modules = modules,
-                country = request.country,
-                languages = request.languages,
-                history = request.history,
-                anchorPodcastId = request.anchorPodcastId,
-                missionId = request.missionId,
-                excludedPodcastIds = request.excludedPodcastIds,
-                excludedEpisodeIds = request.excludedEpisodeIds,
-                noveltyPreference = request.noveltyPreference,
-                daypart = request.daypart,
-                revision = request.revision,
+                HomeCandidatesRequestBuilder.BuildInput(
+                    modules = modules,
+                    country = request.country,
+                    languages = request.languages,
+                    history = request.history,
+                    anchorPodcastId = request.anchorPodcastId,
+                    missionId = request.missionId,
+                    excludedPodcastIds = request.excludedPodcastIds,
+                    excludedEpisodeIds = request.excludedEpisodeIds,
+                    noveltyPreference = request.noveltyPreference,
+                    daypart = request.daypart,
+                    revision = request.revision,
+                ),
             )
         val (response, fromCache) = podcastRepository.getHomeCandidatesV1(body)
         return mapResponse(response, fromCache)

@@ -35,6 +35,7 @@ object HomeSlateAllocationLogic {
         missionLimit: Int,
         excludeSubscriptionsFromTaste: Boolean = true,
     ): AllocatedSlate {
+        val ranked = candidates.sortedByDescending(Candidate::score)
         val usedEpisodes = mutableSetOf<String>()
         val usedShows = mutableSetOf<String>()
 
@@ -44,49 +45,27 @@ object HomeSlateAllocationLogic {
         ): List<Candidate> {
             if (limit <= 0) return emptyList()
             val out = mutableListOf<Candidate>()
-            for (candidate in candidates.sortedByDescending(Candidate::score)) {
+            for (candidate in ranked) {
                 if (out.size >= limit) break
-                if (!predicate(candidate)) continue
-                if (candidate.episodeId in usedEpisodes) continue
-                if (candidate.podcastId in usedShows) continue
-                out += candidate
-                usedEpisodes += candidate.episodeId
-                usedShows += candidate.podcastId
+                val available =
+                    candidate.episodeId !in usedEpisodes &&
+                        candidate.podcastId !in usedShows &&
+                        predicate(candidate)
+                if (available) {
+                    out += candidate
+                    usedEpisodes += candidate.episodeId
+                    usedShows += candidate.podcastId
+                }
             }
             return out
         }
 
         val taste =
             take(tasteLimit) { candidate ->
-                val hintOk =
-                    candidate.moduleHint == null ||
-                        candidate.moduleHint == Module.TASTE
-                val subOk = !excludeSubscriptionsFromTaste || !candidate.isSubscription
-                val consumedOk = !candidate.alreadyConsumedShow
-                hintOk && subOk && consumedOk &&
-                    !candidate.reason.contains("anchor", ignoreCase = true)
+                isTasteEligible(candidate, excludeSubscriptionsFromTaste)
             }
-
-        val byl =
-            take(bylLimit) { candidate ->
-                val hintOk =
-                    candidate.moduleHint == null ||
-                        candidate.moduleHint == Module.BECAUSE_YOU_LIKE
-                hintOk &&
-                    (
-                        candidate.moduleHint == Module.BECAUSE_YOU_LIKE ||
-                            candidate.reason.contains("anchor", ignoreCase = true) ||
-                            candidate.reason.contains("because", ignoreCase = true)
-                        )
-            }
-
-        val mission =
-            take(missionLimit) { candidate ->
-                val hintOk =
-                    candidate.moduleHint == null ||
-                        candidate.moduleHint == Module.MISSION
-                hintOk
-            }
+        val byl = take(bylLimit, ::isBecauseYouLikeEligible)
+        val mission = take(missionLimit, ::isMissionEligible)
 
         return AllocatedSlate(
             taste = taste,
@@ -94,4 +73,33 @@ object HomeSlateAllocationLogic {
             mission = mission,
         )
     }
+
+    private fun isTasteEligible(
+        candidate: Candidate,
+        excludeSubscriptionsFromTaste: Boolean,
+    ): Boolean {
+        val hintOk =
+            candidate.moduleHint == null ||
+                candidate.moduleHint == Module.TASTE
+        val subOk = !excludeSubscriptionsFromTaste || !candidate.isSubscription
+        val consumedOk = !candidate.alreadyConsumedShow
+        return hintOk &&
+            subOk &&
+            consumedOk &&
+            !candidate.reason.contains("anchor", ignoreCase = true)
+    }
+
+    private fun isBecauseYouLikeEligible(candidate: Candidate): Boolean {
+        val hintOk =
+            candidate.moduleHint == null ||
+                candidate.moduleHint == Module.BECAUSE_YOU_LIKE
+        val reasonOk =
+            candidate.moduleHint == Module.BECAUSE_YOU_LIKE ||
+                candidate.reason.contains("anchor", ignoreCase = true) ||
+                candidate.reason.contains("because", ignoreCase = true)
+        return hintOk && reasonOk
+    }
+
+    private fun isMissionEligible(candidate: Candidate): Boolean =
+        candidate.moduleHint == null || candidate.moduleHint == Module.MISSION
 }

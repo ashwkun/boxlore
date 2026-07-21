@@ -15,6 +15,7 @@ data class FeedbackTarget(
     val exposureId: String? = null,
 )
 
+@Suppress("TooManyFunctions") // Feedback surface API: exposure, actions, anchors, exclusions, ledger.
 class RankingFeedbackRepository private constructor(
     private val adaptiveRankingRepository: AdaptiveRankingRepository?,
 ) : cx.aswin.boxlore.core.domain.ports.RankingResetPort {

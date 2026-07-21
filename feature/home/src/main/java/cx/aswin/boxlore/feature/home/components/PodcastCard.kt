@@ -100,6 +100,7 @@ fun PodcastCard(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+@Suppress("LongParameterList") // Card content + optional long-press feedback affordance.
 fun FeedMediaCard(
     imageUrl: String,
     title: String,

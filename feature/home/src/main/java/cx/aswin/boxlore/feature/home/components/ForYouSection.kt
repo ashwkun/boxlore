@@ -74,19 +74,45 @@ fun LazyStaggeredGridScope.forYouItems(
     }
 
     if (items.isEmpty()) {
-        // Skeleton: hero + a handful of grid skeletons, each an individual staggered item.
-        item(span = StaggeredGridItemSpan.FullLine, key = "for_you_hero_skeleton", contentType = "for_you_hero_skeleton") {
-            val baseColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
-            val highlightColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-            ForYouHeroSkeleton(baseColor = baseColor, highlightColor = highlightColor)
-        }
-        items(8, key = { "for_you_skel_$it" }, contentType = { "for_you_skel" }) {
-            GridSkeletonItem()
-        }
+        emitForYouSkeletons()
         return
     }
 
-    // Hero card (index 0) — full width. Also hosts the impression analytics effect.
+    emitForYouHero(
+        recommendations = recommendations,
+        hero = items[0],
+        discoveryContextTitle = discoveryContextTitle,
+        regionalLabel = regionalLabel,
+        onEpisodeClick = onEpisodeClick,
+        onRecommendationFeedback = onRecommendationFeedback,
+    )
+    emitForYouGrid(
+        remaining = items.drop(1),
+        discoveryContextTitle = discoveryContextTitle,
+        onEpisodeClick = onEpisodeClick,
+        onRecommendationFeedback = onRecommendationFeedback,
+    )
+}
+
+private fun LazyStaggeredGridScope.emitForYouSkeletons() {
+    item(span = StaggeredGridItemSpan.FullLine, key = "for_you_hero_skeleton", contentType = "for_you_hero_skeleton") {
+        val baseColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+        val highlightColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+        ForYouHeroSkeleton(baseColor = baseColor, highlightColor = highlightColor)
+    }
+    items(8, key = { "for_you_skel_$it" }, contentType = { "for_you_skel" }) {
+        GridSkeletonItem()
+    }
+}
+
+private fun LazyStaggeredGridScope.emitForYouHero(
+    recommendations: StableEpisodeList,
+    hero: Episode,
+    discoveryContextTitle: String,
+    regionalLabel: Boolean,
+    onEpisodeClick: (Episode, Podcast) -> Unit,
+    onRecommendationFeedback: ((Episode, RecommendationFeedbackAction) -> Unit)?,
+) {
     item(span = StaggeredGridItemSpan.FullLine, key = "for_you_hero", contentType = "for_you_hero") {
         LaunchedEffect(recommendations.list, discoveryContextTitle) {
             AnalyticsHelper.trackHomeRecommendationsImpression(
@@ -95,66 +121,39 @@ fun LazyStaggeredGridScope.forYouItems(
                 timeBlockTitle = discoveryContextTitle,
             )
         }
-        val ep = items[0]
-        val parentPodcast =
-            Podcast(
-                id = ep.podcastId ?: "",
-                title = ep.podcastTitle ?: "Podcast",
-                artist = "",
-                imageUrl = ep.podcastImageUrl?.takeIf { it.isNotBlank() } ?: ep.imageUrl?.takeIf { it.isNotBlank() } ?: "",
-                description = "",
-                genre = ep.podcastGenre ?: "Podcast",
-            )
+        val parentPodcast = parentPodcastFromEpisode(hero)
         ForYouHeroCard(
-            episode = ep,
+            episode = hero,
             parentPodcast = parentPodcast,
             isFallback = regionalLabel,
             onClick = {
-                AnalyticsHelper.trackHomeRecommendationCardTapped(
-                    episodeId = ep.id,
-                    episodeTitle = ep.title,
-                    podcastId = parentPodcast.id,
-                    podcastName = parentPodcast.title,
-                    positionIndex = 0,
-                    timeBlockTitle = discoveryContextTitle,
-                )
-                onEpisodeClick(ep, parentPodcast)
+                trackRecommendationTap(hero, parentPodcast, 0, discoveryContextTitle)
+                onEpisodeClick(hero, parentPodcast)
             },
             onFeedback = onRecommendationFeedback?.let { cb ->
-                { action -> cb(ep, action) }
+                { action -> cb(hero, action) }
             },
         )
     }
+}
 
-    // Remaining items become individual staggered (masonry) cards.
-    val remaining = items.drop(1)
+private fun LazyStaggeredGridScope.emitForYouGrid(
+    remaining: List<Episode>,
+    discoveryContextTitle: String,
+    onEpisodeClick: (Episode, Podcast) -> Unit,
+    onRecommendationFeedback: ((Episode, RecommendationFeedbackAction) -> Unit)?,
+) {
     itemsIndexed(
         remaining,
         key = { _, ep -> "for_you_${ep.id}" },
         contentType = { _, _ -> "for_you_card" },
     ) { index, ep ->
-        val originalIndex = index + 1
-        val parentPodcast =
-            Podcast(
-                id = ep.podcastId ?: "",
-                title = ep.podcastTitle ?: "Podcast",
-                artist = "",
-                imageUrl = ep.podcastImageUrl?.takeIf { it.isNotBlank() } ?: ep.imageUrl?.takeIf { it.isNotBlank() } ?: "",
-                description = "",
-                genre = ep.podcastGenre ?: "Podcast",
-            )
+        val parentPodcast = parentPodcastFromEpisode(ep)
         CuratedEpisodeCard(
             podcast = parentPodcast,
             episode = ep,
             onClick = {
-                AnalyticsHelper.trackHomeRecommendationCardTapped(
-                    episodeId = ep.id,
-                    episodeTitle = ep.title,
-                    podcastId = parentPodcast.id,
-                    podcastName = parentPodcast.title,
-                    positionIndex = originalIndex,
-                    timeBlockTitle = discoveryContextTitle,
-                )
+                trackRecommendationTap(ep, parentPodcast, index + 1, discoveryContextTitle)
                 onEpisodeClick(ep, parentPodcast)
             },
             onFeedback = onRecommendationFeedback?.let { cb ->
@@ -163,6 +162,32 @@ fun LazyStaggeredGridScope.forYouItems(
             modifier = Modifier.fillMaxWidth(),
         )
     }
+}
+
+private fun parentPodcastFromEpisode(ep: Episode): Podcast =
+    Podcast(
+        id = ep.podcastId ?: "",
+        title = ep.podcastTitle ?: "Podcast",
+        artist = "",
+        imageUrl = ep.podcastImageUrl?.takeIf { it.isNotBlank() } ?: ep.imageUrl?.takeIf { it.isNotBlank() } ?: "",
+        description = "",
+        genre = ep.podcastGenre ?: "Podcast",
+    )
+
+private fun trackRecommendationTap(
+    episode: Episode,
+    parentPodcast: Podcast,
+    positionIndex: Int,
+    discoveryContextTitle: String,
+) {
+    AnalyticsHelper.trackHomeRecommendationCardTapped(
+        episodeId = episode.id,
+        episodeTitle = episode.title,
+        podcastId = parentPodcast.id,
+        podcastName = parentPodcast.title,
+        positionIndex = positionIndex,
+        timeBlockTitle = discoveryContextTitle,
+    )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -182,18 +207,8 @@ private fun ForYouHeroCard(
                 .fillMaxWidth()
                 .height(200.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .then(
-                    if (onFeedback != null) {
-                        Modifier.combinedClickable(
-                            onClick = onClick,
-                            onLongClick = { menuExpanded = true },
-                        )
-                    } else {
-                        Modifier.expressiveClickable(shape = RoundedCornerShape(20.dp), onClick = onClick)
-                    },
-                ),
+                .then(forYouHeroClickModifier(onClick, onFeedback) { menuExpanded = true }),
     ) {
-        // Full-bleed artwork background
         OptimizedImage(
             url = episode.imageUrl?.takeIf { it.isNotBlank() } ?: episode.podcastImageUrl?.takeIf { it.isNotBlank() },
             proxyWidth = 600,
@@ -201,136 +216,9 @@ private fun ForYouHeroCard(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
-
-        // Dark gradient scrim — heavier at bottom for text legibility (Option A)
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops =
-                                arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.3f to Color.Black.copy(alpha = 0.15f),
-                                    0.6f to Color.Black.copy(alpha = 0.65f),
-                                    1.0f to Color.Black,
-                                ),
-                        ),
-                    ),
-        )
-
-        // Premium tag for the Hero card
-        Box(
-            modifier =
-                Modifier
-                    .padding(14.dp)
-                    .align(Alignment.TopStart)
-                    .background(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
-                        shape = RoundedCornerShape(12.dp),
-                    ).padding(horizontal = 8.dp, vertical = 4.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.AutoAwesome,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(12.dp),
-                )
-                Text(
-                    text = if (isFallback) "POPULAR IN YOUR REGION" else "FEATURED RECOMMENDATION",
-                    style =
-                        MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 0.5.sp,
-                        ),
-                )
-            }
-        }
-
-        // Metadata anchored to bottom
-        Column(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            // Podcast name
-            Text(
-                text = episode.podcastTitle ?: "",
-                style =
-                    MaterialTheme.typography.labelMedium.copy(
-                        color = Color.White.copy(alpha = 0.8f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 0.4.sp,
-                    ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            // Episode title (larger font since it's the hero card)
-            Text(
-                text = episode.title,
-                style =
-                    MaterialTheme.typography.titleMedium.copy(
-                        color = Color.White,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp,
-                        lineHeight = 20.sp,
-                    ),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-
-            // Duration & additional context
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (episode.duration > 0) {
-                    val minutes = episode.duration / 60
-                    Text(
-                        text = "$minutes min read/listen",
-                        style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                            ),
-                    )
-                }
-
-                val genre = episode.podcastGenre ?: parentPodcast.genre
-                if (!genre.isNullOrBlank()) {
-                    Text(
-                        text = "•",
-                        color = Color.White.copy(alpha = 0.4f),
-                        fontSize = 10.sp,
-                    )
-                    Text(
-                        text = genre,
-                        style =
-                            MaterialTheme.typography.bodySmall.copy(
-                                color = Color.White.copy(alpha = 0.6f),
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                            ),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-
+        ForYouHeroScrim()
+        ForYouHeroTag(isFallback = isFallback)
+        ForYouHeroMetadata(episode = episode, parentPodcast = parentPodcast)
         if (onFeedback != null) {
             RecommendationFeedbackMenu(
                 expanded = menuExpanded,
@@ -339,6 +227,145 @@ private fun ForYouHeroCard(
                 onNotForMe = { onFeedback(RecommendationFeedbackAction.NOT_FOR_ME) },
                 onHideShow = { onFeedback(RecommendationFeedbackAction.HIDE_SHOW) },
             )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+private fun forYouHeroClickModifier(
+    onClick: () -> Unit,
+    onFeedback: ((RecommendationFeedbackAction) -> Unit)?,
+    onLongClick: () -> Unit,
+): Modifier =
+    if (onFeedback != null) {
+        Modifier.combinedClickable(onClick = onClick, onLongClick = onLongClick)
+    } else {
+        Modifier.expressiveClickable(shape = RoundedCornerShape(20.dp), onClick = onClick)
+    }
+
+@Composable
+private fun ForYouHeroScrim() {
+    Box(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colorStops =
+                            arrayOf(
+                                0.0f to Color.Transparent,
+                                0.3f to Color.Black.copy(alpha = 0.15f),
+                                0.6f to Color.Black.copy(alpha = 0.65f),
+                                1.0f to Color.Black,
+                            ),
+                    ),
+                ),
+    )
+}
+
+@Composable
+private fun BoxScope.ForYouHeroTag(isFallback: Boolean) {
+    Box(
+        modifier =
+            Modifier
+                .padding(14.dp)
+                .align(Alignment.TopStart)
+                .background(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                    shape = RoundedCornerShape(12.dp),
+                ).padding(horizontal = 8.dp, vertical = 4.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.AutoAwesome,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(12.dp),
+            )
+            Text(
+                text = if (isFallback) "POPULAR IN YOUR REGION" else "FEATURED RECOMMENDATION",
+                style =
+                    MaterialTheme.typography.labelSmall.copy(
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp,
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BoxScope.ForYouHeroMetadata(
+    episode: Episode,
+    parentPodcast: Podcast,
+) {
+    Column(
+        modifier =
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = episode.podcastTitle ?: "",
+            style =
+                MaterialTheme.typography.labelMedium.copy(
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.4.sp,
+                ),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = episode.title,
+            style =
+                MaterialTheme.typography.titleMedium.copy(
+                    color = Color.White,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 16.sp,
+                    lineHeight = 20.sp,
+                ),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (episode.duration > 0) {
+                Text(
+                    text = "${episode.duration / 60} min read/listen",
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                )
+            }
+            val genre = episode.podcastGenre ?: parentPodcast.genre
+            if (!genre.isNullOrBlank()) {
+                Text(text = "•", color = Color.White.copy(alpha = 0.4f), fontSize = 10.sp)
+                Text(
+                    text = genre,
+                    style =
+                        MaterialTheme.typography.bodySmall.copy(
+                            color = Color.White.copy(alpha = 0.6f),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Medium,
+                        ),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -372,7 +399,6 @@ private fun ForYouHorizontalBentoCard(
                 .clip(RoundedCornerShape(20.dp))
                 .expressiveClickable(onClick = onClick),
     ) {
-        // Full-bleed artwork background
         OptimizedImage(
             url = episode.imageUrl?.takeIf { it.isNotBlank() } ?: episode.podcastImageUrl?.takeIf { it.isNotBlank() },
             proxyWidth = 600,
@@ -380,8 +406,6 @@ private fun ForYouHorizontalBentoCard(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
-
-        // Heavy dark gradient scrim for pristine text contrast
         Box(
             modifier =
                 Modifier
@@ -397,8 +421,6 @@ private fun ForYouHorizontalBentoCard(
                         ),
                     ),
         )
-
-        // Duration chip — top left
         if (episode.duration > 0) {
             val minutes = episode.duration / 60
             Surface(
@@ -421,8 +443,6 @@ private fun ForYouHorizontalBentoCard(
                 )
             }
         }
-
-        // Genre chip — top right (or video badge if video)
         val genre = episode.podcastGenre
         if (episode.enclosureType?.startsWith("video/") == true) {
             Surface(
@@ -468,8 +488,6 @@ private fun ForYouHorizontalBentoCard(
                 )
             }
         }
-
-        // Episode title — bottom aligned
         Column(
             modifier =
                 Modifier

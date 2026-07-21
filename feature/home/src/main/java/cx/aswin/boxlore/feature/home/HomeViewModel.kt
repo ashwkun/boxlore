@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 
-@Suppress("kotlin:S6310", "LongParameterList")
+@Suppress("kotlin:S6310", "LongParameterList", "LargeClass")
 class HomeViewModel(
     application: Application,
     val podcastRepository: PodcastRepository,
