@@ -8,8 +8,6 @@ import android.os.ParcelFileDescriptor
 import cx.aswin.boxlore.core.playback.AutoArtworkFetchLogic
 import cx.aswin.boxlore.core.playback.service.auto.AutoArtworkSourceStore
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.InetAddress
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
 
@@ -136,9 +134,9 @@ open class AutoCollageProvider : ContentProvider() {
             AutoArtworkSourceStore.get(context, key)
                 ?: return null
         val sourceUrl =
-            runCatching { java.net.URI(source).toURL() }
-                .getOrNull()
-                ?.takeIf(::isPublicHttpsUrl)
+            AutoArtworkDownloader
+                .parseHttpsUrl(source)
+                ?.takeIf(AutoArtworkDownloader::isPublicHttpsUrl)
                 ?: return null
         val lock = artworkLocks.getOrPut(key) { Any() }
         return try {
@@ -160,7 +158,7 @@ open class AutoCollageProvider : ContentProvider() {
     ): File? {
         val temp = File.createTempFile("artwork_", ".tmp", cacheDir)
         return try {
-            val bytes = downloadArtworkBytes(url) ?: return null
+            val bytes = AutoArtworkDownloader.downloadHttpsBytes(url) ?: return null
             if (!AutoArtworkFetchLogic.looksLikeImage(bytes.copyOf(minOf(12, bytes.size)))) {
                 return null
             }
@@ -190,79 +188,6 @@ open class AutoCollageProvider : ContentProvider() {
                 android.util.Log.w("CollageProvider", "Failed to delete temp file")
             }
         }
-    }
-
-    private fun downloadArtworkBytes(startUrl: URL): ByteArray? {
-        var current = startUrl
-        var redirects = 0
-        while (redirects <= AutoArtworkFetchLogic.MAX_REDIRECTS) {
-            if (!isPublicHttpsUrl(current)) return null
-            var connection: HttpURLConnection? = null
-            try {
-                connection = current.openConnection() as HttpURLConnection
-                connection.instanceFollowRedirects = false
-                connection.connectTimeout = AutoArtworkFetchLogic.CONNECT_TIMEOUT_MS
-                connection.readTimeout = AutoArtworkFetchLogic.READ_TIMEOUT_MS
-                connection.doInput = true
-                connection.connect()
-                val code = connection.responseCode
-                if (AutoArtworkFetchLogic.isRedirect(code)) {
-                    val location = connection.getHeaderField("Location") ?: return null
-                    val next =
-                        runCatching { java.net.URI(current.toURI().resolve(location).toString()).toURL() }
-                            .getOrNull()
-                            ?: return null
-                    redirects += 1
-                    current = next
-                    continue
-                }
-                val contentLength = connection.contentLengthLong
-                val contentType = connection.contentType
-                if (!AutoArtworkFetchLogic.shouldAcceptArtwork(code, contentType, contentLength)) {
-                    return null
-                }
-                return connection.inputStream.use { input ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    val out = java.io.ByteArrayOutputStream()
-                    var total = 0L
-                    while (true) {
-                        val read = input.read(buffer)
-                        if (read < 0) break
-                        total += read
-                        if (total > AutoArtworkFetchLogic.MAX_ARTWORK_BYTES) return@use null
-                        out.write(buffer, 0, read)
-                    }
-                    out.toByteArray().takeIf { it.isNotEmpty() }
-                }
-            } catch (error: Exception) {
-                android.util.Log.w("CollageProvider", "Artwork download failed for $current", error)
-                return null
-            } finally {
-                connection?.disconnect()
-            }
-        }
-        return null
-    }
-
-    private fun isPublicHttpsUrl(url: URL): Boolean {
-        if (url.protocol != "https" || (url.port != -1 && url.port != 443)) return false
-        val addresses =
-            runCatching { InetAddress.getAllByName(url.host) }.getOrNull()
-                ?: return false
-        return addresses.isNotEmpty() &&
-            addresses.all { address ->
-                !address.isAnyLocalAddress &&
-                    !address.isLoopbackAddress &&
-                    !address.isLinkLocalAddress &&
-                    !address.isSiteLocalAddress &&
-                    !address.isMulticastAddress &&
-                    !address.isUniqueLocalIpv6()
-            }
-    }
-
-    private fun InetAddress.isUniqueLocalIpv6(): Boolean {
-        val bytes = address
-        return bytes.size == 16 && (bytes[0].toInt() and 0xFE) == 0xFC
     }
 
     private fun resolveCollage(
