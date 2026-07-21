@@ -53,7 +53,13 @@ internal object AutoArtworkSourceStore {
                 done.countDown()
             }
         }
-        val finished = done.await(COMMIT_WAIT_MS, TimeUnit.MILLISECONDS)
+        val finished =
+            try {
+                done.await(COMMIT_WAIT_MS, TimeUnit.MILLISECONDS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                false
+            }
         if (!finished || !committed.get()) {
             memory.remove(key, value)
             Log.w(
