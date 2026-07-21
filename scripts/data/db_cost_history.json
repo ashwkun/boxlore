@@ -680,24 +680,24 @@
     "runs": 1
    },
    "import-podcasts": {
-    "reads": 35665,
+    "reads": 71330,
     "writes": 0,
-    "runs": 1
+    "runs": 2
    },
    "sync-episodes": {
-    "reads": 49584,
-    "writes": 1888,
-    "runs": 1
+    "reads": 49843,
+    "writes": 2406,
+    "runs": 2
    },
    "vectorize-episodes": {
-    "reads": 23624,
-    "writes": 1198,
-    "runs": 1
+    "reads": 41611,
+    "writes": 1457,
+    "runs": 2
    },
    "vectorize-shows": {
     "reads": 0,
     "writes": 0,
-    "runs": 1
+    "runs": 2
    }
   }
  }
