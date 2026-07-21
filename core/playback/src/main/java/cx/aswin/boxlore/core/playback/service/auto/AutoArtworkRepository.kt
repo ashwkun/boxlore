@@ -22,7 +22,7 @@ internal object AutoArtworkRepository {
         val normalized = source.replaceFirst("http://", "https://")
         if (!normalized.startsWith("https://")) return null
         val key = normalized.sha256()
-        AutoArtworkSourceStore.put(context, key, normalized)
+        if (!AutoArtworkSourceStore.put(context, key, normalized)) return null
         return Uri
             .Builder()
             .scheme("content")
@@ -46,7 +46,7 @@ internal object AutoArtworkRepository {
             ).mapNotNull { runCatching(it::getCanonicalFile).getOrNull() }
         if (allowedRoots.none { canonicalFile.isInside(it) } || !canonicalFile.isFile) return null
         val key = canonicalFile.path.sha256()
-        AutoArtworkSourceStore.put(context, key, canonicalFile.path)
+        if (!AutoArtworkSourceStore.put(context, key, canonicalFile.path)) return null
         return Uri
             .Builder()
             .scheme("content")

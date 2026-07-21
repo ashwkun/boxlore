@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,8 +28,14 @@ class AutoArtworkSourceStoreTest {
     }
 
     @Test
+    fun putReturnsTrueWhenCommitSucceeds() {
+        assertTrue(AutoArtworkSourceStore.put(context, "ok", "https://cdn.example/ok.jpg"))
+        assertEquals("https://cdn.example/ok.jpg", AutoArtworkSourceStore.get(context, "ok"))
+    }
+
+    @Test
     fun putIsReadableImmediatelyFromMemoryAndPrefs() {
-        AutoArtworkSourceStore.put(context, "abc", "https://cdn.example/cover.jpg")
+        assertTrue(AutoArtworkSourceStore.put(context, "abc", "https://cdn.example/cover.jpg"))
 
         assertEquals(
             "https://cdn.example/cover.jpg",
@@ -53,7 +60,6 @@ class AutoArtworkSourceStoreTest {
         val uri = AutoArtworkRepository.remoteUri(context, "https://cdn.example/art.png")!!
         val key = uri.pathSegments.last()
 
-        // Memory answers immediately; prefs catch up via background commit.
         assertEquals(
             "https://cdn.example/art.png",
             AutoArtworkSourceStore.get(context, key),
