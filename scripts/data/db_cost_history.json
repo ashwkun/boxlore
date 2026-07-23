@@ -739,5 +739,19 @@
     "runs": 1
    }
   }
+ },
+ "2026-07-23": {
+  "global": {
+   "refresh-charts": {
+    "reads": 82953,
+    "writes": 62081,
+    "runs": 1
+   },
+   "import-podcasts": {
+    "reads": 35922,
+    "writes": 5980,
+    "runs": 1
+   }
+  }
  }
 }
