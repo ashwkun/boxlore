@@ -19,6 +19,7 @@ const turso = require('./lib/turso');
 const pi = require('./lib/podcast-index');
 const state = require('./lib/state');
 const cfg = require('./lib/config');
+const { parseCSVLine, parseCSVRecords } = require('./lib/csv');
 
 const MISSING_IDS_FILE = 'missing_itunes_ids.txt';
 const CSV_FILE = 'podcasts_export.csv';
@@ -43,26 +44,6 @@ function sortCategories(rawCats) {
             return a.localeCompare(b);
         })
         .join(', ');
-}
-
-function parseCSVLine(line) {
-    const result = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (ch === '"') {
-            if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
-            else inQuotes = !inQuotes;
-        } else if (ch === ',' && !inQuotes) {
-            result.push(current);
-            current = '';
-        } else {
-            current += ch;
-        }
-    }
-    result.push(current);
-    return result;
 }
 
 /** Missing chart itunes ids (string-normalized set difference). */
@@ -98,13 +79,15 @@ async function precheck() {
 
 async function importFromCSV() {
     const content = fs.readFileSync(CSV_FILE, 'utf-8');
-    const lines = content.split('\n').filter(l => l.trim());
-    if (lines.length < 2) {
+    // Quote-aware record split: unquoted mid-field newlines (legacy dumps)
+    // must not create short rows that bind the wrong number of Turso args.
+    const records = parseCSVRecords(content);
+    if (records.length < 2) {
         log.info('CSV contains no data rows - nothing to import');
         return { count: 0, ids: [] };
     }
 
-    const headers = parseCSVLine(lines[0]);
+    const headers = parseCSVLine(records[0]);
     // Enforce the fixed whitelist: every CSV header must be a known column.
     const unknown = headers.filter(h => !cfg.PODCAST_IMPORT_COLUMNS.includes(h));
     if (unknown.length > 0) {
@@ -113,32 +96,46 @@ async function importFromCSV() {
 
     const idIdx = headers.indexOf('id');
     const catIdx = headers.indexOf('categories');
-    const dataLines = lines.slice(1);
-    log.info(`Importing ${log.fmt(dataLines.length)} rows from ${CSV_FILE}`);
+    const dataRecords = records.slice(1);
+    log.info(`Importing ${log.fmt(dataRecords.length)} rows from ${CSV_FILE}`);
 
     const BATCH = 50;
     let imported = 0;
+    let skipped = 0;
     const ids = [];
-    const prog = log.progress(dataLines.length, 'csv-import');
+    const placeholders = headers.map(() => '?').join(',');
+    const insertSql = `INSERT OR IGNORE INTO podcasts (${headers.join(',')}, qdrant_vectorized, qdrant_podcast_vectorized)
+                      VALUES (${placeholders}, 0, 0)`;
+    const prog = log.progress(dataRecords.length, 'csv-import');
 
-    for (let i = 0; i < dataLines.length; i += BATCH) {
-        const batchLines = dataLines.slice(i, i + BATCH);
-        const statements = batchLines.map(line => {
-            const values = parseCSVLine(line);
+    for (let i = 0; i < dataRecords.length; i += BATCH) {
+        const batchRecords = dataRecords.slice(i, i + BATCH);
+        const statements = [];
+        for (const record of batchRecords) {
+            const values = parseCSVLine(record);
+            if (values.length !== headers.length) {
+                skipped++;
+                log.warn(
+                    `Skipping CSV row with ${values.length} fields (expected ${headers.length}): `
+                    + `${record.slice(0, 80)}${record.length > 80 ? '…' : ''}`
+                );
+                prog.tick();
+                continue;
+            }
             if (idIdx !== -1 && values[idIdx]) ids.push(String(values[idIdx]));
             if (catIdx !== -1 && values[catIdx]) {
                 values[catIdx] = sortCategories(values[catIdx]);
             }
-            const placeholders = headers.map(() => '?').join(',');
-            return {
-                sql: `INSERT OR IGNORE INTO podcasts (${headers.join(',')}, qdrant_vectorized, qdrant_podcast_vectorized)
-                      VALUES (${placeholders}, 0, 0)`,
-                args: values,
-            };
-        });
-        await turso.batch(statements);
-        imported += statements.length;
-        for (let k = 0; k < statements.length; k++) prog.tick();
+            statements.push({ sql: insertSql, args: values });
+            prog.tick();
+        }
+        if (statements.length > 0) {
+            await turso.batch(statements);
+            imported += statements.length;
+        }
+    }
+    if (skipped > 0) {
+        log.warn(`Skipped ${log.fmt(skipped)} malformed CSV row(s); imported ${log.fmt(imported)}`);
     }
     return { count: imported, ids };
 }
