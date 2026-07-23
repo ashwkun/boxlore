@@ -96,20 +96,23 @@ jobs:
           sqlite3 -csv podcastindex_feeds.db ".import missing_itunes_ids.txt chart_ids"
           echo "Imported $(sqlite3 podcastindex_feeds.db 'SELECT COUNT(*) FROM chart_ids;') missing iTunes IDs"
           # Column list must match PODCAST_IMPORT_COLUMNS in scripts/sync/lib/config.js
+          # Flatten CR/LF in every text column. Unquoted fields with raw
+          # newlines otherwise split mid-row and the importer sends the wrong
+          # number of bind args to Turso (expected 12, got 4).
           sqlite3 -header -csv podcastindex_feeds.db "
             SELECT
               p.id,
               p.itunesId AS itunes_id,
-              p.title,
-              p.itunesAuthor AS author,
+              REPLACE(REPLACE(p.title, char(10), ' '), char(13), ' ') AS title,
+              REPLACE(REPLACE(p.itunesAuthor, char(10), ' '), char(13), ' ') AS author,
               REPLACE(REPLACE(p.description, char(10), ' '), char(13), ' ') AS description,
-              p.imageUrl AS image_url,
-              p.url AS feed_url,
-              p.link AS website_url,
-              p.category1 || ',' || p.category2 AS categories,
-              p.language,
+              REPLACE(REPLACE(p.imageUrl, char(10), ' '), char(13), ' ') AS image_url,
+              REPLACE(REPLACE(p.url, char(10), ' '), char(13), ' ') AS feed_url,
+              REPLACE(REPLACE(p.link, char(10), ' '), char(13), ' ') AS website_url,
+              REPLACE(REPLACE(COALESCE(p.category1, '') || ',' || COALESCE(p.category2, ''), char(10), ' '), char(13), ' ') AS categories,
+              REPLACE(REPLACE(p.language, char(10), ' '), char(13), ' ') AS language,
               p.explicit,
-              p.itunesType AS type
+              REPLACE(REPLACE(p.itunesType, char(10), ' '), char(13), ' ') AS type
             FROM podcasts p
             WHERE p.itunesId IN (SELECT itunes_id FROM chart_ids);
           " > podcasts_export.csv

@@ -9,6 +9,7 @@
     "uuid": "11.1.1"
   },
   "scripts": {
-    "reset-sync": "node scratch/run-reset-now.js"
+    "reset-sync": "node scratch/run-reset-now.js",
+    "test:sync-csv": "node --test sync/lib/csv.test.js"
   }
 }
