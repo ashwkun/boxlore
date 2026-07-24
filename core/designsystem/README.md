@@ -40,6 +40,8 @@ src/main/res/
 
 - No user data, database files, DataStore names, or SharedPreferences files are owned here.
 - Resource names are app-internal UI contracts and should be changed with normal Android resource migration care.
+- UI typeface: bundled **Google Sans Flex** variable font (`res/font/google_sans_flex_variable.ttf`). Default **ROND = 50 (Soft)**; Appearance → Lettering can switch Crisp (0) / Soft (50) / Round (100) via `FontRoundness`, `LocalFontRoundness`, and `BoxLoreTheme(fontRoundness=…)`. Factories live in `Typography.kt`; Android `Typeface` loads go through `GoogleSansTypefaces`. Connected preset UI: `ConnectedOptionSelector` (same language as region chips). SIL OFL 1.1 text: [`licenses/GoogleSansFlex-OFL.txt`](licenses/GoogleSansFlex-OFL.txt). Roboto Flex paths (`RobotoFlexFamily`, `LogoFontFamily`, `robotoflex_variable`) are unchanged.
+- Lettering roundness is mirrored in `boxlore_theme_fast_cache` key `font_roundness` (owned by `:core:prefs`) so share cards / Auto collage can read it without a Compose tree.
 
 ## Testing notes
 

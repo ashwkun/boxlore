@@ -295,6 +295,13 @@ fun BoxLoreAppRoot(
     val surfaceStyle by userPrefs.surfaceStyleStream.collectAsState(
         initial = remember { userPrefs.cachedSurfaceStyle },
     )
+    val fontRoundnessKey by userPrefs.fontRoundnessStream.collectAsState(
+        initial = remember { userPrefs.cachedFontRoundness },
+    )
+    val fontRoundness =
+        remember(fontRoundnessKey) {
+            cx.aswin.boxlore.core.designsystem.theme.FontRoundness.axisValue(fontRoundnessKey)
+        }
     val hasSeenMarkPlayedTip by userPrefs.hasSeenMarkPlayedTip.collectAsState(initial = true)
     val hasLoggedFirstPlay by userPrefs.hasLoggedFirstPlay.collectAsState(initial = true)
     val activeAnnouncement by userPrefs.activeAnnouncementStream.collectAsState(initial = null)
@@ -410,6 +417,7 @@ fun BoxLoreAppRoot(
         dynamicColor = useDynamicColor,
         themeBrand = themeBrand,
         surfaceStyle = surfaceStyle,
+        fontRoundness = fontRoundness,
     ) {
         loreQueueConflictEpisode?.let { pendingLoreEpisode ->
             LoreQueueConflictDialog(
@@ -511,6 +519,7 @@ fun BoxLoreAppRoot(
                                     useDynamicColor = useDynamicColor,
                                     themeBrand = themeBrand,
                                     surfaceStyle = surfaceStyle,
+                                    fontRoundness = fontRoundnessKey,
                                     skipBehavior = skipBehavior,
                                     skipBeginningMs = skipBeginningMs,
                                     skipEndingMs = skipEndingMs,
