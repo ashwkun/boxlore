@@ -43,7 +43,7 @@ private val REGION_ALIASES: Map<String, Set<String>> =
  * Canonicalizes any known alias (e.g. "uk", "ind") to its region code (e.g. "gb", "in"),
  * or `null` if [code] doesn't match any known region.
  */
-private fun canonicalRegionCode(code: String): String? {
+internal fun canonicalRegionCode(code: String): String? {
     val normalized = code.trim().lowercase()
     return REGION_ALIASES.entries.firstOrNull { (_, aliases) -> normalized in aliases }?.key
 }

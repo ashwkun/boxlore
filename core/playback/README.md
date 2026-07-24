@@ -65,7 +65,7 @@ Files under `core/data/service` are compatibility stubs for old service class na
 
 ## Dependencies
 
-- Project dependencies: `:core:model`, `:core:network`, `:core:database`, `:core:catalog`, `:core:downloads`, `:core:ranking`, `:core:analytics`, and `:core:prefs`.
+- Project dependencies: `:core:model`, `:core:network`, `:core:database`, `:core:catalog`, `:core:downloads`, `:core:ranking`, `:core:analytics`, `:core:prefs`, and `:core:designsystem`.
 - Libraries: Media3 ExoPlayer, Media3 Session, Media3 UI, Coil, Palette, Gson, OkHttp, coroutines, and AndroidX core.
 - Reverse-edge rule: catalog and downloads must not depend back on playback. Downloads launch `MediaDownloadService` through the app-installed launcher port.
 

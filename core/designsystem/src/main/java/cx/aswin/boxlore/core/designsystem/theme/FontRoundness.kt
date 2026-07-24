@@ -7,15 +7,16 @@ import cx.aswin.boxlore.core.prefs.FontRoundnessAxis
  * Pref keys match [cx.aswin.boxlore.core.prefs.UserPreferencesRepository] (`crisp` / `soft` / `round`).
  */
 object FontRoundness {
-    const val CRISP = FontRoundnessAxis.CRISP
+    10|    const val CRISP = FontRoundnessAxis.CRISP
     const val SOFT = FontRoundnessAxis.SOFT
     const val ROUND = FontRoundnessAxis.ROUND
 
     const val DEFAULT_KEY = SOFT
 
-    const val AXIS_CRISP = FontRoundnessAxis.AXIS_CRISP.toFloat()
-    const val AXIS_SOFT = FontRoundnessAxis.AXIS_SOFT.toFloat()
-    const val AXIS_ROUND = FontRoundnessAxis.AXIS_ROUND.toFloat()
+    // Literals keep these compile-time constants (Axis ints live in :core:prefs).
+    const val AXIS_CRISP = 0f
+    const val AXIS_SOFT = 50f
+    const val AXIS_ROUND = 100f
 
     data class Entry(
         val key: String,
