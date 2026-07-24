@@ -28,170 +28,53 @@ private val googleFontProvider =
 
 @OptIn(ExperimentalTextApi::class)
 fun buildGoogleSansFamily(roundness: Float): FontFamily =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        FontFamily(
-            flexFace(weight = 300, opsz = 17f, roundness = roundness, fontWeight = FontWeight.Light),
-            flexFace(weight = 400, opsz = 17f, roundness = roundness, fontWeight = FontWeight.Normal),
-            flexFace(weight = 500, opsz = 17f, roundness = roundness, fontWeight = FontWeight.Medium),
-            flexFace(weight = 600, opsz = 17f, roundness = roundness, fontWeight = FontWeight.SemiBold),
-            flexFace(weight = 700, opsz = 17f, roundness = roundness, fontWeight = FontWeight.Bold),
-        )
-    } else {
-        FontFamily(Font(R.font.google_sans_flex_variable))
-    }
+    flexFontFamilyOrFallback(
+        flexFace(weight = 300, opsz = 17f, roundness = roundness, fontWeight = FontWeight.Light),
+        flexFace(weight = 400, opsz = 17f, roundness = roundness, fontWeight = FontWeight.Normal),
+        flexFace(weight = 500, opsz = 17f, roundness = roundness, fontWeight = FontWeight.Medium),
+        flexFace(weight = 600, opsz = 17f, roundness = roundness, fontWeight = FontWeight.SemiBold),
+        flexFace(weight = 700, opsz = 17f, roundness = roundness, fontWeight = FontWeight.Bold),
+    )
 
 @OptIn(ExperimentalTextApi::class)
 fun buildSectionHeaderFontFamily(roundness: Float): FontFamily =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        FontFamily(
-            flexFace(weight = 800, opsz = 24f, roundness = roundness, fontWeight = FontWeight.ExtraBold),
-        )
-    } else {
-        FontFamily(Font(R.font.google_sans_flex_variable))
-    }
+    flexFontFamilyOrFallback(
+        flexFace(weight = 800, opsz = 24f, roundness = roundness, fontWeight = FontWeight.ExtraBold),
+    )
 
 @OptIn(ExperimentalTextApi::class)
 fun buildCondensedGoogleSansFamily(roundness: Float): FontFamily =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-        FontFamily(
-            Font(
-                R.font.google_sans_flex_variable,
-                variationSettings =
-                    FontVariation.Settings(
-                        FontVariation.weight(700),
-                        FontVariation.Setting("wdth", 75f),
-                        FontVariation.Setting("ROND", roundness),
-                    ),
-                weight = FontWeight.Bold,
-            ),
-        )
-    } else {
-        FontFamily(Font(R.font.google_sans_flex_variable))
-    }
+    flexFontFamilyOrFallback(
+        Font(
+            R.font.google_sans_flex_variable,
+            variationSettings =
+                FontVariation.Settings(
+                    FontVariation.weight(700),
+                    FontVariation.Setting("wdth", 75f),
+                    FontVariation.Setting("ROND", roundness),
+                ),
+            weight = FontWeight.Bold,
+        ),
+    )
 
 fun buildBoxLoreTypography(roundness: Float): Typography {
     val family = buildGoogleSansFamily(roundness)
     return Typography(
-        displayLarge =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 57.sp,
-                lineHeight = 60.sp,
-                letterSpacing = (-0.5).sp,
-            ),
-        displayMedium =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 45.sp,
-                lineHeight = 48.sp,
-                letterSpacing = (-0.3).sp,
-            ),
-        displaySmall =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.Medium,
-                fontSize = 36.sp,
-                lineHeight = 40.sp,
-                letterSpacing = (-0.25).sp,
-            ),
-        headlineLarge =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.Bold,
-                fontSize = 32.sp,
-                lineHeight = 36.sp,
-                letterSpacing = (-0.3).sp,
-            ),
-        headlineMedium =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 28.sp,
-                lineHeight = 32.sp,
-                letterSpacing = (-0.2).sp,
-            ),
-        headlineSmall =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 24.sp,
-                lineHeight = 28.sp,
-                letterSpacing = (-0.1).sp,
-            ),
-        titleLarge =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.Medium,
-                fontSize = 22.sp,
-                lineHeight = 26.sp,
-                letterSpacing = 0.sp,
-            ),
-        titleMedium =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
-                lineHeight = 22.sp,
-                letterSpacing = 0.1.sp,
-            ),
-        titleSmall =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                letterSpacing = 0.1.sp,
-            ),
-        bodyLarge =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.Normal,
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                letterSpacing = 0.3.sp,
-            ),
-        bodyMedium =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.Normal,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                letterSpacing = 0.2.sp,
-            ),
-        bodySmall =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.Normal,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                letterSpacing = 0.3.sp,
-            ),
-        labelLarge =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 14.sp,
-                lineHeight = 18.sp,
-                letterSpacing = 0.1.sp,
-            ),
-        labelMedium =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.Medium,
-                fontSize = 12.sp,
-                lineHeight = 16.sp,
-                letterSpacing = 0.4.sp,
-            ),
-        labelSmall =
-            TextStyle(
-                fontFamily = family,
-                fontWeight = FontWeight.Medium,
-                fontSize = 11.sp,
-                lineHeight = 14.sp,
-                letterSpacing = 0.4.sp,
-            ),
+        displayLarge = boxLoreTextStyle(family, FontWeight.SemiBold, 57, 60, -0.5f),
+        displayMedium = boxLoreTextStyle(family, FontWeight.SemiBold, 45, 48, -0.3f),
+        displaySmall = boxLoreTextStyle(family, FontWeight.Medium, 36, 40, -0.25f),
+        headlineLarge = boxLoreTextStyle(family, FontWeight.Bold, 32, 36, -0.3f),
+        headlineMedium = boxLoreTextStyle(family, FontWeight.SemiBold, 28, 32, -0.2f),
+        headlineSmall = boxLoreTextStyle(family, FontWeight.SemiBold, 24, 28, -0.1f),
+        titleLarge = boxLoreTextStyle(family, FontWeight.Medium, 22, 26, 0f),
+        titleMedium = boxLoreTextStyle(family, FontWeight.SemiBold, 16, 22, 0.1f),
+        titleSmall = boxLoreTextStyle(family, FontWeight.SemiBold, 14, 18, 0.1f),
+        bodyLarge = boxLoreTextStyle(family, FontWeight.Normal, 16, 24, 0.3f),
+        bodyMedium = boxLoreTextStyle(family, FontWeight.Normal, 14, 20, 0.2f),
+        bodySmall = boxLoreTextStyle(family, FontWeight.Normal, 12, 16, 0.3f),
+        labelLarge = boxLoreTextStyle(family, FontWeight.SemiBold, 14, 18, 0.1f),
+        labelMedium = boxLoreTextStyle(family, FontWeight.Medium, 12, 16, 0.4f),
+        labelSmall = boxLoreTextStyle(family, FontWeight.Medium, 11, 14, 0.4f),
     )
 }
 
@@ -248,6 +131,29 @@ val LogoFontFamily =
     } else {
         RobotoFlexFamily
     }
+
+@OptIn(ExperimentalTextApi::class)
+private fun flexFontFamilyOrFallback(vararg faces: Font): FontFamily =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        FontFamily(*faces)
+    } else {
+        FontFamily(Font(R.font.google_sans_flex_variable))
+    }
+
+private fun boxLoreTextStyle(
+    family: FontFamily,
+    weight: FontWeight,
+    fontSize: Int,
+    lineHeight: Int,
+    letterSpacing: Float,
+): TextStyle =
+    TextStyle(
+        fontFamily = family,
+        fontWeight = weight,
+        fontSize = fontSize.sp,
+        lineHeight = lineHeight.sp,
+        letterSpacing = letterSpacing.sp,
+    )
 
 @OptIn(ExperimentalTextApi::class)
 private fun flexFace(
