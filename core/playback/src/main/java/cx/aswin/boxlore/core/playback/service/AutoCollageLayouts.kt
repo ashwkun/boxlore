@@ -1,5 +1,6 @@
 package cx.aswin.boxlore.core.playback.service
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
@@ -9,10 +10,12 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
+import cx.aswin.boxlore.core.designsystem.theme.GoogleSansFlexTypeface
 
 /** Layout helpers for [AutoCollageGenerator] Android Auto folder tiles. */
 internal object AutoCollageLayouts {
     fun draw(
+        context: Context,
         canvas: Canvas,
         size: Int,
         folderId: String,
@@ -26,12 +29,13 @@ internal object AutoCollageLayouts {
             else -> drawFourGrid(canvas, size, bitmaps)
         }
         when {
-            folderId.contains("drive_mix") -> drawLabelBadge(canvas, size, "MIX")
-            folderId.contains("continue") -> drawLabelBadge(canvas, size, "RESUME")
+            folderId.contains("drive_mix") -> drawLabelBadge(context, canvas, size, "MIX")
+            folderId.contains("continue") -> drawLabelBadge(context, canvas, size, "RESUME")
         }
     }
 
     private fun drawLabelBadge(
+        context: Context,
         canvas: Canvas,
         size: Int,
         label: String,
@@ -58,7 +62,7 @@ internal object AutoCollageLayouts {
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = Color.WHITE
                 textSize = size * 0.065f
-                typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                typeface = GoogleSansFlexTypeface.createFromCachedRoundness(context, weight = 700)
                 textAlign = Paint.Align.CENTER
             }
         val centerY = badge.centerY() - (textPaint.ascent() + textPaint.descent()) / 2f
