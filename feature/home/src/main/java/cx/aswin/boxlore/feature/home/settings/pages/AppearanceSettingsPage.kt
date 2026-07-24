@@ -137,7 +137,7 @@ private fun ThemeModeSection(
             }
             ConnectedOptionSelector(
                 options = ThemeMode.entries.map { it.key to it.label },
-                selectedKey = selectedMode.key,
+                selected = selectedMode.key,
                 onSelect = { key ->
                     val mode = ThemeMode.fromKey(key) ?: return@ConnectedOptionSelector
                     if (modeLock != null && mode != modeLock.mode) {
@@ -218,7 +218,7 @@ private fun LetteringSection(
         SettingsContent {
             ConnectedOptionSelector(
                 options = FontRoundness.entries.map { it.key to it.label },
-                selectedKey = selectedKey,
+                selected = selectedKey,
                 onSelect = onSetFontRoundness,
             )
             LetteringTips(
