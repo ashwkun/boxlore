@@ -37,7 +37,7 @@ class UserPreferencesRepository(
 
     /** Lettering roundness preset key: `crisp` | `soft` (default) | `round`. */
     val cachedFontRoundness: String
-        get() = sanitizeFontRoundness(syncPrefs.getString("font_roundness", null))
+        get() = FontRoundnessAxis.sanitizeKey(syncPrefs.getString(FontRoundnessAxis.PREF_KEY, null))
 
     val cachedThemeBrand: String
         get() = syncPrefs.getString("theme_brand", null) ?: "violet"
@@ -274,14 +274,14 @@ class UserPreferencesRepository(
             .catch { exception ->
                 if (exception is IOException) emit(emptyPreferences()) else throw exception
             }.map { preferences ->
-                val roundness = sanitizeFontRoundness(preferences[Keys.FONT_ROUNDNESS])
-                syncPrefs.edit().putString("font_roundness", roundness).apply()
+                val roundness = FontRoundnessAxis.sanitizeKey(preferences[Keys.FONT_ROUNDNESS])
+                syncPrefs.edit().putString(FontRoundnessAxis.PREF_KEY, roundness).apply()
                 roundness
             }.distinctUntilChanged()
 
     suspend fun setFontRoundness(fontRoundness: String) {
-        val sanitized = sanitizeFontRoundness(fontRoundness)
-        syncPrefs.edit().putString("font_roundness", sanitized).apply()
+        val sanitized = FontRoundnessAxis.sanitizeKey(fontRoundness)
+        syncPrefs.edit().putString(FontRoundnessAxis.PREF_KEY, sanitized).apply()
         dataStore.edit { preferences ->
             preferences[Keys.FONT_ROUNDNESS] = sanitized
         }
@@ -1037,15 +1037,9 @@ class UserPreferencesRepository(
         }
     }
 
-    private fun sanitizeFontRoundness(value: String?): String =
-        when (value?.trim()?.lowercase()) {
-            FONT_ROUNDNESS_CRISP, FONT_ROUNDNESS_ROUND -> value.trim().lowercase()
-            else -> FONT_ROUNDNESS_SOFT
-        }
-
     companion object {
-        const val FONT_ROUNDNESS_CRISP = "crisp"
-        const val FONT_ROUNDNESS_SOFT = "soft"
-        const val FONT_ROUNDNESS_ROUND = "round"
+        const val FONT_ROUNDNESS_CRISP = FontRoundnessAxis.CRISP
+        const val FONT_ROUNDNESS_SOFT = FontRoundnessAxis.SOFT
+        const val FONT_ROUNDNESS_ROUND = FontRoundnessAxis.ROUND
     }
 }

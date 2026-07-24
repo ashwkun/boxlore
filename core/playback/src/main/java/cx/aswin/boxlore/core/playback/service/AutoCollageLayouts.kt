@@ -15,6 +15,7 @@ import android.graphics.fonts.FontFamily
 import android.graphics.fonts.FontStyle
 import android.os.Build
 import androidx.core.content.res.ResourcesCompat
+import cx.aswin.boxlore.core.prefs.FontRoundnessAxis
 
 /** Layout helpers for [AutoCollageGenerator] Android Auto folder tiles. */
 internal object AutoCollageLayouts {
@@ -78,17 +79,7 @@ internal object AutoCollageLayouts {
      * user's lettering roundness from theme fast-cache. Falls back to bold sans-serif.
      */
     private fun loadGoogleSansBold(context: Context): Typeface {
-        val roundness =
-            context
-                .getSharedPreferences("boxlore_theme_fast_cache", Context.MODE_PRIVATE)
-                .getString("font_roundness", "soft")
-                .let { key ->
-                    when (key?.trim()?.lowercase()) {
-                        "crisp" -> 0
-                        "round" -> 100
-                        else -> 50
-                    }
-                }
+        val roundness = FontRoundnessAxis.cachedAxisValue(context)
         val fontResId =
             context.resources.getIdentifier(
                 "google_sans_flex_variable",

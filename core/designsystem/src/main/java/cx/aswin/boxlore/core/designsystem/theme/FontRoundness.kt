@@ -28,11 +28,13 @@ object FontRoundness {
             Entry(ROUND, "Round", AXIS_ROUND),
         )
 
-    fun sanitizeKey(key: String?): String =
-        when (key?.trim()?.lowercase()) {
-            CRISP, ROUND -> key.trim().lowercase()
+    fun sanitizeKey(key: String?): String {
+        val normalized = key?.trim()?.lowercase()
+        return when (normalized) {
+            CRISP, ROUND -> normalized
             else -> DEFAULT_KEY
         }
+    }
 
     fun axisValue(key: String?): Float =
         when (sanitizeKey(key)) {

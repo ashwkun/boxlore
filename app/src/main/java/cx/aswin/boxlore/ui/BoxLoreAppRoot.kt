@@ -20,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -295,8 +296,8 @@ fun BoxLoreAppRoot(
     val surfaceStyle by userPrefs.surfaceStyleStream.collectAsState(
         initial = remember { userPrefs.cachedSurfaceStyle },
     )
-    val fontRoundnessKey by userPrefs.fontRoundnessStream.collectAsState(
-        initial = remember { userPrefs.cachedFontRoundness },
+    val fontRoundnessKey by userPrefs.fontRoundnessStream.collectAsStateWithLifecycle(
+        initialValue = remember { userPrefs.cachedFontRoundness },
     )
     val fontRoundness =
         remember(fontRoundnessKey) {
