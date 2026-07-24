@@ -7,7 +7,7 @@ import cx.aswin.boxlore.core.prefs.FontRoundnessAxis
  * Pref keys match [cx.aswin.boxlore.core.prefs.UserPreferencesRepository] (`crisp` / `soft` / `round`).
  */
 object FontRoundness {
-    10|    const val CRISP = FontRoundnessAxis.CRISP
+    const val CRISP = FontRoundnessAxis.CRISP
     const val SOFT = FontRoundnessAxis.SOFT
     const val ROUND = FontRoundnessAxis.ROUND
 
