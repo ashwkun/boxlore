@@ -10,7 +10,7 @@ import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
-import cx.aswin.boxlore.core.prefs.GoogleSansFlexTypeface
+import cx.aswin.boxlore.core.designsystem.theme.GoogleSansFlexTypeface
 
 /** Layout helpers for [AutoCollageGenerator] Android Auto folder tiles. */
 internal object AutoCollageLayouts {

@@ -1,4 +1,4 @@
-package cx.aswin.boxlore.core.prefs
+package cx.aswin.boxlore.core.designsystem.theme
 
 import android.content.Context
 import android.graphics.Typeface
@@ -7,8 +7,10 @@ import android.graphics.fonts.FontFamily
 import android.graphics.fonts.FontStyle
 import android.os.Build
 import androidx.core.content.res.ResourcesCompat
+import cx.aswin.boxlore.core.designsystem.R
+import cx.aswin.boxlore.core.prefs.FontRoundnessAxis
 
-/** Shared Android [Typeface] loader for bundled Google Sans Flex (ROND axis). */
+/** Android [Typeface] loader for bundled Google Sans Flex (ROND axis). */
 object GoogleSansFlexTypeface {
     fun create(
         context: Context,
@@ -16,13 +18,10 @@ object GoogleSansFlexTypeface {
         roundness: Int,
         italic: Boolean = false,
     ): Typeface {
-        val fontResId = resolveFontResId(context)
-        if (fontResId != 0 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            createWithVariation(context, fontResId, weight, roundness, italic)?.let { return it }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            createWithVariation(context, weight, roundness, italic)?.let { return it }
         }
-        if (fontResId != 0) {
-            createFromResource(context, fontResId, weight, italic)?.let { return it }
-        }
+        createFromResource(context, weight, italic)?.let { return it }
         return Typeface.create(Typeface.SANS_SERIF, styleForWeight(weight, italic))
     }
 
@@ -34,14 +33,13 @@ object GoogleSansFlexTypeface {
 
     private fun createWithVariation(
         context: Context,
-        fontResId: Int,
         weight: Int,
         roundness: Int,
         italic: Boolean,
     ): Typeface? =
         try {
             val font =
-                Font.Builder(context.resources, fontResId)
+                Font.Builder(context.resources, R.font.google_sans_flex_variable)
                     .setFontVariationSettings("'ROND' $roundness")
                     .setWeight(weight.coerceIn(1, 1000))
                     .setSlant(
@@ -56,15 +54,14 @@ object GoogleSansFlexTypeface {
 
     private fun createFromResource(
         context: Context,
-        fontResId: Int,
         weight: Int,
         italic: Boolean,
     ): Typeface? =
-        ResourcesCompat.getFont(context, fontResId)?.let { base ->
+        ResourcesCompat.getFont(context, R.font.google_sans_flex_variable)?.let { base ->
             Typeface.create(base, styleForWeight(weight, italic))
         }
 
-    private fun styleForWeight(
+    internal fun styleForWeight(
         weight: Int,
         italic: Boolean,
     ): Int =
@@ -74,11 +71,4 @@ object GoogleSansFlexTypeface {
             weight >= 600 -> Typeface.BOLD
             else -> Typeface.NORMAL
         }
-
-    private fun resolveFontResId(context: Context): Int =
-        context.resources.getIdentifier(
-            "google_sans_flex_variable",
-            "font",
-            context.packageName,
-        )
 }

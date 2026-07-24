@@ -3,7 +3,6 @@ package cx.aswin.boxlore.core.designsystem.theme
 import android.content.Context
 import android.graphics.Typeface
 import cx.aswin.boxlore.core.prefs.FontRoundnessAxis
-import cx.aswin.boxlore.core.prefs.GoogleSansFlexTypeface
 
 /** Android [Typeface] loader for Google Sans Flex with a ROND axis value. */
 object GoogleSansTypefaces {

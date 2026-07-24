@@ -1,19 +1,21 @@
 package cx.aswin.boxlore.core.designsystem.theme
 
+import cx.aswin.boxlore.core.prefs.FontRoundnessAxis
+
 /**
  * Google Sans Flex **ROND** axis presets for Appearance → Lettering.
  * Pref keys match [cx.aswin.boxlore.core.prefs.UserPreferencesRepository] (`crisp` / `soft` / `round`).
  */
 object FontRoundness {
-    const val CRISP = "crisp"
-    const val SOFT = "soft"
-    const val ROUND = "round"
+    const val CRISP = FontRoundnessAxis.CRISP
+    const val SOFT = FontRoundnessAxis.SOFT
+    const val ROUND = FontRoundnessAxis.ROUND
 
     const val DEFAULT_KEY = SOFT
 
-    const val AXIS_CRISP = 0f
-    const val AXIS_SOFT = 50f
-    const val AXIS_ROUND = 100f
+    const val AXIS_CRISP = FontRoundnessAxis.AXIS_CRISP.toFloat()
+    const val AXIS_SOFT = FontRoundnessAxis.AXIS_SOFT.toFloat()
+    const val AXIS_ROUND = FontRoundnessAxis.AXIS_ROUND.toFloat()
 
     data class Entry(
         val key: String,
@@ -28,20 +30,9 @@ object FontRoundness {
             Entry(ROUND, "Round", AXIS_ROUND),
         )
 
-    fun sanitizeKey(key: String?): String {
-        val normalized = key?.trim()?.lowercase()
-        return when (normalized) {
-            CRISP, ROUND -> normalized
-            else -> DEFAULT_KEY
-        }
-    }
+    fun sanitizeKey(key: String?): String = FontRoundnessAxis.sanitizeKey(key)
 
-    fun axisValue(key: String?): Float =
-        when (sanitizeKey(key)) {
-            CRISP -> AXIS_CRISP
-            ROUND -> AXIS_ROUND
-            else -> AXIS_SOFT
-        }
+    fun axisValue(key: String?): Float = FontRoundnessAxis.axisValue(key).toFloat()
 }
 
 /**
